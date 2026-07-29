@@ -3,7 +3,7 @@
 #include <cmath>
 
 Bunker::Bunker(float x, float y, Color col) : originX(x), originY(y), color(col) {
-    voxels.assign((size_t)COLS * ROWS, true);
+    voxels.assign((size_t)COLS * ROWS, 1);
 
     // Khoét sẵn 1 vòm cổng ở đáy - chữ U ngược - giống silhouette bunker cổ điển của
     // Space Invaders thay vì 1 khối chữ nhật trơn.
@@ -77,8 +77,8 @@ bool Bunker::HandleBulletHit(Rectangle bulletRect) {
 }
 
 bool Bunker::IsFullyDestroyed() const {
-    for (bool v : voxels) {
-        if (v) return false;
+    for (uint8_t v : voxels) {
+        if (v != 0) return false;
     }
     return true;
 }

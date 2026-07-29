@@ -1,5 +1,6 @@
 #include "game_manager.h"
 #include <cmath>
+#include <array>
 
 // ==========================================
 // TRANSITION (fade giữa các state)
@@ -34,7 +35,9 @@ float GameManager::GetTransitionAlpha() const {
 // ==========================================
 void GameManager::InitLevel() {
     player.Reset();
-    enemies.clear();
+    basicEnemies.Clear();
+    tankyEnemies.Clear();
+    zigzagEnemies.Clear();
     bunkers.clear();
     playerBullets.Reset();
     enemyBullets.Reset();
@@ -42,20 +45,23 @@ void GameManager::InitLevel() {
 
     // Số hàng/cột + khoảng cách đọc từ level.cfg (LoadFromFile trong Run()) thay vì
     // hardcode r<4,c<10 - đổi độ hình chỉ cần sửa file cấu hình, không phải build lại.
+    // Capacity của cả 3 pool được tính đúng theo công thức spawn này tại giới hạn lưới
+    // tối đa (xem Config::MAX_*_ENEMIES) nên Spawn() không bao giờ thất bại ở đây.
     for (int r = 0; r < levelGrid.rows; r++) {
         for (int c = 0; c < levelGrid.cols; c++) {
             float x = levelGrid.startX + c * levelGrid.spacingX;
             float y = levelGrid.startY + r * levelGrid.spacingY;
             Color col = (r % 2 == 0) ? PURPLE : VIOLET;
 
-            // Đa hình: hàng đầu tiên là địch bay zig-zag (khó bắn trúng), cứ mỗi 5 cột
-            // có 1 địch máu dày ở giữa đội hình, còn lại là địch thường.
+            // Hàng đầu tiên là địch bay zig-zag (khó bắn trúng), cứ mỗi 5 cột có 1 địch
+            // máu dày ở giữa đội hình, còn lại là địch thường - chọn đúng pool tĩnh
+            // tương ứng thay vì tạo đối tượng đa hình trên heap.
             if (r == 0) {
-                enemies.push_back(std::make_unique<ZigzagEnemy>(x, y, SKYBLUE, c));
+                zigzagEnemies.Spawn(ZigzagEnemy{ {x, y, 36.0f, 22.0f}, SKYBLUE, c, 0.0f, 0.0f });
             } else if (c % 5 == 0) {
-                enemies.push_back(std::make_unique<TankyEnemy>(x, y, MAROON, c));
+                tankyEnemies.Spawn(TankyEnemy{ {x, y, 44.0f, 30.0f}, MAROON, c, TankyEnemy::HP });
             } else {
-                enemies.push_back(std::make_unique<BasicEnemy>(x, y, col, c));
+                basicEnemies.Spawn(BasicEnemy{ {x, y, 40.0f, 25.0f}, col, c });
             }
         }
     }
@@ -148,16 +154,27 @@ void GameManager::UpdatePlaying(float dt) {
 
 void GameManager::UpdateEnemies(float dt) {
     bool hitEdge = false;
-    int activeCount = 0;
 
-    for (auto& e : enemies) {
-        if (!e->IsActive()) continue;
-        activeCount++;
-        e->Update(dt); // Hành vi riêng của từng loại địch (vd zig-zag) trước khi áp đội hình
-        e->MoveX(enemyDirection * enemySpeed * dt);
-        if (e->GetX() <= 0 || e->GetX() + e->GetWidth() >= Config::SCREEN_W) hitEdge = true;
+    // Basic/Tanky: chỉ áp dụng đội hình di chuyển ngang, không có hành vi phụ.
+    for (size_t i = 0; i < basicEnemies.Size(); i++) {
+        Rectangle& r = basicEnemies[i].rect;
+        r.x += enemyDirection * enemySpeed * dt;
+        if (r.x <= 0 || r.x + r.width >= Config::SCREEN_W) hitEdge = true;
+    }
+    for (size_t i = 0; i < tankyEnemies.Size(); i++) {
+        Rectangle& r = tankyEnemies[i].rect;
+        r.x += enemyDirection * enemySpeed * dt;
+        if (r.x <= 0 || r.x + r.width >= Config::SCREEN_W) hitEdge = true;
+    }
+    // Zigzag: hành vi riêng (dao động sin) trước khi áp đội hình ngang.
+    for (size_t i = 0; i < zigzagEnemies.Size(); i++) {
+        ZigzagEnemy& e = zigzagEnemies[i];
+        e.Update(dt);
+        e.rect.x += enemyDirection * enemySpeed * dt;
+        if (e.rect.x <= 0 || e.rect.x + e.rect.width >= Config::SCREEN_W) hitEdge = true;
     }
 
+    size_t activeCount = basicEnemies.Size() + tankyEnemies.Size() + zigzagEnemies.Size();
     if (activeCount == 0) {
         audio.PlayWin();
         newHighScoreThisRun = highScore.TrySubmit(player.GetScore());
@@ -170,13 +187,37 @@ void GameManager::UpdateEnemies(float dt) {
     if (hitEdge) {
         enemyDirection *= -1;
         enemySpeed = fminf(enemySpeed + Config::ENEMY_SPEED_INC, stats.enemySpeedMax);
-        for (auto& e : enemies) {
-            if (!e->IsActive()) continue;
-            e->MoveY(20.0f);
-            if (e->GetX() < 0) e->ForceX(0);
-            if (e->GetX() + e->GetWidth() > Config::SCREEN_W) e->ForceX(Config::SCREEN_W - e->GetWidth());
 
-            if (e->GetBottom() >= player.GetY()) {
+        for (size_t i = 0; i < basicEnemies.Size(); i++) {
+            Rectangle& r = basicEnemies[i].rect;
+            r.y += 20.0f;
+            if (r.x < 0) r.x = 0;
+            if (r.x + r.width > Config::SCREEN_W) r.x = Config::SCREEN_W - r.width;
+            if (EnemyBottom(r) >= player.GetY()) {
+                audio.PlayGameOver();
+                newHighScoreThisRun = highScore.TrySubmit(player.GetScore());
+                RequestTransition(GameState::GAME_OVER);
+                return;
+            }
+        }
+        for (size_t i = 0; i < tankyEnemies.Size(); i++) {
+            Rectangle& r = tankyEnemies[i].rect;
+            r.y += 20.0f;
+            if (r.x < 0) r.x = 0;
+            if (r.x + r.width > Config::SCREEN_W) r.x = Config::SCREEN_W - r.width;
+            if (EnemyBottom(r) >= player.GetY()) {
+                audio.PlayGameOver();
+                newHighScoreThisRun = highScore.TrySubmit(player.GetScore());
+                RequestTransition(GameState::GAME_OVER);
+                return;
+            }
+        }
+        for (size_t i = 0; i < zigzagEnemies.Size(); i++) {
+            Rectangle& r = zigzagEnemies[i].rect;
+            r.y += 20.0f;
+            if (r.x < 0) r.x = 0;
+            if (r.x + r.width > Config::SCREEN_W) r.x = Config::SCREEN_W - r.width;
+            if (EnemyBottom(r) >= player.GetY()) {
                 audio.PlayGameOver();
                 newHighScoreThisRun = highScore.TrySubmit(player.GetScore());
                 RequestTransition(GameState::GAME_OVER);
@@ -189,30 +230,44 @@ void GameManager::UpdateEnemies(float dt) {
     if (enemyFireTimer >= stats.enemyFireRate) {
         enemyFireTimer = 0.0f;
 
-        // AI "line of sight": nhóm địch theo cột gán lúc spawn. Trong mỗi cột, chỉ địch
-        // nằm THẤP NHẤT (không bị đồng đội cùng cột che phía trước) mới được cấp quyền
-        // bắn - random chọn 1 trong các "tiền tuyến" đó thay vì random toàn bộ enemy
-        // đang sống như trước (vốn có thể chọn trúng 1 con bị chặn hoàn toàn phía trước).
-        std::vector<int> frontlinePerColumn(levelGrid.cols, -1);
-        for (size_t i = 0; i < enemies.size(); i++) {
-            if (!enemies[i]->IsActive()) continue;
-            int col = enemies[i]->GetColumn();
-            if (col < 0 || col >= levelGrid.cols) continue;
+        // AI "line of sight": nhóm địch theo cột gán lúc spawn, xét CHUNG cả 3 pool.
+        // Trong mỗi cột, chỉ địch nằm THẤP NHẤT (không bị đồng đội cùng cột che phía
+        // trước) mới được cấp quyền bắn - random chọn 1 trong các "tiền tuyến" đó.
+        struct Frontline { EnemyKind kind; int index; float bottom; };
+        std::vector<Frontline> frontlinePerColumn(levelGrid.cols, { EnemyKind::Basic, -1, 0.0f });
 
-            int& best = frontlinePerColumn[col];
-            if (best == -1 || enemies[i]->GetBottom() > enemies[best]->GetBottom()) {
-                best = (int)i;
+        auto considerColumn = [&](EnemyKind kind, int column, int index, float bottom) {
+            if (column < 0 || column >= levelGrid.cols) return;
+            Frontline& best = frontlinePerColumn[column];
+            if (best.index == -1 || bottom > best.bottom) {
+                best = { kind, index, bottom };
             }
+        };
+
+        for (size_t i = 0; i < basicEnemies.Size(); i++) {
+            considerColumn(EnemyKind::Basic, basicEnemies[i].column, (int)i, EnemyBottom(basicEnemies[i].rect));
+        }
+        for (size_t i = 0; i < tankyEnemies.Size(); i++) {
+            considerColumn(EnemyKind::Tanky, tankyEnemies[i].column, (int)i, EnemyBottom(tankyEnemies[i].rect));
+        }
+        for (size_t i = 0; i < zigzagEnemies.Size(); i++) {
+            considerColumn(EnemyKind::Zigzag, zigzagEnemies[i].column, (int)i, EnemyBottom(zigzagEnemies[i].rect));
         }
 
-        std::vector<int> shooters;
-        for (int idx : frontlinePerColumn) {
-            if (idx != -1) shooters.push_back(idx);
+        std::vector<Frontline> shooters;
+        for (const Frontline& f : frontlinePerColumn) {
+            if (f.index != -1) shooters.push_back(f);
         }
 
         if (!shooters.empty()) {
-            int pick = shooters[GetRandomValue(0, (int)shooters.size() - 1)];
-            EnemyShoot(enemies[pick]->GetCenterX(), enemies[pick]->GetBottomY());
+            const Frontline& pick = shooters[GetRandomValue(0, (int)shooters.size() - 1)];
+            Rectangle rect{};
+            switch (pick.kind) {
+                case EnemyKind::Basic:  rect = basicEnemies[pick.index].rect;  break;
+                case EnemyKind::Tanky:  rect = tankyEnemies[pick.index].rect;  break;
+                case EnemyKind::Zigzag: rect = zigzagEnemies[pick.index].rect; break;
+            }
+            EnemyShoot(EnemyCenterX(rect), EnemyBottomY(rect));
         }
     }
 }
@@ -224,11 +279,26 @@ void GameManager::EnemyShoot(float x, float y) {
 void GameManager::CheckCollisions() {
     // Băm lại enemy đang sống vào lưới không gian mỗi frame (O(M)) - đổi lại mỗi viên
     // đạn chỉ cần test va chạm với enemy nằm trong (các) ô nó phủ tới, thay vì toàn bộ
-    // danh sách enemy (dẹp vòng lặp lồng nhau O(N_bullet x M_enemy) trước đây).
-    enemyGrid.Clear();
-    for (size_t i = 0; i < enemies.size(); i++) {
-        if (enemies[i]->IsActive()) enemyGrid.Insert((int)i, enemies[i]->GetRect());
-    }
+    // danh sách enemy (dẹp vòng lặp lồng nhau O(N_bullet x M_enemy) trước đây). Mỗi
+    // loại địch có 1 grid riêng, khớp với 3 Pool tĩnh.
+    basicGrid.Clear();
+    tankyGrid.Clear();
+    zigzagGrid.Clear();
+    for (size_t i = 0; i < basicEnemies.Size(); i++)  basicGrid.Insert((int)i, basicEnemies[i].rect);
+    for (size_t i = 0; i < tankyEnemies.Size(); i++)  tankyGrid.Insert((int)i, tankyEnemies[i].rect);
+    for (size_t i = 0; i < zigzagEnemies.Size(); i++) zigzagGrid.Insert((int)i, zigzagEnemies[i].rect);
+
+    // Swap-and-pop đá văng phần tử chết bằng cách ghi đè nó bởi phần tử CUỐI trong pool
+    // - nghĩa là index của phần tử cuối đó thay đổi ngay lập tức. Nếu xóa thẳng trong
+    // lúc đang duyệt candidates (vốn lấy từ grid đã băm 1 lần ở trên cho CẢ frame), 1
+    // enemy còn sống có thể bị "biến mất" khỏi việc dò va chạm cho phần còn lại của
+    // frame này (nó bị hoán đổi sang 1 index khác với ô mà grid đã ghi nhận). Do đó ở
+    // đây chỉ ĐÁNH DẤU chết (pendingKill, biến cục bộ theo frame - không phải cờ active
+    // tồn tại lâu dài trên từng phần tử), rồi mới quét & swap-and-pop 1 lượt DUY NHẤT
+    // sau khi đã xử lý xong toàn bộ đạn của frame này.
+    std::array<bool, Config::MAX_BASIC_ENEMIES>  basicPendingKill{};
+    std::array<bool, Config::MAX_TANKY_ENEMIES>  tankyPendingKill{};
+    std::array<bool, Config::MAX_ZIGZAG_ENEMIES> zigzagPendingKill{};
 
     std::vector<int> candidates; // Tái dùng buffer cho mọi query, tránh cấp phát lặp lại
 
@@ -245,18 +315,62 @@ void GameManager::CheckCollisions() {
             }
         }
 
+        // Trúng đòn hạ gục ngay (Basic/Zigzag, luôn 1 máu) - đánh dấu pendingKill, cộng
+        // điểm/hiệu ứng ngay (không phụ thuộc index nên an toàn để làm ngay lập tức).
         if (!consumed) {
-            enemyGrid.QueryIndices(bulletRect, candidates);
+            basicGrid.QueryIndices(bulletRect, candidates);
             for (int idx : candidates) {
-                Enemy& e = *enemies[idx];
-                if (!e.IsActive() || !CheckCollisionRecs(bulletRect, e.GetRect())) continue;
+                if (basicPendingKill[idx]) continue; // Đã bị bullet khác trong frame này hạ rồi
+                BasicEnemy& e = basicEnemies[idx];
+                if (!CheckCollisionRecs(bulletRect, e.rect)) continue;
 
-                bool destroyed = e.TakeHit();
-                if (destroyed) {
-                    particles.Burst(e.GetCenter(), 14, e.GetColor());
+                basicPendingKill[idx] = true;
+                particles.Burst(EnemyCenter(e.rect), 14, e.color);
+                audio.PlayExplosion();
+                screenShake.Trigger(0.12f, 4.0f);
+                player.AddScore(BasicEnemy::SCORE_VALUE);
+
+                playerBullets.Destroy(i);
+                consumed = true;
+                break;
+            }
+        }
+
+        if (!consumed) {
+            zigzagGrid.QueryIndices(bulletRect, candidates);
+            for (int idx : candidates) {
+                if (zigzagPendingKill[idx]) continue;
+                ZigzagEnemy& e = zigzagEnemies[idx];
+                if (!CheckCollisionRecs(bulletRect, e.rect)) continue;
+
+                zigzagPendingKill[idx] = true;
+                particles.Burst(EnemyCenter(e.rect), 14, e.color);
+                audio.PlayExplosion();
+                screenShake.Trigger(0.12f, 4.0f);
+                player.AddScore(ZigzagEnemy::SCORE_VALUE);
+
+                playerBullets.Destroy(i);
+                consumed = true;
+                break;
+            }
+        }
+
+        // Tanky: nhiều máu hơn - trừ hp ngay (an toàn, không đụng tới index), chỉ đánh
+        // dấu pendingKill khi hp thật sự về 0.
+        if (!consumed) {
+            tankyGrid.QueryIndices(bulletRect, candidates);
+            for (int idx : candidates) {
+                if (tankyPendingKill[idx]) continue;
+                TankyEnemy& e = tankyEnemies[idx];
+                if (!CheckCollisionRecs(bulletRect, e.rect)) continue;
+
+                if (e.hp > 0) e.hp--;
+                if (e.hp <= 0) {
+                    tankyPendingKill[idx] = true;
+                    particles.Burst(EnemyCenter(e.rect), 14, e.color);
                     audio.PlayExplosion();
                     screenShake.Trigger(0.12f, 4.0f);
-                    player.AddScore(e.GetScoreValue());
+                    player.AddScore(TankyEnemy::SCORE_VALUE);
                 } else {
                     // Địch máu dày vẫn còn sống sau đòn này - phản hồi nhẹ hơn để phân
                     // biệt với đòn hạ gục hẳn
@@ -271,6 +385,33 @@ void GameManager::CheckCollisions() {
         }
 
         if (!consumed) i++;
+    }
+
+    // Quét & swap-and-pop 1 lượt duy nhất sau khi đã xử lý xong toàn bộ đạn của frame
+    // này - lúc này việc index bị hoán đổi không còn ảnh hưởng gì tới vòng lặp trên nữa.
+    for (size_t i = 0; i < basicEnemies.Size(); ) {
+        if (basicPendingKill[i]) {
+            basicPendingKill[i] = basicPendingKill[basicEnemies.Size() - 1];
+            basicEnemies.Destroy(i);
+        } else {
+            i++;
+        }
+    }
+    for (size_t i = 0; i < tankyEnemies.Size(); ) {
+        if (tankyPendingKill[i]) {
+            tankyPendingKill[i] = tankyPendingKill[tankyEnemies.Size() - 1];
+            tankyEnemies.Destroy(i);
+        } else {
+            i++;
+        }
+    }
+    for (size_t i = 0; i < zigzagEnemies.Size(); ) {
+        if (zigzagPendingKill[i]) {
+            zigzagPendingKill[i] = zigzagPendingKill[zigzagEnemies.Size() - 1];
+            zigzagEnemies.Destroy(i);
+        } else {
+            i++;
+        }
     }
 
     // Đạn enemy: kiểm tra bunker trước, rồi mới tới player
@@ -335,7 +476,20 @@ void GameManager::DrawPlaying() const {
     cam.zoom = 1.0f;
 
     BeginMode2D(cam);
-    for (const auto& e : enemies) e->Draw();
+    for (size_t i = 0; i < basicEnemies.Size(); i++) {
+        DrawRectangleRec(basicEnemies[i].rect, basicEnemies[i].color);
+    }
+    for (size_t i = 0; i < tankyEnemies.Size(); i++) {
+        const TankyEnemy& e = tankyEnemies[i];
+        DrawRectangleRec(e.rect, e.color);
+        if (e.hp < TankyEnemy::HP) {
+            // Địch máu dày bị thương -> viền sáng để người chơi thấy rõ đã gây sát thương
+            DrawRectangleLinesEx(e.rect, 2.0f, WHITE);
+        }
+    }
+    for (size_t i = 0; i < zigzagEnemies.Size(); i++) {
+        DrawRectangleRec(zigzagEnemies[i].rect, zigzagEnemies[i].color);
+    }
     for (const auto& bunker : bunkers) bunker.Draw();
     playerBullets.Draw(YELLOW);
     enemyBullets.Draw(RED);

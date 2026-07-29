@@ -24,6 +24,23 @@ namespace Config {
     constexpr size_t MAX_ENEMY_BULLETS  = 500;
     constexpr size_t MAX_PARTICLES      = 400;
 
+    // ==========================================
+    // GIỚI HẠN LƯỚI ĐỘI HÌNH ĐỊCH (dùng chung bởi LevelGridConfig::Clamp() và
+    // kích thước tĩnh của 3 Enemy Pool bên dưới - PHẢI đồng bộ 1 nguồn duy nhất
+    // ở đây, không hardcode lại số 12/20 ở nơi khác).
+    // ==========================================
+    constexpr int MAX_GRID_ROWS = 12;
+    constexpr int MAX_GRID_COLS = 20;
+
+    // Kích thước tĩnh của từng Enemy Pool - tính đúng theo công thức spawn trong
+    // InitLevel() tại giới hạn lưới tối đa ở trên, cộng biên an toàn nhỏ:
+    //   - Zigzag: chỉ hàng đầu tiên (r==0)                       -> tối đa MAX_GRID_COLS
+    //   - Tanky : mỗi hàng còn lại, cứ 5 cột có 1 (c % 5 == 0)    -> tối đa (rows-1) * ceil(cols/5)
+    //   - Basic : phần còn lại của lưới
+    constexpr size_t MAX_ZIGZAG_ENEMIES = (size_t)MAX_GRID_COLS;
+    constexpr size_t MAX_TANKY_ENEMIES  = (size_t)(MAX_GRID_ROWS - 1) * ((MAX_GRID_COLS + 4) / 5);
+    constexpr size_t MAX_BASIC_ENEMIES  = (size_t)(MAX_GRID_ROWS * MAX_GRID_COLS) - MAX_ZIGZAG_ENEMIES - MAX_TANKY_ENEMIES;
+
     constexpr float TRANSITION_DURATION = 0.25f; // Thời gian fade giữa các state
 
     inline const char* HighScoreFilePath() { return "highscore.dat"; }

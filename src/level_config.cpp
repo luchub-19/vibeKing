@@ -1,5 +1,6 @@
 #include "level_config.h"
 #include "raylib.h"
+#include "config.h"
 #include <fstream>
 #include <sstream>
 #include <algorithm>
@@ -16,9 +17,9 @@ namespace {
 
 void LevelGridConfig::Clamp() {
     if (rows < 1) rows = 1;
-    if (rows > 12) rows = 12;
+    if (rows > Config::MAX_GRID_ROWS) rows = Config::MAX_GRID_ROWS;
     if (cols < 1) cols = 1;
-    if (cols > 20) cols = 20;
+    if (cols > Config::MAX_GRID_COLS) cols = Config::MAX_GRID_COLS;
     if (spacingX < 1.0f) spacingX = 1.0f;
     if (spacingY < 1.0f) spacingY = 1.0f;
     if (startX < 0.0f) startX = 0.0f;

@@ -1,6 +1,7 @@
 #pragma once
 #include "raylib.h"
 #include <vector>
+#include <cstdint>
 
 // ==========================================
 // BUNKER (LÁ CHẮN VOXEL)
@@ -17,7 +18,12 @@ private:
 
     float originX;
     float originY;
-    std::vector<bool> voxels; // true = voxel còn nguyên. Index: row * COLS + col
+    // std::vector<bool> là 1 bitset đặc biệt hoá (mỗi phần tử chỉ chiếm 1 bit), không
+    // phải mảng bool thật - mọi lần đọc/ghi đều phải qua phép dịch bit (bit-shifting)
+    // + mask ẩn ngầm để trích xuất đúng bit trong 1 word, và không trả về bool& thật
+    // (proxy object) nên trình biên dịch khó tối ưu/vector hoá. Đổi sang uint8_t: mỗi
+    // voxel chiếm đúng 1 byte thật, đọc/ghi trực tiếp không cần giải mã bit.
+    std::vector<uint8_t> voxels; // 1 = voxel còn nguyên, 0 = đã bị khoét. Index: row * COLS + col
     Color color;
 
     bool InBounds(int col, int row) const {
@@ -25,11 +31,11 @@ private:
     }
 
     bool IsSolid(int col, int row) const {
-        return InBounds(col, row) && voxels[(size_t)row * COLS + col];
+        return InBounds(col, row) && voxels[(size_t)row * COLS + col] != 0;
     }
 
     void CarveVoxel(int col, int row) {
-        if (InBounds(col, row)) voxels[(size_t)row * COLS + col] = false;
+        if (InBounds(col, row)) voxels[(size_t)row * COLS + col] = 0;
     }
 
 public:
