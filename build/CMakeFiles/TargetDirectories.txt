@@ -1,3 +1,0 @@
-/home/lucknguyen19/linktink/minigame/files/build/CMakeFiles/space_invaders.dir
-/home/lucknguyen19/linktink/minigame/files/build/CMakeFiles/edit_cache.dir
-/home/lucknguyen19/linktink/minigame/files/build/CMakeFiles/rebuild_cache.dir
