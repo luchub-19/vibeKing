@@ -1,10 +1,18 @@
 #include "audio_manager.h"
 #include <cmath>
-#include <cstdlib>
+#include <random>
 #include <vector>
 
 namespace {
     constexpr float PI_F = 3.14159265358979323846f;
+
+    // std::mt19937 seed 1 lần bằng random_device (entropy thật từ OS) rồi tái dùng cho
+    // toàn bộ noise waveform. rand() cũ dùng chung 1 seed toàn cục kém chất lượng và
+    // dễ trùng chu kỳ giữa các lần chạy - mt19937 cho phân bố đều và chất lượng cao hơn.
+    std::mt19937& NoiseRng() {
+        static std::mt19937 rng(std::random_device{}());
+        return rng;
+    }
 }
 
 Sound AudioManager::GenerateTone(float frequency, float durationSec, int waveType) {
@@ -22,7 +30,8 @@ Sound AudioManager::GenerateTone(float frequency, float durationSec, int waveTyp
         } else if (waveType == 1) {
             value = (sinf(2.0f * PI_F * frequency * t) >= 0.0f) ? 1.0f : -1.0f;
         } else {
-            value = ((float)(rand() % 2000) / 1000.0f) - 1.0f;
+            static std::uniform_real_distribution<float> noiseDist(-1.0f, 1.0f);
+            value = noiseDist(NoiseRng());
         }
 
         samples[i] = (short)(value * envelope * 12000.0f);

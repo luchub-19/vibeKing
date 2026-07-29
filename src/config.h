@@ -27,6 +27,7 @@ namespace Config {
     constexpr float TRANSITION_DURATION = 0.25f; // Thời gian fade giữa các state
 
     inline const char* HighScoreFilePath() { return "highscore.dat"; }
+    inline const char* LevelConfigFilePath() { return "level.cfg"; }
 }
 
 // ==========================================
