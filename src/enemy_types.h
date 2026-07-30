@@ -61,6 +61,44 @@ struct ZigzagEnemy {
 };
 
 // ==========================================
+// KAMIKAZE - KHÔNG spawn trong lưới đội hình, KHÔNG tham gia UpdateEnemies() (hitEdge,
+// enemyDirection, activeCount==0...) - Pool + SpatialGrid HOÀN TOÀN riêng (xem
+// GameManager::kamikazeEnemies/kamikazeGrid), spawn độc lập theo chu kỳ như UFO. Vì vậy
+// việc thêm loại địch này KHÔNG thể phá hỏng logic kiểm tra biên của lưới đội hình -
+// nó vốn không bao giờ chạm vào đoạn code đó.
+// ==========================================
+struct KamikazeEnemy {
+    Rectangle rect;
+    Color color;
+    Vector2 vel; // Vector lao thẳng, tính 1 lần lúc spawn (nhắm vào vị trí player lúc đó)
+
+    static constexpr int SCORE_VALUE = 150;
+};
+
+// ==========================================
+// BOSS - 1 thực thể duy nhất (không cần EnemyPool), rect lớn hơn hẳn 1 ô SpatialGrid
+// (80px) nên khi Insert() vào bossGrid sẽ tự động đăng ký vào NHIỀU ô cùng lúc (xem
+// SpatialGrid::Insert - đã hỗ trợ sẵn multi-cell từ trước, không cần sửa gì thêm).
+// 3 giai đoạn suy ra trực tiếp từ % HP còn lại (không lưu "stage" rời rạc riêng - tránh
+// state có thể lệch khỏi hp thật).
+// ==========================================
+struct Boss {
+    Rectangle rect{};
+    int hp = 0;
+    int maxHp = 0;
+    int direction = 1;
+    float fireTimer = 0.0f;
+
+    int Stage() const {
+        if (maxHp <= 0) return 1;
+        float ratio = (float)hp / (float)maxHp;
+        if (ratio > 0.66f) return 1;
+        if (ratio > 0.33f) return 2;
+        return 3;
+    }
+};
+
+// ==========================================
 // ENEMY POOL - SWAP-AND-POP, KHÔNG CÓ CỜ active/ZOMBIE
 // Mảng tĩnh cấp phát 1 lần trên stack (như BulletPool/ParticlePool). Không có field
 // "active" nào trên từng phần tử - biên giới [0, count) LÀ định nghĩa duy nhất của

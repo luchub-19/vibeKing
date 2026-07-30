@@ -1,8 +1,10 @@
 #include "bunker.h"
+#include "config.h"
 #include <algorithm>
 #include <cmath>
 
-Bunker::Bunker(float x, float y, Color col) : originX(x), originY(y), color(col) {
+Bunker::Bunker(float x, float y, Color col)
+    : originX(x), originY(y), baseX(x), patrolPhase((float)GetRandomValue(0, 628) / 100.0f), color(col) {
     voxels.assign((size_t)COLS * ROWS, 1);
 
     // Khoét sẵn 1 vòm cổng ở đáy - chữ U ngược - giống silhouette bunker cổ điển của
@@ -19,6 +21,11 @@ Bunker::Bunker(float x, float y, Color col) : originX(x), originY(y), color(col)
     // Bo góc trên cho mềm mại hơn thay vì góc vuông cứng
     CarveVoxel(0, 0);
     CarveVoxel(COLS - 1, 0);
+
+    // Chụp lại trạng thái NGAY SAU các nhát khoét có chủ đích ở trên - đây là "mức trần"
+    // cho regen ở Update(): chỉ hồi phục voxel nào ==1 ở đây mà hiện đang ==0 (tức là hư
+    // hại DO ĐẠN BẮN), không bao giờ lấp lại vòm cổng/góc bo tròn.
+    originalVoxels = voxels;
 }
 
 void Bunker::Draw() const {
@@ -81,4 +88,32 @@ bool Bunker::IsFullyDestroyed() const {
         if (v != 0) return false;
     }
     return true;
+}
+
+void Bunker::Update(float dt) {
+    // PATROL: originX dao dong quanh baseX theo sin - lien tuc moi frame (khong can
+    // timer rieng), phase khac nhau giua cac bunker (random luc khoi tao) nen chung
+    // khong dong bo mot cach may moc.
+    patrolPhase += Config::BUNKER_PATROL_SPEED * dt;
+    originX = baseX + sinf(patrolPhase) * Config::BUNKER_PATROL_AMPLITUDE;
+
+    // REGEN: cu moi BUNKER_REGEN_INTERVAL giay, hoi phuc toi da BUNKER_REGEN_PER_TICK
+    // voxel NGAU NHIEN trong so cac o dang bi khoet DO DAN BAN (voxels==0 nhung
+    // originalVoxels==1) - khong bao gio dung tram (voxels.size()) lam gioi han so lan
+    // thu random de tranh vong lap vo han neu khong con gi de hoi phuc.
+    regenTimer += dt;
+    if (regenTimer < Config::BUNKER_REGEN_INTERVAL) return;
+    regenTimer = 0.0f;
+
+    int restored = 0;
+    int attempts = 0;
+    int totalVoxels = (int)voxels.size();
+    while (restored < Config::BUNKER_REGEN_PER_TICK && attempts < totalVoxels) {
+        int idx = GetRandomValue(0, totalVoxels - 1);
+        if (voxels[idx] == 0 && originalVoxels[idx] == 1) {
+            voxels[idx] = 1;
+            restored++;
+        }
+        attempts++;
+    }
 }

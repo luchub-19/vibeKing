@@ -12,15 +12,36 @@ private:
     float invincibleTimer;
     float fireTimer;
 
+    // Power-up tam thoi (xem powerup.h). Tach rieng khoi invincibleTimer vi 2 co che
+    // doc lap: invincibleTimer la "vua trung don, cho tho 1 nhip", con shieldTimer la
+    // vat pham chu dong nhat duoc, do dung 1 don roi tat bat ke con thoi gian hay khong.
+    float shieldTimer = 0.0f;
+    float rapidFireTimer = 0.0f;
+    float pierceTimer = 0.0f; // Piercing Shot (power-up) - dan ban ra xuyen qua nhieu muc tieu
+
 public:
     Player();
+
+    // Reset toan bo (van choi moi): mang, diem, vi tri, moi power-up.
     void Reset();
 
-    // Trả về true nếu vừa bắn ra 1 viên đạn mới trong frame này (để GameManager phát SFX)
+    // Reset khi sang wave ke tiep trong CUNG 1 van: giu nguyen mang/diem, chi dua
+    // player ve vi tri xuat phat va tat cac power-up/hieu ung tam thoi con sot lai.
+    void ResetForNewWave();
+
+    // Tra ve true neu vua ban ra 1 vien dan moi trong frame nay (de GameManager phat SFX)
     bool Update(float dt, BulletPool<Config::MAX_PLAYER_BULLETS>& bullets);
 
-    // Trả về true nếu damage thực sự được áp dụng (false nếu đang bất tử -> miễn damage)
+    // Tra ve true neu damage thuc su duoc ap dung (false neu dang bat tu hoac vua
+    // dung khien do don -> mien damage)
     bool TakeDamage();
+
+    void GrantShield(float duration) { shieldTimer = duration; }
+    void GrantRapidFire(float duration) { rapidFireTimer = duration; }
+    void GrantPiercing(float duration) { pierceTimer = duration; }
+    bool HasShield() const { return shieldTimer > 0.0f; }
+    bool HasRapidFire() const { return rapidFireTimer > 0.0f; }
+    bool HasPiercing() const { return pierceTimer > 0.0f; }
 
     void AddScore(int points);
     void Draw() const;

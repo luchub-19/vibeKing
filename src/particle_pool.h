@@ -1,5 +1,6 @@
 #pragma once
 #include "raylib.h"
+#include "config.h"
 #include <cstddef>
 #include <cstdlib>
 #include <cmath>
@@ -25,7 +26,7 @@ public:
     void Update(float dt) {
         pos.x += vel.x * dt;
         pos.y += vel.y * dt;
-        vel.y += 260.0f * dt; // Trọng lực nhẹ để mảnh vỡ rơi tự nhiên thay vì bay thẳng
+        vel.y += Config::PARTICLE_GRAVITY * dt; // Trọng lực nhẹ để mảnh vỡ rơi tự nhiên thay vì bay thẳng
         life -= dt;
         if (life <= 0.0f) active = false;
     }

@@ -1,19 +1,12 @@
 #include "level_config.h"
 #include "raylib.h"
 #include "config.h"
+#include "text_utils.h"
 #include <fstream>
-#include <sstream>
-#include <algorithm>
-#include <cctype>
+#include <charconv>
 
-namespace {
-    std::string Trim(const std::string& s) {
-        size_t begin = s.find_first_not_of(" \t\r\n");
-        if (begin == std::string::npos) return "";
-        size_t end = s.find_last_not_of(" \t\r\n");
-        return s.substr(begin, end - begin + 1);
-    }
-}
+using TextUtils::Trim;
+using TextUtils::IEquals;
 
 void LevelGridConfig::Clamp() {
     if (rows < 1) rows = 1;
@@ -35,31 +28,47 @@ LevelGridConfig LevelGridConfig::LoadFromFile(const std::string& path) {
         return cfg;
     }
 
+    // getline can 1 buffer std::string de doc tung dong - day la copy DUY NHAT khong
+    // the tranh (I/O phai co noi chua). Moi buoc xu ly SAU do (Trim, tach key/value)
+    // deu lam viec tren string_view TRO THANG vao buffer `line` nay, khong copy them
+    // lan nao nua cho toi khi thuc su can std::string (khong cho, xem duoi).
     std::string line;
     while (std::getline(file, line)) {
-        line = Trim(line);
-        if (line.empty() || line[0] == '#') continue; // Bỏ qua dòng trống / comment
+        std::string_view trimmed = Trim(line);
+        if (trimmed.empty() || trimmed[0] == '#') continue; // Bỏ qua dòng trống / comment
 
-        size_t eq = line.find('=');
-        if (eq == std::string::npos) continue; // Dòng không đúng định dạng KEY=VALUE -> bỏ qua
+        size_t eq = trimmed.find('=');
+        if (eq == std::string_view::npos) continue; // Dòng không đúng định dạng KEY=VALUE -> bỏ qua
 
-        std::string key = Trim(line.substr(0, eq));
-        std::string val = Trim(line.substr(eq + 1));
+        std::string_view key = Trim(trimmed.substr(0, eq));
+        std::string_view val = Trim(trimmed.substr(eq + 1));
         if (val.empty()) continue;
 
-        std::transform(key.begin(), key.end(), key.begin(), [](unsigned char c) { return std::toupper(c); });
+        // std::from_chars parse THẲNG từ buffer gốc - không construct std::string trung
+        // gian chỉ để gọi std::stoi/std::stof như trước, và không throw exception (trả
+        // về error code) nên không cần try/catch nữa.
+        auto tryInt = [&](int& out) {
+            auto res = std::from_chars(val.data(), val.data() + val.size(), out);
+            return res.ec == std::errc{};
+        };
+        auto tryFloat = [&](float& out) {
+            auto res = std::from_chars(val.data(), val.data() + val.size(), out);
+            return res.ec == std::errc{};
+        };
 
-        try {
-            if (key == "ROWS")          cfg.rows = std::stoi(val);
-            else if (key == "COLS")     cfg.cols = std::stoi(val);
-            else if (key == "START_X")  cfg.startX = std::stof(val);
-            else if (key == "START_Y")  cfg.startY = std::stof(val);
-            else if (key == "SPACING_X") cfg.spacingX = std::stof(val);
-            else if (key == "SPACING_Y") cfg.spacingY = std::stof(val);
-            // Key lạ: bỏ qua thay vì lỗi, để file cấu hình dễ mở rộng về sau
-        } catch (...) {
-            // Giá trị không parse được (vd "ROWS=abc") -> giữ nguyên default cho field đó
-            TraceLog(LOG_WARNING, "LevelGridConfig: gia tri khong hop le cho key '%s'", key.c_str());
+        bool ok = true;
+        if (IEquals(key, "ROWS"))            ok = tryInt(cfg.rows);
+        else if (IEquals(key, "COLS"))       ok = tryInt(cfg.cols);
+        else if (IEquals(key, "START_X"))    ok = tryFloat(cfg.startX);
+        else if (IEquals(key, "START_Y"))    ok = tryFloat(cfg.startY);
+        else if (IEquals(key, "SPACING_X"))  ok = tryFloat(cfg.spacingX);
+        else if (IEquals(key, "SPACING_Y"))  ok = tryFloat(cfg.spacingY);
+        // Key lạ: bỏ qua thay vì lỗi, để file cấu hình dễ mở rộng về sau
+
+        if (!ok) {
+            // Giá trị không parse được (vd "ROWS=abc") -> giữ nguyên default cho field đó.
+            // %.*s in dung do dai view, khong can null-terminate rieng.
+            TraceLog(LOG_WARNING, "LevelGridConfig: gia tri khong hop le cho key '%.*s'", (int)key.size(), key.data());
         }
     }
 

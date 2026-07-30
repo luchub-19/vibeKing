@@ -3,26 +3,65 @@
 Player::Player() { Reset(); }
 
 void Player::Reset() {
-    rect = { 375.0f, 550.0f, 50.0f, 20.0f };
+    rect = { Config::PLAYER_SPAWN_X, Config::PLAYER_SPAWN_Y, Config::PLAYER_WIDTH, Config::PLAYER_HEIGHT };
     speed = Config::PLAYER_SPEED;
     lives = 3;
     score = 0;
     invincibleTimer = 0.0f;
-    fireTimer = Config::PLAYER_FIRE_RATE; // Chặn spam đạn đầu game
+    shieldTimer = 0.0f;
+    rapidFireTimer = 0.0f;
+    pierceTimer = 0.0f;
+    fireTimer = Config::PLAYER_FIRE_RATE; // Chan spam dan dau game
+}
+
+void Player::ResetForNewWave() {
+    // Giu nguyen lives/score - chi dua ve vi tri xuat phat va tat het hieu ung/power-up
+    // tam thoi con sot lai tu wave truoc, tranh mang "khien mien phi" sang wave moi.
+    rect.x = Config::PLAYER_SPAWN_X;
+    rect.y = Config::PLAYER_SPAWN_Y;
+    invincibleTimer = 0.0f;
+    shieldTimer = 0.0f;
+    rapidFireTimer = 0.0f;
+    pierceTimer = 0.0f;
+    fireTimer = Config::PLAYER_FIRE_RATE;
 }
 
 bool Player::Update(float dt, BulletPool<Config::MAX_PLAYER_BULLETS>& bullets) {
-    if (IsKeyDown(KEY_D) || IsKeyDown(KEY_RIGHT)) rect.x += speed * dt;
-    if (IsKeyDown(KEY_A) || IsKeyDown(KEY_LEFT)) rect.x -= speed * dt;
+    bool moveRight = IsKeyDown(KEY_D) || IsKeyDown(KEY_RIGHT);
+    bool moveLeft  = IsKeyDown(KEY_A) || IsKeyDown(KEY_LEFT);
+    bool fireHeld  = IsKeyDown(KEY_SPACE);
+
+    // Gamepad (tuy chon) - stick trai / D-pad de di chuyen, nut A (button 0) de ban.
+    // Chi doc khi gamepad 0 thuc su cam vao, khong ep buoc nguoi choi phai co tay cam.
+    if (IsGamepadAvailable(0)) {
+        float axisX = GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_X);
+        if (axisX > Config::GAMEPAD_DEADZONE || IsGamepadButtonDown(0, GAMEPAD_BUTTON_LEFT_FACE_RIGHT)) moveRight = true;
+        if (axisX < -Config::GAMEPAD_DEADZONE || IsGamepadButtonDown(0, GAMEPAD_BUTTON_LEFT_FACE_LEFT)) moveLeft = true;
+        if (IsGamepadButtonDown(0, GAMEPAD_BUTTON_RIGHT_FACE_DOWN)) fireHeld = true;
+    }
+
+    if (moveRight) rect.x += speed * dt;
+    if (moveLeft)  rect.x -= speed * dt;
     if (rect.x < 0) rect.x = 0;
     if (rect.x + rect.width > Config::SCREEN_W) rect.x = Config::SCREEN_W - rect.width;
 
     if (invincibleTimer > 0.0f) invincibleTimer -= dt;
+    if (shieldTimer > 0.0f) shieldTimer -= dt;
+    if (rapidFireTimer > 0.0f) rapidFireTimer -= dt;
+    if (pierceTimer > 0.0f) pierceTimer -= dt;
     fireTimer += dt;
 
-    if (IsKeyDown(KEY_SPACE) && fireTimer >= Config::PLAYER_FIRE_RATE) {
+    // Rapid Fire (power-up) rut ngan khoang cach giua 2 phat ban - khong doi toc do
+    // dan (Config::BULLET_SPEED), chi doi nhip ban ra.
+    float effectiveFireRate = (rapidFireTimer > 0.0f)
+        ? Config::PLAYER_FIRE_RATE * Config::POWERUP_RAPIDFIRE_FIRE_RATE_MUL
+        : Config::PLAYER_FIRE_RATE;
+
+    if (fireHeld && fireTimer >= effectiveFireRate) {
         fireTimer = 0.0f;
-        bullets.Fire(rect.x + rect.width / 2 - 2.5f, rect.y, Config::BULLET_SPEED);
+        int pierceHits = HasPiercing() ? Config::POWERUP_PIERCE_HITS : 0;
+        Vector2 vel = { 0.0f, -Config::BULLET_SPEED }; // Y am = bay len (Y+ la xuong duoi)
+        bullets.Fire(rect.x + rect.width / 2 - Config::BULLET_WIDTH / 2.0f, rect.y, vel, pierceHits);
         return true;
     }
     return false;
@@ -30,9 +69,18 @@ bool Player::Update(float dt, BulletPool<Config::MAX_PLAYER_BULLETS>& bullets) {
 
 bool Player::TakeDamage() {
     if (invincibleTimer > 0.0f) return false;
+
+    if (shieldTimer > 0.0f) {
+        // Khien do dung 1 don roi tat ngay - kem 1 nhip bat tu ngan de tranh mat lien
+        // 2 mang trong cung 1 frame neu nhieu dan enemy trung gan nhu dong thoi.
+        shieldTimer = 0.0f;
+        invincibleTimer = Config::PLAYER_SHIELD_HIT_GRACE;
+        return false;
+    }
+
     lives--;
     invincibleTimer = Config::INVINCIBLE_TIME;
-    rect.x = 375.0f;
+    rect.x = Config::PLAYER_SPAWN_X;
     return true;
 }
 
@@ -40,7 +88,18 @@ void Player::AddScore(int points) { score += points; }
 
 void Player::Draw() const {
     if (invincibleTimer > 0.0f) {
-        if (((int)(invincibleTimer * 10) % 2) != 0) return; // Nhấp nháy khi bất tử
+        if (((int)(invincibleTimer * 10) % 2) != 0) return; // Nhap nhay khi bat tu
     }
-    DrawRectangleRec(rect, GREEN);
+
+    Color tint = GREEN;
+    if (HasShield()) tint = SKYBLUE;
+    else if (HasPiercing()) tint = MAGENTA;
+    else if (HasRapidFire()) tint = ORANGE;
+
+    DrawRectangleRec(rect, tint);
+    if (HasShield()) {
+        // Vong khien bao quanh - phan biet ro voi mau tint don thuan
+        Rectangle ring{ rect.x - 4.0f, rect.y - 4.0f, rect.width + 8.0f, rect.height + 8.0f };
+        DrawRectangleLinesEx(ring, 2.0f, SKYBLUE);
+    }
 }

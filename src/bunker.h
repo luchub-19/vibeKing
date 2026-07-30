@@ -24,6 +24,19 @@ private:
     // (proxy object) nên trình biên dịch khó tối ưu/vector hoá. Đổi sang uint8_t: mỗi
     // voxel chiếm đúng 1 byte thật, đọc/ghi trực tiếp không cần giải mã bit.
     std::vector<uint8_t> voxels; // 1 = voxel còn nguyên, 0 = đã bị khoét. Index: row * COLS + col
+
+    // BUNKER LINH HOẠT:
+    // - originalVoxels: ảnh chụp trạng thái NGAY SAU khi khoét vòm cổng/góc bo tròn ban
+    //   đầu (thiết kế có chủ đích) - dùng làm "mức trần" cho regen, để cơ chế hồi phục
+    //   KHÔNG BAO GIỜ lấp lại những lỗ đó (chúng vốn không phải "hư hại do đạn bắn").
+    // - baseX/patrolPhase: originX dao động quanh baseX theo sóng sin thay vì đứng yên
+    //   tuyệt đối - patrolPhase lệch pha ngẫu nhiên giữa các bunker để chúng không đung
+    //   đưa đồng bộ trông máy móc.
+    std::vector<uint8_t> originalVoxels;
+    float baseX;
+    float patrolPhase;
+    float regenTimer = 0.0f;
+
     Color color;
 
     bool InBounds(int col, int row) const {
@@ -49,6 +62,10 @@ public:
     Rectangle GetBounds() const { return { originX, originY, GetWidth(), GetHeight() }; }
 
     void Draw() const;
+
+    // Goi moi frame: hoi phuc dan 1 so voxel bi khoet (regen) + dao dong ngang nhe
+    // (patrol). Xem cai dat trong bunker.cpp.
+    void Update(float dt);
 
     // Kiểm tra + xử lý va chạm với hình chữ nhật của 1 viên đạn. Trả về true nếu có
     // va chạm thật sự (còn voxel nào đó nguyên vẹn trong vùng đạn chạm tới) - khi đó
