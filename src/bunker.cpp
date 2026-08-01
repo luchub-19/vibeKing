@@ -71,12 +71,12 @@ bool Bunker::HandleBulletHit(Rectangle bulletRect) {
     const int splashRadius = 1;
     for (int r = centerRow - splashRadius; r <= centerRow + splashRadius; r++) {
         for (int c = centerCol - splashRadius; c <= centerCol + splashRadius; c++) {
-            CarveVoxel(c, r);
+            DamageVoxel(c, r);
         }
     }
     for (int r = minRow; r <= maxRow; r++) {
         for (int c = minCol; c <= maxCol; c++) {
-            CarveVoxel(c, r);
+            DamageVoxel(c, r);
         }
     }
 
@@ -98,22 +98,28 @@ void Bunker::Update(float dt) {
     originX = baseX + sinf(patrolPhase) * Config::BUNKER_PATROL_AMPLITUDE;
 
     // REGEN: cu moi BUNKER_REGEN_INTERVAL giay, hoi phuc toi da BUNKER_REGEN_PER_TICK
-    // voxel NGAU NHIEN trong so cac o dang bi khoet DO DAN BAN (voxels==0 nhung
-    // originalVoxels==1) - khong bao gio dung tram (voxels.size()) lam gioi han so lan
-    // thu random de tranh vong lap vo han neu khong con gi de hoi phuc.
+    // voxel NGAU NHIEN trong so cac o dang bi khoet DO DAN BAN. Truoc day: random 1
+    // index tren TOAN BO voxels roi thu lai (vong lap "spin" while(restored<N &&
+    // attempts<totalVoxels)) - phi thuoc so lan thu, cang te khi bunker gan hoi phuc
+    // het (it o hu hai -> ti le trung ngau nhien rat thap, gan nhu duyet het mang moi
+    // tick). Gio: damagedVoxels la danh sach CHI CHUA cac o dang hu hai, nen chi can
+    // bat 1 vi tri ngau nhien TRONG CHINH DANH SACH DO (luon trung ngay lan dau) roi
+    // swap-and-pop O(1) - tong chi phi dung O(BUNKER_REGEN_PER_TICK), khong phu thuoc
+    // kich thuoc bunker hay so o da hoi phuc truoc do.
     regenTimer += dt;
     if (regenTimer < Config::BUNKER_REGEN_INTERVAL) return;
     regenTimer = 0.0f;
 
-    int restored = 0;
-    int attempts = 0;
-    int totalVoxels = (int)voxels.size();
-    while (restored < Config::BUNKER_REGEN_PER_TICK && attempts < totalVoxels) {
-        int idx = GetRandomValue(0, totalVoxels - 1);
-        if (voxels[idx] == 0 && originalVoxels[idx] == 1) {
-            voxels[idx] = 1;
-            restored++;
-        }
-        attempts++;
+    int toRestore = Config::BUNKER_REGEN_PER_TICK;
+    if (toRestore > (int)damagedVoxels.size()) toRestore = (int)damagedVoxels.size();
+
+    for (int n = 0; n < toRestore; n++) {
+        int pick = GetRandomValue(0, (int)damagedVoxels.size() - 1);
+        int idx = damagedVoxels[pick];
+        // Swap-and-pop: ghi de vi tri vua bot boi phan tu cuoi roi cat bot mang - khong
+        // can dich chuyen (shift) cac phan tu con lai, O(1) moi lan hoi phuc.
+        damagedVoxels[pick] = damagedVoxels.back();
+        damagedVoxels.pop_back();
+        voxels[idx] = 1;
     }
 }

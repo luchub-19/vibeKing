@@ -1,4 +1,4 @@
-#include "audio_manager.h"
+#include "audio_system.h"
 #include <cmath>
 #include <random>
 
@@ -14,7 +14,7 @@ namespace {
     }
 }
 
-Sound AudioManager::GenerateTone(float frequency, float durationSec, int waveType) {
+Sound AudioSystem::GenerateTone(float frequency, float durationSec, int waveType) {
     const int sampleRate = 44100;
     const int sampleCount = (int)(sampleRate * durationSec);
 
@@ -52,7 +52,7 @@ Sound AudioManager::GenerateTone(float frequency, float durationSec, int waveTyp
     return sound;
 }
 
-void AudioManager::Init() {
+void AudioSystem::Init() {
     if (initialized) return;
     InitAudioDevice();
 
@@ -78,7 +78,7 @@ void AudioManager::Init() {
     initialized = true;
 }
 
-void AudioManager::Shutdown() {
+void AudioSystem::Shutdown() {
     if (!initialized) return;
     sfxShoot.Unload();
     sfxHit.Unload();
@@ -96,18 +96,18 @@ void AudioManager::Shutdown() {
     initialized = false;
 }
 
-void AudioManager::PlayShoot()     { sfxShoot.Play(); }
-void AudioManager::PlayExplosion() { sfxExplosion.Play(); }
-void AudioManager::PlayHit()       { sfxHit.Play(); }
-void AudioManager::PlayGameOver()  { PlaySound(sfxGameOver); }
-void AudioManager::PlayWaveClear() { PlaySound(sfxWaveClear); }
-void AudioManager::PlayPickup()    { sfxPickup.Play(); }
-void AudioManager::PlayUfoAppear() { sfxUfoAppear.Play(); }
-void AudioManager::PlayUfoHit()     { sfxUfoHit.Play(); }
-void AudioManager::PlayCleanser()   { sfxCleanser.Play(); }
-void AudioManager::PlayBossDefeat() { PlaySound(sfxBossDefeat); }
+void AudioSystem::PlayShoot()     { sfxShoot.Play(); }
+void AudioSystem::PlayExplosion() { sfxExplosion.Play(); }
+void AudioSystem::PlayHit()       { sfxHit.Play(); }
+void AudioSystem::PlayGameOver()  { PlaySound(sfxGameOver); }
+void AudioSystem::PlayWaveClear() { PlaySound(sfxWaveClear); }
+void AudioSystem::PlayPickup()    { sfxPickup.Play(); }
+void AudioSystem::PlayUfoAppear() { sfxUfoAppear.Play(); }
+void AudioSystem::PlayUfoHit()     { sfxUfoHit.Play(); }
+void AudioSystem::PlayCleanser()   { sfxCleanser.Play(); }
+void AudioSystem::PlayBossDefeat() { PlaySound(sfxBossDefeat); }
 
-void AudioManager::UpdateBassline(float dt, float enemySpeed, float enemySpeedMax) {
+void AudioSystem::UpdateBassline(float dt, float enemySpeed, float enemySpeedMax) {
     float speedRatio = enemySpeedMax > 0.0f ? (enemySpeed / enemySpeedMax) : 0.0f;
     if (speedRatio > 1.0f) speedRatio = 1.0f;
     float interval = 0.55f - 0.35f * speedRatio; // 0.55s (chậm) -> 0.20s (gấp gáp)
@@ -120,7 +120,7 @@ void AudioManager::UpdateBassline(float dt, float enemySpeed, float enemySpeedMa
     }
 }
 
-void AudioManager::SetVolume(float v) {
+void AudioSystem::SetVolume(float v) {
     if (v < 0.0f) v = 0.0f;
     if (v > 1.0f) v = 1.0f;
     masterVolume = v;

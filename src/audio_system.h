@@ -5,7 +5,7 @@
 // Sinh & phát âm thanh hoàn toàn bằng procedural synthesis (waveform tự tạo trong RAM).
 // Lý do không dùng file .wav rời: tránh crash "file not found" khi build trên máy khác,
 // và giữ project gọn nhẹ, không phải quản lý thư mục assets/.
-class AudioManager {
+class AudioSystem {
 private:
     // VoicePool cho SFX co the bi goi CHONG LAP trong thuc te choi (nhieu dich no cung
     // luc, ban lien tuc, nhat lien tiep...) - xem voice_pool.h. So voice chon theo tan

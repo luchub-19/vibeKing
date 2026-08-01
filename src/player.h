@@ -2,6 +2,7 @@
 #include "raylib.h"
 #include "bullet_pool.h"
 #include "config.h"
+#include "input_system.h"
 
 class Player {
 private:
@@ -29,8 +30,10 @@ public:
     // player ve vi tri xuat phat va tat cac power-up/hieu ung tam thoi con sot lai.
     void ResetForNewWave();
 
-    // Tra ve true neu vua ban ra 1 vien dan moi trong frame nay (de GameManager phat SFX)
-    bool Update(float dt, BulletPool<Config::MAX_PLAYER_BULLETS>& bullets);
+    // Tra ve true neu vua ban ra 1 vien dan moi trong frame nay (de GameManager phat SFX).
+    // `input` la tin hieu hanh dong da duoc InputSystem quy doi tu phan cung - Player
+    // khong con biet gi ve phim/gamepad cu the nao, chi phan ung voi Action_*.
+    bool Update(float dt, const InputState& input, BulletPool<Config::MAX_PLAYER_BULLETS>& bullets);
 
     // Tra ve true neu damage thuc su duoc ap dung (false neu dang bat tu hoac vua
     // dung khien do don -> mien damage)

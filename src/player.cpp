@@ -26,22 +26,12 @@ void Player::ResetForNewWave() {
     fireTimer = Config::PLAYER_FIRE_RATE;
 }
 
-bool Player::Update(float dt, BulletPool<Config::MAX_PLAYER_BULLETS>& bullets) {
-    bool moveRight = IsKeyDown(KEY_D) || IsKeyDown(KEY_RIGHT);
-    bool moveLeft  = IsKeyDown(KEY_A) || IsKeyDown(KEY_LEFT);
-    bool fireHeld  = IsKeyDown(KEY_SPACE);
-
-    // Gamepad (tuy chon) - stick trai / D-pad de di chuyen, nut A (button 0) de ban.
-    // Chi doc khi gamepad 0 thuc su cam vao, khong ep buoc nguoi choi phai co tay cam.
-    if (IsGamepadAvailable(0)) {
-        float axisX = GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_X);
-        if (axisX > Config::GAMEPAD_DEADZONE || IsGamepadButtonDown(0, GAMEPAD_BUTTON_LEFT_FACE_RIGHT)) moveRight = true;
-        if (axisX < -Config::GAMEPAD_DEADZONE || IsGamepadButtonDown(0, GAMEPAD_BUTTON_LEFT_FACE_LEFT)) moveLeft = true;
-        if (IsGamepadButtonDown(0, GAMEPAD_BUTTON_RIGHT_FACE_DOWN)) fireHeld = true;
-    }
-
-    if (moveRight) rect.x += speed * dt;
-    if (moveLeft)  rect.x -= speed * dt;
+bool Player::Update(float dt, const InputState& input, BulletPool<Config::MAX_PLAYER_BULLETS>& bullets) {
+    // Khong con doc phan cung o day - moi tin hieu da duoc InputManager gop san thanh
+    // Action_* truoc khi truyen vao. Player chi con quan tam "co di chuyen/ban khong",
+    // khong quan tam no den tu phim nao hay tay cam nao.
+    if (input.Action_MoveRight) rect.x += speed * dt;
+    if (input.Action_MoveLeft)  rect.x -= speed * dt;
     if (rect.x < 0) rect.x = 0;
     if (rect.x + rect.width > Config::SCREEN_W) rect.x = Config::SCREEN_W - rect.width;
 
@@ -57,7 +47,7 @@ bool Player::Update(float dt, BulletPool<Config::MAX_PLAYER_BULLETS>& bullets) {
         ? Config::PLAYER_FIRE_RATE * Config::POWERUP_RAPIDFIRE_FIRE_RATE_MUL
         : Config::PLAYER_FIRE_RATE;
 
-    if (fireHeld && fireTimer >= effectiveFireRate) {
+    if (input.Action_Shoot && fireTimer >= effectiveFireRate) {
         fireTimer = 0.0f;
         int pierceHits = HasPiercing() ? Config::POWERUP_PIERCE_HITS : 0;
         Vector2 vel = { 0.0f, -Config::BULLET_SPEED }; // Y am = bay len (Y+ la xuong duoi)

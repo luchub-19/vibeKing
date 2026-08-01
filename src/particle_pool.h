@@ -1,6 +1,7 @@
 #pragma once
 #include "raylib.h"
 #include "config.h"
+#include "culling.h"
 #include <cstddef>
 #include <cstdlib>
 #include <cmath>
@@ -32,6 +33,10 @@ public:
     }
 
     void Draw() const {
+        // CULLING: trong luc roi (Config::PARTICLE_GRAVITY) mot so hat co the bi day ra
+        // ngoai man hinh truoc khi het "life" - bo qua lenh ve GPU cho chung.
+        if (!Culling::IsVisible({ pos.x, pos.y, 3.0f, 3.0f })) return;
+
         float alpha = life / maxLife;
         if (alpha < 0.0f) alpha = 0.0f;
         Color c = color;

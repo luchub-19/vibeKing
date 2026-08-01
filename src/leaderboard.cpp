@@ -1,6 +1,8 @@
 #include "leaderboard.h"
 #include "raylib.h"
+#include "save_checksum.h"
 #include <fstream>
+#include <sstream>
 #include <algorithm>
 #include <cstdio> // std::rename
 
@@ -14,8 +16,33 @@ void Leaderboard::Load(const std::string& path) {
         return;
     }
 
+    // BAO MAT FILE SAVE: dong dau tien PHAI la "SIG <hex>" - checksum FNV-1a cua toan
+    // bo phan con lai cua file (xem save_checksum.h). Thieu dong nay (file cu tu ban
+    // truoc khi co checksum, hoac file gia mao khong biet dinh dang) -> tu choi nap,
+    // coi nhu khong co du lieu thay vi tin tuong mu quang.
+    std::string sigLine;
+    if (!std::getline(file, sigLine) || sigLine.rfind("SIG ", 0) != 0) {
+        TraceLog(LOG_WARNING, "Leaderboard: file '%s' thieu checksum hop le (dinh dang cu hoac bi hong) - bo qua, bat dau danh sach rong", path.c_str());
+        return;
+    }
+    std::string expectedHex = sigLine.substr(4);
+
+    std::ostringstream bodyBuf;
+    bodyBuf << file.rdbuf();
+    std::string body = bodyBuf.str();
+
+    std::string actualHex = SaveChecksum::ToHex(SaveChecksum::Fnv1a64(body));
+    if (actualHex != expectedHex) {
+        // KHONG KHOP: noi dung da bi sua sau khi ghi (sua tay bang text editor la truong
+        // hop pho bien nhat) - tu choi toan bo file thay vi co gang nap phan "con doc
+        // duoc", tranh nua tin nua ngo mot du lieu khong con dang tin cay.
+        TraceLog(LOG_WARNING, "Leaderboard: file '%s' KHONG KHOP checksum (co the da bi chinh sua thu cong) - tu choi nap, bat dau danh sach rong", path.c_str());
+        return;
+    }
+
+    std::istringstream bodyIn(body);
     int score, wave;
-    while (file >> score >> wave) {
+    while (bodyIn >> score >> wave) {
         entries.push_back({ score, wave });
         if ((int)entries.size() >= Config::LEADERBOARD_MAX_ENTRIES) break; // File hỏng/dài bất thường cũng không đọc quá giới hạn
     }
@@ -53,15 +80,23 @@ void Leaderboard::SaveToFile(const std::string& path) const {
     // giá trị như HighScore cũ, nên atomic ở đây quan trọng hơn trước).
     std::string tmpPath = path + ".tmp";
 
+    // Xay noi dung "than" file (khong ke dong checksum) TRUOC de tinh hash tren dung
+    // chuoi se duoc ghi xuong - tranh lech giua noi dung thuc te va hash neu format
+    // thay doi sau nay.
+    std::ostringstream bodyBuf;
+    for (const LeaderboardEntry& e : entries) {
+        bodyBuf << e.score << " " << e.wave << "\n";
+    }
+    std::string body = bodyBuf.str();
+    std::string sigHex = SaveChecksum::ToHex(SaveChecksum::Fnv1a64(body));
+
     {
         std::ofstream file(tmpPath, std::ios::trunc);
         if (!file.is_open()) {
             TraceLog(LOG_WARNING, "Leaderboard: khong the ghi file tam '%s'", tmpPath.c_str());
             return;
         }
-        for (const LeaderboardEntry& e : entries) {
-            file << e.score << " " << e.wave << "\n";
-        }
+        file << "SIG " << sigHex << "\n" << body;
     } // Đóng scope -> ofstream flush + đóng file trước khi rename bên dưới
 
     if (std::rename(tmpPath.c_str(), path.c_str()) != 0) {

@@ -24,12 +24,15 @@ struct BasicEnemy {
     int column = 0; // Cột trong đội hình lúc spawn - dùng cho AI "line of sight"
     // Không cần hp: Basic luôn chết sau đúng 1 đòn.
 
-    static constexpr int SCORE_VALUE = 10;
+    // `static inline` (KHONG constexpr) - la DU LIEU CAN BANG, bi Config::LoadBalance()
+    // ghi de tu balance.json (muc "enemy_stats.basic_score") giong het cac hang so
+    // trong Config namespace - xem config.h de biet ly do/quy uoc chung.
+    static inline int SCORE_VALUE = 10;
 };
 
 struct TankyEnemy {
-    static constexpr int HP = 3;
-    static constexpr int SCORE_VALUE = 30;
+    static inline int HP = 3;
+    static inline int SCORE_VALUE = 30;
 
     Rectangle rect;
     Color color;
@@ -43,21 +46,20 @@ struct ZigzagEnemy {
     int column = 0;
     float timer = 0.0f;
     float lastOffset = 0.0f;
-    // Không cần hp: Zigzag luôn chết sau đúng 1 đòn.
+    // Khong can hp: Zigzag luon chet sau dung 1 don.
 
-    static constexpr float FREQUENCY = 5.0f;   // rad/s
-    static constexpr float AMPLITUDE = 18.0f;  // px
-    static constexpr int SCORE_VALUE = 20;
+    static inline float FREQUENCY = 5.0f;   // rad/s
+    static inline float AMPLITUDE = 18.0f;  // px
+    static inline int SCORE_VALUE = 20;
 
-    // Dao động ngang quanh vị trí đội hình bằng sóng sin, cộng dồn delta (không phải
-    // gán tuyệt đối) để không phá vỡ logic di chuyển đội hình (MoveX của GameManager
-    // vẫn áp dụng bình thường lên rect.x).
-    void Update(float dt) {
-        timer += dt;
-        float newOffset = sinf(timer * FREQUENCY) * AMPLITUDE;
-        rect.x += (newOffset - lastOffset); // Chỉ cộng phần thay đổi -> không trôi dạt tích lũy
-        lastOffset = newOffset;
-    }
+    // KHONG con ham Update() o day - CHUAN HOA ECS: struct nay chi la DU LIEU THUAN
+    // (component), khong tu mang theo hanh vi. Cong thuc dao dong sin (dung `timer` +
+    // `lastOffset` ben tren) da chuyen sang PhysicsSystem::UpdateEnemies() - noi DUY
+    // NHAT duyet qua va thay doi du lieu Zigzag moi frame. Ly do: 1 struct vua la du
+    // lieu vua tu Update() minh la mo hinh OOP lai voi kieu du liet cache-friendly ma
+    // file nay dang theo (xem chu thich dau file) - system nam ngoai moi doc/ghi du
+    // lieu giup dat toan bo "khi nao ai thay doi cai gi" o 1 noi (PhysicsSystem), thay
+    // vi rai rac giua goi Update() tren tung the hien va vong lap ben ngoai.
 };
 
 // ==========================================
@@ -72,7 +74,7 @@ struct KamikazeEnemy {
     Color color;
     Vector2 vel; // Vector lao thẳng, tính 1 lần lúc spawn (nhắm vào vị trí player lúc đó)
 
-    static constexpr int SCORE_VALUE = 150;
+    static inline int SCORE_VALUE = 150;
 };
 
 // ==========================================
@@ -89,14 +91,21 @@ struct Boss {
     int direction = 1;
     float fireTimer = 0.0f;
 
-    int Stage() const {
-        if (maxHp <= 0) return 1;
-        float ratio = (float)hp / (float)maxHp;
-        if (ratio > 0.66f) return 1;
-        if (ratio > 0.33f) return 2;
-        return 3;
-    }
+    // KHONG con ham Stage() o day - cung ly do voi ZigzagEnemy o tren: struct nay CHI
+    // la du lieu. Dung BossStage(boss) (free function ben duoi) o bat ky system nao can
+    // suy ra giai doan (PhysicsSystem de chon toc do/nhip ban, RenderSystem de chon mau
+    // tint) - 1 cong thuc DUY NHAT, khong the lech nhau giua 2 noi goi.
 };
+
+// 3 giai doan suy ra truc tiep tu % HP con lai (khong luu "stage" roi rac rieng - tranh
+// state co the lech khoi hp that).
+inline int BossStage(const Boss& boss) {
+    if (boss.maxHp <= 0) return 1;
+    float ratio = (float)boss.hp / (float)boss.maxHp;
+    if (ratio > 0.66f) return 1;
+    if (ratio > 0.33f) return 2;
+    return 3;
+}
 
 // ==========================================
 // ENEMY POOL - SWAP-AND-POP, KHÔNG CÓ CỜ active/ZOMBIE

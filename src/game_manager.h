@@ -7,7 +7,7 @@
 #include "particle_pool.h"
 #include "powerup.h"
 #include "screen_shake.h"
-#include "audio_manager.h"
+#include "audio_system.h"
 #include "leaderboard.h"
 #include "settings.h"
 #include "player.h"
@@ -16,6 +16,7 @@
 #include "spatial_grid.h"
 #include "bunker.h"
 #include "sprites.h"
+#include "events.h"
 
 enum class GameState { MENU, PLAYING, PAUSED, GAME_OVER, WAVE_CLEAR };
 enum class TransitionPhase { NONE, FADE_OUT, FADE_IN };
@@ -25,7 +26,33 @@ enum class TransitionPhase { NONE, FADE_OUT, FADE_IN };
 // 1 tag re tien (1 byte, khong vtable) de switch sang dung pool tinh tuong ung.
 enum class EnemyKind : uint8_t { Basic, Tanky, Zigzag };
 
+// ==========================================
+// GOD OBJECT DA DUOC PHA RA 4 HE THONG DOC LAP:
+//   - InputSystem   (input_system.h)   : doc phan cung (ban phim/gamepad), tra ve tin
+//                                        hieu hanh dong thuan tuy.
+//   - PhysicsSystem (physics_system.h) : di chuyen entity + phat hien/giai quyet va cham.
+//   - RenderSystem  (render_system.h)  : ve moi man hinh (Menu/Playing/EndScreen/HUD).
+//   - AudioSystem   (audio_system.h)   : sinh & phat am thanh.
+//
+// GameManager gio CHI con la noi SO HUU du lieu the gioi (pools, player, bunkers...) VA
+// DIEU PHOI vong lap chinh (goi he thong nao, theo thu tu nao, luc nao) - khong con tu
+// minh tinh toan hinh hoc va cham hay ve pixel nao ca. Nhung gi con lai trong cac ham
+// Update*()/InitLevel() cua no la "luat choi" o muc cao (khi nao qua wave, khi nao thua
+// cuoc, cong diem the nao) - dieu phoi ket qua tu PhysicsSystem, khong phai tu tinh toan
+// va cham.
+//
+// PhysicsSystem va RenderSystem duoc khai bao `friend` de doc/ghi thang cac field
+// private ben duoi (thay vi ep GameManager phai lo hang chuc getter/setter chi de phuc
+// vu rieng 2 he thong nay) - xem loi giai thich chi tiet trong physics_system.h va
+// render_system.h.
+// ==========================================
+class PhysicsSystem;
+class RenderSystem;
+
 class GameManager {
+    friend class PhysicsSystem;
+    friend class RenderSystem;
+
 private:
     GameState state = GameState::MENU;
     Player player;
@@ -44,7 +71,7 @@ private:
     ParticlePool<Config::MAX_PARTICLES> particles;
     PowerUpPool<Config::MAX_POWERUPS> powerUps;
     ScreenShake screenShake;
-    AudioManager audio;
+    AudioSystem audio;
     Leaderboard leaderboard;
     Settings settings;
     SpriteSheet sprites;
@@ -52,10 +79,11 @@ private:
     RenderTexture2D renderTarget{}; // Canvas noi bo co dinh SCREEN_W x SCREEN_H, upscale len man hinh that trong Run()
     LevelGridConfig levelGrid; // Doc tu level.cfg luc Run() - thay cho hardcode r<4,c<10
 
-    // Bam enemy dang song moi frame vao luoi khong gian - CheckCollisions() dung de chi
-    // test va cham voi enemy trong cung o thay vi toan bo danh sach. Moi loai dich co 1
-    // SpatialGrid RIENG (khop voi cac Pool tinh) - value luu trong moi grid la index
-    // thuan trong dung pool do, khong can dong goi them loai dich vao chung 1 so nguyen.
+    // Bam enemy dang song moi frame vao luoi khong gian - PhysicsSystem::CheckCollisions()
+    // dung de chi test va cham voi enemy trong cung o thay vi toan bo danh sach. Moi loai
+    // dich co 1 SpatialGrid RIENG (khop voi cac Pool tinh) - value luu trong moi grid la
+    // index thuan trong dung pool do, khong can dong goi them loai dich vao chung 1 so
+    // nguyen.
     SpatialGrid basicGrid{ (float)Config::SCREEN_W, (float)Config::SCREEN_H, 80.0f,
                             (int)Config::MAX_BASIC_ENEMIES, (int)Config::MAX_BASIC_ENEMIES * 4 };
     SpatialGrid tankyGrid{ (float)Config::SCREEN_W, (float)Config::SCREEN_H, 80.0f,
@@ -83,35 +111,37 @@ private:
 
     // MYSTERY SHIP (UFO): dia bay do bay ngang qua dinh man hinh theo chu ky, thuong
     // diem thay doi ngau nhien moi lan spawn. Chi 1 the hien tai 1 thoi diem - khong can
-    // pool rieng nhu enemy thuong.
+    // pool rieng nhu enemy thuong. Di chuyen/va cham do PhysicsSystem xu ly; GameManager
+    // chi giu du lieu + Spawn/RollTimer (quyet dinh "khi nao" la luat choi, khong phai
+    // vat ly).
     Rectangle ufoRect{};
     bool ufoActive = false;
     int ufoDirection = 1;
     int ufoScoreValue = 0;
     float ufoSpawnTimer = 0.0f; // Dem nguoc den lan UFO ke tiep (random moi lan)
-    void UpdateUfo(float dt);
     void SpawnUfo();
     void RollNextUfoTimer(); // Random lai khoang cho den lan UFO tiep theo
 
     // KAMIKAZE: Pool + SpatialGrid HOAN TOAN rieng, KHONG spawn trong luoi doi hinh va
-    // KHONG tham gia logic hitEdge/activeCount o UpdateEnemies() - spawn doc lap theo
-    // chu ky nhu UFO, lao thang mot duong ve vi tri player luc spawn.
+    // KHONG tham gia logic hitEdge/activeCount o PhysicsSystem::UpdateEnemies() - spawn
+    // doc lap theo chu ky nhu UFO, lao thang mot duong ve vi tri player luc spawn.
     EnemyPool<KamikazeEnemy, Config::MAX_KAMIKAZE> kamikazeEnemies;
     SpatialGrid kamikazeGrid{ (float)Config::SCREEN_W, (float)Config::SCREEN_H, 80.0f,
                               (int)Config::MAX_KAMIKAZE, (int)Config::MAX_KAMIKAZE * 4 };
     float kamikazeSpawnTimer = 0.0f;
-    void UpdateKamikaze(float dt);
     void SpawnKamikaze();
     void RollNextKamikazeTimer();
 
-    // BOSS: 1 the hien duy nhat, xuat hien thay the luoi doi hinh vao cac wave la boi so
-    // Config::BOSS_WAVE_INTERVAL. Rect lon hon 1 o SpatialGrid (80px) nen bossGrid minh
-    // hoa dung tinh nang multi-cell da co san trong SpatialGrid::Insert().
-    Boss boss;
-    bool bossActive = false;
+    // BOSS: dung CHUNG khuon EnemyPool<T,Capacity> nhu moi loai dich khac (Capacity=1) -
+    // KHONG con bool `bossActive` rieng phai giu dong bo tay voi hp: Size()==0 nghia la
+    // chua spawn/da bi ha, Size()==1 nghia la con song, dung y het quy uoc "con trong
+    // pool = con song" ma BasicEnemy/TankyEnemy/ZigzagEnemy/KamikazeEnemy da dung. Nho
+    // do PhysicsSystem::CheckCollisions() xu ly Boss bang CHINH khuon code dung cho
+    // Kamikaze, khong can nhanh dieu kien "if (isBossWave)"/"if (bossActive)" nao rieng
+    // trong logic va cham nua (xem physics_system.cpp).
+    EnemyPool<Boss, 1> bossPool;
     SpatialGrid bossGrid{ (float)Config::SCREEN_W, (float)Config::SCREEN_H, 80.0f, 1, 16 };
     void SpawnBoss();
-    void UpdateBoss(float dt);
 
     // Fade transition giua cac state, tranh chuyen canh giat cuc
     TransitionPhase transitionPhase = TransitionPhase::NONE;
@@ -124,6 +154,11 @@ private:
 
     void SaveSettings(); // Ghi lai settings.cfg moi khi doi do kho/am luong trong menu/pause
 
+    // OBSERVABILITY: bat/tat qua phim F3 (xem InputSystem::PollDebugOverlayToggle),
+    // hoat dong o MOI trang thai - Run() tu doc phim nay moi frame thay vi qua
+    // UpdateMenu/UpdatePlaying/UpdatePaused (von chi chay dung 1 trong 3 tuy state).
+    bool showDebugOverlay = false;
+
     // newGame=true: van choi hoan toan moi (wave=1, reset diem/mang). newGame=false:
     // sang wave ke tiep trong cung 1 van (giu diem/mang, chi doi hinh/toc do kho hon).
     void InitLevel(bool newGame = true);
@@ -133,25 +168,12 @@ private:
     void UpdateEndScreen();
     void UpdatePaused();
     void UpdatePlaying(float dt);
-    void UpdateEnemies(float dt);
 
-    // Pattern dan dich: thang xuong (kinh dien) hoac nham thang vao vi tri player luc
-    // ban - roll ngau nhien theo Config::ENEMY_AIMED_SHOT_CHANCE.
-    void EnemyShoot(float x, float y);
-    // Toa dan deu 360 do tu 1 diem - dung rieng cho Boss (stage 2/3).
-    void FireRadialBurst(float x, float y, int count, float speed);
-
-    void CheckCollisions();
-
-    void DrawMenu() const;
-    void DrawEndScreen() const;
-    void DrawPlaying() const;
-    void DrawHUD() const;
-
-    // Wrapper mong quanh DrawTextEx(gameFont, ...) - giu nguyen chu ky tham so giong
-    // DrawText() cu (text, x, y, fontSize, color) de thay the co hoc, khong phai viet
-    // lai tung loi goi.
-    void DrawGameText(const char* text, int x, int y, int fontSize, Color color) const;
+    // Hang doi hieu ung ma PhysicsSystem::CheckCollisions() ghi nhan trong frame nay -
+    // tai dung buffer (clear roi day lai), tranh cap phat lai moi frame. Xem events.h de
+    // biet ly do tach rieng buoc nay.
+    std::vector<GameEvent> pendingEvents;
+    void ProcessEvents();
 
 public:
     void Run();

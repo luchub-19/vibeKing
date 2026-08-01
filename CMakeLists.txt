@@ -23,3 +23,31 @@ target_link_libraries(space_invaders raylib)
 if (UNIX AND NOT APPLE)
     target_link_libraries(space_invaders m pthread dl rt X11)
 endif()
+
+# ==========================================
+# UNIT TESTS (Catch2 v2, single-header, vendor sẵn tại tests/thirdparty/catch.hpp -
+# không cần internet/package manager lúc build, không phụ thuộc gì ngoài raylib đã có
+# sẵn). Chỉ test các khối logic THUẦN (Swept-AABB CCD, SpatialGrid, Leaderboard) - không
+# cần InitWindow/GPU context nào, nên chạy được cả trong CI headless.
+# ==========================================
+option(BUILD_TESTS "Build unit test suite (Catch2)" ON)
+if(BUILD_TESTS)
+    enable_testing()
+
+    add_executable(unit_tests
+        tests/test_main.cpp
+        tests/test_bullet_ccd.cpp
+        tests/test_spatial_grid.cpp
+        tests/test_leaderboard.cpp
+        tests/test_balance_config.cpp
+        src/leaderboard.cpp
+        src/config.cpp
+    )
+    target_include_directories(unit_tests PRIVATE src tests)
+    target_link_libraries(unit_tests raylib)
+    if (UNIX AND NOT APPLE)
+        target_link_libraries(unit_tests m pthread dl rt X11)
+    endif()
+
+    add_test(NAME unit_tests COMMAND unit_tests)
+endif()

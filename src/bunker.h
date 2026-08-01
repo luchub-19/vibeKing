@@ -37,6 +37,16 @@ private:
     float patrolPhase;
     float regenTimer = 0.0f;
 
+    // DANH SACH O BI KHOET DO DAN (khong tinh vom cong/goc bo tron thiet ke san): moi
+    // phan tu la 1 index (row*COLS+col) dang == 0 nhung originalVoxels tai do == 1.
+    // Update() truoc day random 1 index bat ky trong toan bo voxels roi thu lai (vong
+    // lap "spin") den khi trung o hu hai - O(so lan thu), toi te dan khi bunker gan
+    // hoi phuc het (it o hu hai con lai -> ti le trung ngau nhien rat thap). Duy tri
+    // mang nay giup regen chi can bat 1 index NGAU NHIEN TRONG CHINH DANH SACH NAY roi
+    // swap-and-pop - luon dung O(1) moi voxel hoi phuc, bat ke bunker con nguyen hay
+    // gan nat vun.
+    std::vector<int> damagedVoxels;
+
     Color color;
 
     bool InBounds(int col, int row) const {
@@ -47,8 +57,24 @@ private:
         return InBounds(col, row) && voxels[(size_t)row * COLS + col] != 0;
     }
 
+    // Khoet "tho" luc khoi tao (vom cong, goc bo tron) - khong dua vao damagedVoxels vi
+    // day la thiet ke co chu dich, khong phai hu hai do dan ban, va originalVoxels chua
+    // duoc chup luc goi ham nay.
     void CarveVoxel(int col, int row) {
         if (InBounds(col, row)) voxels[(size_t)row * COLS + col] = 0;
+    }
+
+    // Khoet do TRUNG DAN trong gameplay (dung trong HandleBulletHit): chi carve + ghi
+    // nhan vao damagedVoxels neu o do dang con nguyen (voxels==1) VA von di la o "that"
+    // (originalVoxels==1) - tu dong bo qua o da bi khoet truoc do (khong ghi trung) va
+    // o von la lo thiet ke san (vom cong/goc bo tron, khong bao gio duoc tinh la "hu
+    // hai" nen khong duoc dua vao hang cho regen).
+    void DamageVoxel(int col, int row) {
+        if (!InBounds(col, row)) return;
+        size_t idx = (size_t)row * COLS + col;
+        if (voxels[idx] == 0 || originalVoxels[idx] == 0) return;
+        voxels[idx] = 0;
+        damagedVoxels.push_back((int)idx);
     }
 
 public:
