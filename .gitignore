@@ -1,3 +1,5 @@
 .env
 build/
 logs/
+settings.cfg
+leaderboard.dat

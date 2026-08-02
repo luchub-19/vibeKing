@@ -50,7 +50,6 @@ TEST_CASE("Config::LoadBalance: sai cu phap JSON -> tu choi toan bo, khong crash
 TEST_CASE("Config::LoadBalance: 1 muc sai kieu du lieu khong lam sap cac muc khac", "[balance]") {
     CleanupGuard guard;
     Config::PLAYER_SPEED = 400.0f;
-    float beforeUfoSpeed = Config::UFO_SPEED;
 
     // "speed" cua player la CHUOI thay vi so - muc "player" phai bi bo qua (giu mac
     // dinh), nhung muc "ufo" hop le phia sau van phai duoc ap dung binh thuong.

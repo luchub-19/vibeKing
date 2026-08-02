@@ -18,6 +18,15 @@ namespace {
         if (IEquals(label, GetDifficultyStats(Difficulty::NORMAL).label)) return Difficulty::NORMAL;
         return fallback;
     }
+
+    // Dung chung cho ca 4 field ma phim moi (KEY_MOVE_LEFT/RIGHT/SHOOT/PAUSE) - tranh
+    // lap y het 4 lan cung 1 doan parse std::from_chars.
+    void ParseIntKey(std::string_view val, int& target) {
+        int v;
+        auto res = std::from_chars(val.data(), val.data() + val.size(), v);
+        if (res.ec == std::errc{}) target = v;
+        else TraceLog(LOG_WARNING, "Settings: gia tri ma phim khong hop le");
+    }
 }
 
 Settings Settings::LoadFromFile(const std::string& path) {
@@ -48,11 +57,30 @@ Settings Settings::LoadFromFile(const std::string& path) {
             auto res = std::from_chars(val.data(), val.data() + val.size(), v);
             if (res.ec == std::errc{}) cfg.volume = v;
             else TraceLog(LOG_WARNING, "Settings: gia tri VOLUME khong hop le");
+        } else if (IEquals(key, "KEY_MOVE_LEFT")) {
+            ParseIntKey(val, cfg.keyMoveLeft);
+        } else if (IEquals(key, "KEY_MOVE_RIGHT")) {
+            ParseIntKey(val, cfg.keyMoveRight);
+        } else if (IEquals(key, "KEY_SHOOT")) {
+            ParseIntKey(val, cfg.keyShoot);
+        } else if (IEquals(key, "KEY_PAUSE")) {
+            ParseIntKey(val, cfg.keyPause);
         }
     }
 
     if (cfg.volume < 0.0f) cfg.volume = 0.0f;
     if (cfg.volume > 1.0f) cfg.volume = 1.0f;
+
+    // Chi chap nhan ma phim trong vung hop le cua raylib (MAX_KEYBOARD_KEYS=512, xac
+    // nhan truc tiep tu rcore.c) - file bi sua tay/hong voi gia tri vo ly (am, qua lon)
+    // se bi tra ve mac dinh thay vi giu 1 ma phim "khong bao gio khop duoc voi phim
+    // nao" ve sau.
+    auto validOrDefault = [](int key, int def) { return (key > 0 && key < 512) ? key : def; };
+    cfg.keyMoveLeft  = validOrDefault(cfg.keyMoveLeft, KEY_A);
+    cfg.keyMoveRight = validOrDefault(cfg.keyMoveRight, KEY_D);
+    cfg.keyShoot     = validOrDefault(cfg.keyShoot, KEY_SPACE);
+    cfg.keyPause     = validOrDefault(cfg.keyPause, KEY_P);
+
     return cfg;
 }
 
@@ -74,6 +102,10 @@ void Settings::SaveToFile(const std::string& path) const {
         }
         file << "DIFFICULTY=" << GetDifficultyStats(difficulty).label << "\n";
         file << "VOLUME=" << volume << "\n";
+        file << "KEY_MOVE_LEFT=" << keyMoveLeft << "\n";
+        file << "KEY_MOVE_RIGHT=" << keyMoveRight << "\n";
+        file << "KEY_SHOOT=" << keyShoot << "\n";
+        file << "KEY_PAUSE=" << keyPause << "\n";
     } // Dong scope -> ofstream flush + dong file truoc khi rename ben duoi
 
     if (std::rename(tmpPath.c_str(), path.c_str()) != 0) {

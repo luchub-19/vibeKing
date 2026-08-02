@@ -1,6 +1,7 @@
 #pragma once
 #include "raylib.h"
 #include "config.h"
+#include <cassert>
 #include <cstddef>
 #include <cstdint>
 
@@ -128,5 +129,8 @@ public:
     }
 
     size_t GetActiveCount() const { return activeCount; }
-    Bullet& GetBullet(size_t index) { return pool[index]; }
+    Bullet& GetBullet(size_t index) {
+        assert(index < activeCount && "GetBullet: index >= activeCount - doc vien dan da Destroy()/chua active");
+        return pool[index];
+    }
 };

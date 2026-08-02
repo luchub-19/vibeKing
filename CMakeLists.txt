@@ -14,7 +14,25 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O2")
 
 find_package(raylib REQUIRED)
 
-file(GLOB SOURCES "src/*.cpp")
+# Liet ke tuong minh thay vi file(GLOB "src/*.cpp") - GLOB khong lam CMake biet duoc
+# khi co file .cpp MOI duoc them vao (theo dung khuyen cao cua CMake docs), nen build
+# incremental sau khi them file moi se ÂM THẦM thiếu file do neu khong tu tay chay lai
+# cmake configure. Them file .cpp moi -> nho them dong tuong ung vao day.
+set(SOURCES
+    src/audio_system.cpp
+    src/bunker.cpp
+    src/config.cpp
+    src/file_logger.cpp
+    src/game_manager.cpp
+    src/leaderboard.cpp
+    src/level_config.cpp
+    src/main.cpp
+    src/physics_system.cpp
+    src/player.cpp
+    src/render_system.cpp
+    src/settings.cpp
+    src/sprites.cpp
+)
 
 add_executable(space_invaders ${SOURCES})
 target_link_libraries(space_invaders raylib)
@@ -40,8 +58,14 @@ if(BUILD_TESTS)
         tests/test_spatial_grid.cpp
         tests/test_leaderboard.cpp
         tests/test_balance_config.cpp
+        tests/test_bunker.cpp
+        tests/test_player.cpp
+        tests/test_settings.cpp
         src/leaderboard.cpp
         src/config.cpp
+        src/bunker.cpp
+        src/player.cpp
+        src/settings.cpp
     )
     target_include_directories(unit_tests PRIVATE src tests)
     target_link_libraries(unit_tests raylib)

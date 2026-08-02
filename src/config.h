@@ -73,6 +73,14 @@ namespace Config {
     inline float INVINCIBLE_TIME  = 1.2f;
     inline float PLAYER_SHIELD_HIT_GRACE = 0.3f;
 
+    // EXTRA LIFE - cu moi EXTRA_LIFE_SCORE_THRESHOLD diem (5000, 10000, 15000...)
+    // duoc +1 mang, toi da MAX_LIVES (chuan the loai ban sung co dien - vd Galaga/1942)
+    // de tranh mang cong don vo han lam trivial hoa do kho. Nguong van tang deu ngay ca
+    // khi da dat tran (xem Player::AddScore) - tranh loi "mang bi tich luy ngam" neu
+    // khong lam vay: mat mang roi lai duoc hoan lai ngay du khong ghi them diem nao moi.
+    inline int   EXTRA_LIFE_SCORE_THRESHOLD = 5000;
+    inline int   MAX_LIVES = 5;
+
     inline float ENEMY_SPEED_INC  = 15.0f;
     inline float BULLET_SPEED     = 600.0f;
     inline float ENEMY_BULLET_SPEED = 300.0f;

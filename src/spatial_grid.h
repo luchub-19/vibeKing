@@ -2,6 +2,7 @@
 #include "raylib.h"
 #include <vector>
 #include <algorithm>
+#include <cassert>
 
 // ==========================================
 // SPATIAL GRID - FLAT ARRAY + LINKED LIST (KHÔNG CÒN MẢNG LỒNG MẢNG)
@@ -82,6 +83,7 @@ public:
             for (int c = minCol; c <= maxCol; c++) {
                 if (entryCount >= maxEntries) return; // An toàn: không tràn mảng tĩnh
                 int cellIdx = r * colsCount + c;
+                assert(cellIdx >= 0 && cellIdx < (int)head.size() && "cellIdx ngoai head[] - Clamp/colsCount tinh sai");
                 int entry = entryCount++;
                 value[entry] = enemyIndex;
                 next[entry] = head[cellIdx];
@@ -106,6 +108,7 @@ public:
             for (int c = minCol; c <= maxCol; c++) {
                 for (int e = head[(size_t)r * colsCount + c]; e != -1; e = next[e]) {
                     int idx = value[e];
+                    assert(idx >= 0 && idx < (int)visitedGen.size() && "enemyIndex vuot qua maxEnemiesIn khai bao luc constructor - kiem tra loi goi Insert()");
                     if (visitedGen[idx] == currentGen) continue;
                     visitedGen[idx] = currentGen;
                     outIndices.push_back(idx);

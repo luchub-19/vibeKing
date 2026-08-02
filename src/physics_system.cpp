@@ -457,12 +457,11 @@ void PhysicsSystem::CheckCollisions(GameManager& gm) {
 
                 if (boss.hp > 0) boss.hp--;
 
-                GameEvent placeholder; // Placeholder rong - hieu ung that o duoi
-                placeholder.position = gm.player.GetCenter();
-                placeholder.color = RED;
-                placeholder.particleCount = 1;
-                gm.pendingEvents.push_back(placeholder);
-
+                // BUG FIX: truoc day co 1 "placeholder" GameEvent thua o day, vo tinh
+                // gan particleCount=1 + position=player.GetCenter() -> no lam 1 hat do
+                // xuat hien ngay tai vi tri phi thuyen NGUOI CHOI moi lan dan trung Boss,
+                // khong lien quan gi vi tri va cham that. hitEv ben duoi moi la hieu ung
+                // that, dat dung vi tri bulletRect.
                 GameEvent hitEv;
                 hitEv.position = { bulletRect.x, bulletRect.y };
                 hitEv.color = RED;

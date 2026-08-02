@@ -3,6 +3,7 @@
 #include "ui_system.h"
 #include "culling.h"
 #include "process_metrics.h"
+#include "input_system.h"
 
 void RenderSystem::DrawMenu(const GameManager& gm) {
     UICanvas canvas;
@@ -114,7 +115,7 @@ void RenderSystem::DrawPlaying(const GameManager& gm) {
     gm.enemyBullets.Draw(RED);
     gm.particles.Draw();
     gm.powerUps.Draw();
-    gm.player.Draw();
+    gm.player.Draw(gm.sprites.player);
     EndMode2D();
 
     // HUD ve ngoai camera de khong bi rung theo
@@ -125,7 +126,30 @@ void RenderSystem::DrawPlaying(const GameManager& gm) {
         UICanvas canvas;
         canvas.Text(330, 250, 40, WHITE, "PAUSED");
         canvas.Text(280, 310, 18, GRAY, TextFormat("VOLUME: %d%%  (UP/DOWN)", (int)(gm.audio.GetVolume() * 100)));
-        canvas.Text(250, 340, 18, GRAY, "P / ESC: RESUME   F11: FULLSCREEN");
+        canvas.Text(250, 340, 18, GRAY, "P / ESC: RESUME   F11: FULLSCREEN   K: DOI PHIM DIEU KHIEN");
+        canvas.Draw(gm.gameFont);
+    } else if (gm.state == GameState::KEYBIND) {
+        DrawRectangle(0, 0, Config::SCREEN_W, Config::SCREEN_H, Fade(BLACK, 0.75f));
+        UICanvas canvas;
+        canvas.Text(230, 90, 32, WHITE, "DOI PHIM DIEU KHIEN");
+
+        const RebindableAction* actions = GetRebindableActions();
+        for (int i = 0; i < REBINDABLE_ACTION_COUNT; i++) {
+            bool isBeingRebound = (gm.rebindingActionIndex == i);
+            Color rowColor = isBeingRebound ? YELLOW : WHITE;
+            int currentKey = gm.settings.*(actions[i].keyField);
+            std::string line = TextFormat("%d) %-6s: %s", i + 1, actions[i].label,
+                                           isBeingRebound ? "..." : InputSystem::KeyName(currentKey));
+            canvas.Text(280, 160 + i * 36, 22, rowColor, line);
+        }
+
+        if (gm.rebindingActionIndex >= 0) {
+            canvas.Text(180, 340, 18, YELLOW,
+                        TextFormat("Nhan phim moi cho '%s'... (ESC de huy)",
+                                   actions[gm.rebindingActionIndex].label));
+        } else {
+            canvas.Text(180, 340, 16, GRAY, "Bam 1-4 de doi 1 phim.  0 hoac R: khoi phuc mac dinh.  ESC: quay lai");
+        }
         canvas.Draw(gm.gameFont);
     }
 }

@@ -63,11 +63,19 @@ struct ZigzagEnemy {
 };
 
 // ==========================================
-// KAMIKAZE - KHÔNG spawn trong lưới đội hình, KHÔNG tham gia UpdateEnemies() (hitEdge,
-// enemyDirection, activeCount==0...) - Pool + SpatialGrid HOÀN TOÀN riêng (xem
-// GameManager::kamikazeEnemies/kamikazeGrid), spawn độc lập theo chu kỳ như UFO. Vì vậy
-// việc thêm loại địch này KHÔNG thể phá hỏng logic kiểm tra biên của lưới đội hình -
-// nó vốn không bao giờ chạm vào đoạn code đó.
+// KAMIKAZE - Pool + SpatialGrid rieng (xem GameManager::kamikazeEnemies/kamikazeGrid),
+// KHONG tham gia UpdateEnemies() (hitEdge, enemyDirection...) nen viec them loai dich
+// nay khong dung gi den logic kiem tra bien cua luoi doi hinh.
+//
+// HOAN THIEN (kieu Galaga): GameManager::SpawnKamikaze() GIO co doc/xoa 1 phan tu
+// NGAU NHIEN tu basicEnemies/tankyEnemies/zigzagEnemies khi doi hinh con quan (thay vi
+// luon spawn tu ngoai man hinh doc lap hoan toan nhu truoc) - "boc" 1 con ra khoi doi
+// hinh de no lao xuong tu DUNG vi tri hien tai cua no, dung cam giac "1 con tach doi
+// hinh lao xuong" thay vi xuat hien tu hu vo. Van AN TOAN voi UpdateEnemies() vi chi
+// dung LAI dung EnemyPool::Destroy() - cung 1 thao tac swap-and-pop xay ra khi player
+// ban trung 1 dich (UpdateEnemies() doc lai Size() moi frame, khong biet/khong can biet
+// TAI SAO 1 phan tu bien mat). Chi khi doi hinh DA TRONG (boss wave, hoac vua don sach)
+// moi quay lai spawn tu ngoai man hinh nhu truoc - xem SpawnKamikaze().
 // ==========================================
 struct KamikazeEnemy {
     Rectangle rect;

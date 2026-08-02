@@ -1,6 +1,7 @@
 #include "bunker.h"
 #include "config.h"
 #include <algorithm>
+#include <cassert>
 #include <cmath>
 
 Bunker::Bunker(float x, float y, Color col)
@@ -26,6 +27,8 @@ Bunker::Bunker(float x, float y, Color col)
     // cho regen ở Update(): chỉ hồi phục voxel nào ==1 ở đây mà hiện đang ==0 (tức là hư
     // hại DO ĐẠN BẮN), không bao giờ lấp lại vòm cổng/góc bo tròn.
     originalVoxels = voxels;
+
+    for (uint8_t v : voxels) if (v != 0) solidRemaining++;
 }
 
 void Bunker::Draw() const {
@@ -43,6 +46,8 @@ void Bunker::Draw() const {
 }
 
 bool Bunker::HandleBulletHit(Rectangle bulletRect) {
+    if (solidRemaining <= 0) return false; // Khong con gi de chan - bo qua ngay, khoi tinh bounds
+
     Rectangle bounds = GetBounds();
     if (!CheckCollisionRecs(bulletRect, bounds)) return false;
 
@@ -83,13 +88,6 @@ bool Bunker::HandleBulletHit(Rectangle bulletRect) {
     return true;
 }
 
-bool Bunker::IsFullyDestroyed() const {
-    for (uint8_t v : voxels) {
-        if (v != 0) return false;
-    }
-    return true;
-}
-
 void Bunker::Update(float dt) {
     // PATROL: originX dao dong quanh baseX theo sin - lien tuc moi frame (khong can
     // timer rieng), phase khac nhau giua cac bunker (random luc khoi tao) nen chung
@@ -121,5 +119,7 @@ void Bunker::Update(float dt) {
         damagedVoxels[pick] = damagedVoxels.back();
         damagedVoxels.pop_back();
         voxels[idx] = 1;
+        solidRemaining++;
+        assert(solidRemaining <= (int)voxels.size() && "solidRemaining vuot qua tong so voxel - dem lech khoi voxels that");
     }
 }

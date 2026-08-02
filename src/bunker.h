@@ -2,6 +2,7 @@
 #include "raylib.h"
 #include <vector>
 #include <cstdint>
+#include <cassert>
 
 // ==========================================
 // BUNKER (LÁ CHẮN VOXEL)
@@ -47,6 +48,12 @@ private:
     // gan nat vun.
     std::vector<int> damagedVoxels;
 
+    // SO O CON NGUYEN, cap nhat O(1) tai DamageVoxel()/Update() (regen) thay vi quet lai
+    // toan bo voxels moi lan can biet "bunker da phá sạch chưa" (xem IsFullyDestroyed() +
+    // early-out dau HandleBulletHit() - tranh lam viec thua cho nhung bunker da het tac
+    // dung, dac biet khi co nhieu bunker + nhieu dan tren man cung luc).
+    int solidRemaining = 0;
+
     Color color;
 
     bool InBounds(int col, int row) const {
@@ -74,6 +81,8 @@ private:
         size_t idx = (size_t)row * COLS + col;
         if (voxels[idx] == 0 || originalVoxels[idx] == 0) return;
         voxels[idx] = 0;
+        solidRemaining--;
+        assert(solidRemaining >= 0 && "solidRemaining am - dem lech khoi voxels that, kiem tra lai dieu kien guard phia tren");
         damagedVoxels.push_back((int)idx);
     }
 
@@ -99,5 +108,6 @@ public:
     // khoét từ trước (không còn gì để chặn).
     bool HandleBulletHit(Rectangle bulletRect);
 
-    bool IsFullyDestroyed() const;
+    // O(1): doc truc tiep solidRemaining thay vi quet COLS*ROWS voxel moi lan goi.
+    bool IsFullyDestroyed() const { return solidRemaining <= 0; }
 };

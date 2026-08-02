@@ -147,7 +147,19 @@ int GameManager::ApplyComboAndScore(int baseScore) {
     int steps = comboCount - 1;
     if (steps > Config::COMBO_MAX_STEPS) steps = Config::COMBO_MAX_STEPS;
     int finalScore = (int)((float)baseScore * (1.0f + Config::COMBO_BONUS_PER_STEP * (float)steps));
-    player.AddScore(finalScore);
+
+    if (player.AddScore(finalScore)) {
+        // +1 MANG tu moc diem (xem Config::EXTRA_LIFE_SCORE_THRESHOLD) - dung mau GOLD
+        // + particle burst rieng biet voi pickup power-up thuong (von khong co particle)
+        // de nguoi choi nhan ra ngay day la 1 cot moc dang chu y, khong phai nhat power-up.
+        GameEvent ev;
+        ev.position = player.GetCenter();
+        ev.color = GOLD;
+        ev.particleCount = 20;
+        ev.sfx = SfxType::Pickup;
+        pendingEvents.push_back(ev);
+    }
+
     return finalScore;
 }
 
@@ -180,9 +192,34 @@ void GameManager::RollNextKamikazeTimer() {
 }
 
 void GameManager::SpawnKamikaze() {
-    float startX = (float)GetRandomValue(0, (int)Config::SCREEN_W);
-    Rectangle rect{ startX - Config::KAMIKAZE_WIDTH / 2.0f, -Config::KAMIKAZE_HEIGHT,
-                    Config::KAMIKAZE_WIDTH, Config::KAMIKAZE_HEIGHT };
+    size_t totalFormation = basicEnemies.Size() + tankyEnemies.Size() + zigzagEnemies.Size();
+    Rectangle rect;
+
+    if (totalFormation > 0) {
+        // Chon DONG DEU tren TOAN BO doi hinh (khong phai chon pool truoc roi chon
+        // trong pool - se lam sai lech ti le neu 3 pool co so luong khac nhau), roi
+        // "boc" chinh phan tu do ra khoi pool goc (Destroy() - xem giai thich an toan
+        // o comment tren struct KamikazeEnemy trong enemy_types.h).
+        size_t pick = (size_t)GetRandomValue(0, (int)totalFormation - 1);
+        if (pick < basicEnemies.Size()) {
+            rect = basicEnemies[pick].rect;
+            basicEnemies.Destroy(pick);
+        } else if (pick < basicEnemies.Size() + tankyEnemies.Size()) {
+            size_t i = pick - basicEnemies.Size();
+            rect = tankyEnemies[i].rect;
+            tankyEnemies.Destroy(i);
+        } else {
+            size_t i = pick - basicEnemies.Size() - tankyEnemies.Size();
+            rect = zigzagEnemies[i].rect;
+            zigzagEnemies.Destroy(i);
+        }
+    } else {
+        // Doi hinh dang trong (boss wave, hoac vua don sach) - khong con gi de "boc",
+        // quay lai spawn doc lap tu ngoai man hinh nhu ban goc.
+        float startX = (float)GetRandomValue(0, (int)Config::SCREEN_W);
+        rect = { startX - Config::KAMIKAZE_WIDTH / 2.0f, -Config::KAMIKAZE_HEIGHT,
+                 Config::KAMIKAZE_WIDTH, Config::KAMIKAZE_HEIGHT };
+    }
 
     // Nham thang vao vi tri player NGAY LUC SPAWN (khong homing lien tuc sau do) - dan
     // co the ne duoc bang cach di chuyen, dung "khoa muc tieu vinh vien" kieu ho hen.
@@ -221,7 +258,7 @@ void GameManager::SpawnBoss() {
 // MENU
 // ==========================================
 void GameManager::UpdateMenu() {
-    MenuInput input = InputSystem::PollMenu();
+    MenuInput input = InputSystem::PollMenu(settings);
     bool changed = false;
     if (input.CycleDifficultyLeft)  { difficulty = CycleDifficulty(difficulty, -1); changed = true; }
     if (input.CycleDifficultyRight) { difficulty = CycleDifficulty(difficulty, 1); changed = true; }
@@ -241,7 +278,7 @@ void GameManager::UpdateMenu() {
 // GAME_OVER / WAVE_CLEAR
 // ==========================================
 void GameManager::UpdateEndScreen() {
-    MenuInput input = InputSystem::PollMenu();
+    MenuInput input = InputSystem::PollMenu(settings);
 
     if (state == GameState::WAVE_CLEAR) {
         if (input.Confirm) {
@@ -264,13 +301,64 @@ void GameManager::UpdateEndScreen() {
 }
 
 void GameManager::UpdatePaused() {
-    MenuInput input = InputSystem::PollMenu();
+    MenuInput input = InputSystem::PollMenu(settings);
     bool changed = false;
     if (input.VolumeUp)   { audio.SetVolume(audio.GetVolume() + 0.1f); changed = true; }
     if (input.VolumeDown) { audio.SetVolume(audio.GetVolume() - 0.1f); changed = true; }
     if (changed) SaveSettings();
     if (input.ToggleFullscreen) ToggleFullscreen();
+    if (input.OpenKeybinds) { state = GameState::KEYBIND; return; }
     if (input.PauseToggle) state = GameState::PLAYING;
+}
+
+// ==========================================
+// KEYBIND - man hinh doi phim dieu khien, vao tu Paused (phim K). Khong dung
+// MenuInput/PollMenu() o day: ban chat man hinh nay la "bat ky phim nao cung co the la
+// gia tri hop le can GHI NHAN" (dang cho 1 phim MOI), khac han cac man hinh khac chi
+// quan tam vai phim CO Y NGHIA CO DINH - nen doc truc tiep IsKeyPressed(KEY_ESCAPE)/
+// so + InputSystem::PollAnyKeyPressed() thay vi ep vao khuon MenuInput.
+// ==========================================
+void GameManager::UpdateKeybindScreen() {
+    if (rebindingActionIndex == -1) {
+        // Dang hien danh sach 4 hanh dong - cho bam so 1-4 de chon 1 cai de doi.
+        if (IsKeyPressed(KEY_ESCAPE)) { state = GameState::PAUSED; return; }
+        if (IsKeyPressed(KEY_ONE))   { rebindingActionIndex = 0; return; }
+        if (IsKeyPressed(KEY_TWO))   { rebindingActionIndex = 1; return; }
+        if (IsKeyPressed(KEY_THREE)) { rebindingActionIndex = 2; return; }
+        if (IsKeyPressed(KEY_FOUR))  { rebindingActionIndex = 3; return; }
+        if (IsKeyPressed(KEY_ZERO) || IsKeyPressed(KEY_R)) {
+            settings.ResetKeyBindingsToDefault();
+            SaveSettings();
+        }
+        return;
+    }
+
+    // Da chon 1 hanh dong (rebindingActionIndex >= 0) - dang cho phim MOI cho no.
+    if (IsKeyPressed(KEY_ESCAPE)) { rebindingActionIndex = -1; return; } // Huy, giu nguyen phim cu
+
+    int newKey = InputSystem::PollAnyKeyPressed();
+    if (newKey == 0) return; // Chua co phim nao duoc bam frame nay - tiep tuc cho
+
+    // Tu choi cac phim "he thong" co dinh (Enter/R/F3/F11/mui ten/K/Esc) - day la
+    // NHUNG PHIM DUY NHAT khong the rebind vao duoc (xem chu thich Settings/MenuInput),
+    // dam bao nguoi choi khong bao gio tu khoa minh khoi menu du rebind be nao.
+    static const int reserved[] = { KEY_ESCAPE, KEY_ENTER, KEY_F3, KEY_F11, KEY_R,
+                                     KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT, KEY_K };
+    for (int r : reserved) {
+        if (newKey == r) return; // Phim he thong - bo qua yeu cau, tiep tuc cho phim khac
+    }
+
+    // Tu choi neu phim nay dang duoc 1 TRONG 3 hanh dong CON LAI su dung - tranh 2 hanh
+    // dong doi len cung 1 phim (se khong biet dang lam gi khi bam phim do).
+    const RebindableAction* actions = GetRebindableActions();
+    for (int i = 0; i < REBINDABLE_ACTION_COUNT; i++) {
+        if (i == rebindingActionIndex) continue;
+        if (settings.*(actions[i].keyField) == newKey) return;
+    }
+
+    settings.*(actions[rebindingActionIndex].keyField) = newKey;
+    SaveSettings();
+    rebindingActionIndex = -1;
 }
 
 // ==========================================
@@ -280,7 +368,7 @@ void GameManager::UpdatePaused() {
 // cham nao nam truc tiep trong ham nay nua.
 // ==========================================
 void GameManager::UpdatePlaying(float dt) {
-    MenuInput menuInput = InputSystem::PollMenu();
+    MenuInput menuInput = InputSystem::PollMenu(settings);
     if (menuInput.PauseToggle) { state = GameState::PAUSED; return; }
     if (menuInput.Restart) { InitLevel(true); return; }
     if (menuInput.ToggleFullscreen) ToggleFullscreen();
@@ -299,7 +387,7 @@ void GameManager::UpdatePlaying(float dt) {
 
     // Doc phan cung DUY NHAT o day (InputSystem) roi dua tin hieu da quy doi vao
     // Player - Player khong con goi IsKeyDown/gamepad nao nua (xem player.cpp).
-    InputState input = InputSystem::Poll();
+    InputState input = InputSystem::Poll(settings);
     if (player.Update(dt, input, playerBullets)) {
         audio.PlayShoot();
     }
@@ -383,6 +471,16 @@ void GameManager::Run() {
     Config::LoadBalance();
 
     InitWindow(Config::SCREEN_W, Config::SCREEN_H, "Hardcore Space Invaders");
+
+    // BUG FIX: raylib mac dinh gan KEY_ESCAPE lam "exit key" - tu dong goi
+    // glfwSetWindowShouldClose() ngay o tang GLFW callback, HOAN TOAN doc lap voi
+    // InputSystem::PollMenu(). Vi game nay dung chinh ESC lam phim Pause (xem
+    // InputSystem::PollMenu, man Pause ghi "P/ESC: RESUME"), neu khong tat hanh vi
+    // mac dinh nay thi nhan ESC de Pause se VO TINH dong luon ca cua so game (thoat
+    // hoan toan) thay vi chi tam dung. PHAI goi truoc khi vong lap While(!WindowShouldClose())
+    // o duoi bat dau chay.
+    SetExitKey(KEY_NULL);
+
     SetTargetFPS(60);
     audio.Init();
     sprites.Load();
@@ -432,6 +530,7 @@ void GameManager::Run() {
                 case GameState::GAME_OVER:
                 case GameState::WAVE_CLEAR: UpdateEndScreen(); break;
                 case GameState::PAUSED:     UpdatePaused(); break;
+                case GameState::KEYBIND:    UpdateKeybindScreen(); break;
                 case GameState::PLAYING:    UpdatePlaying(dt); break;
             }
         }
@@ -446,7 +545,8 @@ void GameManager::Run() {
             case GameState::GAME_OVER:
             case GameState::WAVE_CLEAR: RenderSystem::DrawEndScreen(*this); break;
             case GameState::PLAYING:
-            case GameState::PAUSED: RenderSystem::DrawPlaying(*this); break;
+            case GameState::PAUSED:
+            case GameState::KEYBIND: RenderSystem::DrawPlaying(*this); break;
         }
 
         float alpha = GetTransitionAlpha();

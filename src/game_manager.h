@@ -18,8 +18,27 @@
 #include "sprites.h"
 #include "events.h"
 
-enum class GameState { MENU, PLAYING, PAUSED, GAME_OVER, WAVE_CLEAR };
+enum class GameState { MENU, PLAYING, PAUSED, GAME_OVER, WAVE_CLEAR, KEYBIND };
 enum class TransitionPhase { NONE, FADE_OUT, FADE_IN };
+
+// ==========================================
+// 4 HANH DONG CO THE REBIND (man hinh KEYBIND) - DUY NHAT 1 noi liet ke thu tu/nhan,
+// dung con tro-thanh-vien (pointer-to-member) de GameManager::UpdateKeybindScreen()
+// (ghi ma phim moi) va RenderSystem::DrawKeybindScreen() (doc de hien thi) LUON tham
+// chieu CUNG 1 dinh nghia - khong the xay ra tinh huong 2 noi liet ke thu tu khac nhau
+// roi lech nhau ve sau (dung y het van de tung sua o powerup.h: comment/code lech nhau).
+// ==========================================
+struct RebindableAction { const char* label; int Settings::*keyField; };
+constexpr int REBINDABLE_ACTION_COUNT = 4;
+inline const RebindableAction* GetRebindableActions() {
+    static const RebindableAction actions[REBINDABLE_ACTION_COUNT] = {
+        { "Trai",  &Settings::keyMoveLeft  },
+        { "Phai",  &Settings::keyMoveRight },
+        { "Ban",   &Settings::keyShoot     },
+        { "Pause", &Settings::keyPause     },
+    };
+    return actions;
+}
 
 // Dinh danh loai dich - dung khi can chon ra 1 muc tieu cu the (vd "tien tuyen" ban
 // tra) ma khong biet truoc no thuoc pool nao. Day KHONG phai da hinh runtime - chi la
@@ -153,6 +172,12 @@ private:
     float GetTransitionAlpha() const;
 
     void SaveSettings(); // Ghi lai settings.cfg moi khi doi do kho/am luong trong menu/pause
+
+    // Man hinh KEYBIND (vao tu Paused, phim K) - xem GetRebindableActions() o dau file.
+    // -1 = dang hien danh sach 4 hanh dong, CHUA cho phim; 0..REBINDABLE_ACTION_COUNT-1
+    // = da chon 1 hanh dong, dang CHO nguoi choi bam phim moi cho no.
+    int rebindingActionIndex = -1;
+    void UpdateKeybindScreen();
 
     // OBSERVABILITY: bat/tat qua phim F3 (xem InputSystem::PollDebugOverlayToggle),
     // hoat dong o MOI trang thai - Run() tu doc phim nay moi frame thay vi qua

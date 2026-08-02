@@ -23,6 +23,8 @@ namespace {
         Assign(s, "fire_rate", Config::PLAYER_FIRE_RATE);
         Assign(s, "invincible_time", Config::INVINCIBLE_TIME);
         Assign(s, "shield_hit_grace", Config::PLAYER_SHIELD_HIT_GRACE);
+        Assign(s, "extra_life_score_threshold", Config::EXTRA_LIFE_SCORE_THRESHOLD);
+        Assign(s, "max_lives", Config::MAX_LIVES);
     }
 
     void LoadEnemyGeneral(const json& root) {

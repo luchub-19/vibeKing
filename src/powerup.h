@@ -5,8 +5,10 @@
 
 // ==========================================
 // POWER-UP
-// Rơi thẳng xuống từ vị trí địch vừa chết, người chơi bay ngang qua để nhặt. Chỉ 2 loại
-// theo đúng phạm vi đã bàn: RapidFire (bắn nhanh tạm thời) và Shield (đỡ đúng 1 đòn).
+// Rơi thẳng xuống từ vị trí địch vừa chết, người chơi bay ngang qua để nhặt. 4 loại
+// đều nhau (xem PhysicsSystem::UpdatePowerUps): RapidFire (bắn nhanh tạm thời), Shield
+// (đỡ đúng 1 đòn), Piercing (đạn xuyên nhiều địch) và Cleanser (xoá sạch đạn địch đang
+// bay trên màn hình ngay lập tức - "bom cứu nạn").
 // Dùng lại đúng thuật toán swap-and-pop với các pool khác trong project (BulletPool,
 // ParticlePool, EnemyPool) - không phát minh thêm cách quản lý mới.
 // ==========================================

@@ -1,4 +1,5 @@
 #include "player.h"
+#include "sprites.h"
 
 Player::Player() { Reset(); }
 
@@ -7,6 +8,7 @@ void Player::Reset() {
     speed = Config::PLAYER_SPEED;
     lives = 3;
     score = 0;
+    nextExtraLifeScore = Config::EXTRA_LIFE_SCORE_THRESHOLD;
     invincibleTimer = 0.0f;
     shieldTimer = 0.0f;
     rapidFireTimer = 0.0f;
@@ -74,22 +76,59 @@ bool Player::TakeDamage() {
     return true;
 }
 
-void Player::AddScore(int points) { score += points; }
+bool Player::AddScore(int points) {
+    score += points;
+    bool grantedExtraLife = false;
+    while (score >= nextExtraLifeScore) {
+        nextExtraLifeScore += Config::EXTRA_LIFE_SCORE_THRESHOLD;
+        if (lives < Config::MAX_LIVES) {
+            lives++;
+            grantedExtraLife = true;
+        }
+    }
+    return grantedExtraLife;
+}
 
-void Player::Draw() const {
+void Player::Draw(const Texture2D& sprite) const {
     if (invincibleTimer > 0.0f) {
         if (((int)(invincibleTimer * 10) % 2) != 0) return; // Nhap nhay khi bat tu
     }
 
-    Color tint = GREEN;
-    if (HasShield()) tint = SKYBLUE;
-    else if (HasPiercing()) tint = MAGENTA;
-    else if (HasRapidFire()) tint = ORANGE;
+    // HOAN THIEN: truoc day than tau doi mau theo THU TU UU TIEN Shield > Piercing >
+    // RapidFire - neu 2+ power-up active CUNG LUC (hoan toan co the xay ra, cac
+    // timer doc lap nhau) thi chi con power-up uu tien cao nhat con "nhin thay duoc",
+    // may lai bi che mat. Gio: than tau LUON mau GREEN co dinh (mau goc cua sprite),
+    // moi power-up active co 1 pip mau rieng xep hang duoi tau - nhin duoc DUNG TAP
+    // HOP nhung gi dang active, khong gioi han chi 1 loai.
+    DrawSprite(sprite, rect, GREEN);
 
-    DrawRectangleRec(rect, tint);
     if (HasShield()) {
-        // Vong khien bao quanh - phan biet ro voi mau tint don thuan
+        // Vong khien bao quanh - giu lai rieng vi no truyen dat y nghia khac voi pip
+        // status thuan tuy (khong gian bao ve THAT SU quanh tau, khong chi la 1 nhan).
         Rectangle ring{ rect.x - 4.0f, rect.y - 4.0f, rect.width + 8.0f, rect.height + 8.0f };
         DrawRectangleLinesEx(ring, 2.0f, SKYBLUE);
+    }
+
+    struct PipStatus { bool active; Color color; };
+    PipStatus pips[] = {
+        { HasShield(),    SKYBLUE },
+        { HasPiercing(),  MAGENTA },
+        { HasRapidFire(), ORANGE  },
+    };
+    int activeCount = 0;
+    for (const auto& status : pips) if (status.active) activeCount++;
+    if (activeCount == 0) return;
+
+    constexpr float pipSize = 5.0f;
+    constexpr float pipGap = 3.0f;
+    float totalWidth = activeCount * pipSize + (activeCount - 1) * pipGap;
+    float startX = rect.x + rect.width / 2.0f - totalWidth / 2.0f;
+    float pipY = rect.y + rect.height + 4.0f; // Ngay duoi tau - vung nay luon trong man hinh vi player.y co dinh
+
+    int drawn = 0;
+    for (const auto& status : pips) {
+        if (!status.active) continue;
+        DrawRectangle((int)(startX + drawn * (pipSize + pipGap)), (int)pipY, (int)pipSize, (int)pipSize, status.color);
+        drawn++;
     }
 }

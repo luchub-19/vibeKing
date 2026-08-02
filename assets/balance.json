@@ -5,7 +5,9 @@
     "speed": 400.0,
     "fire_rate": 0.2,
     "invincible_time": 1.2,
-    "shield_hit_grace": 0.3
+    "shield_hit_grace": 0.3,
+    "extra_life_score_threshold": 5000,
+    "max_lives": 5
   },
 
   "enemy": {

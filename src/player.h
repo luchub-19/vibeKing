@@ -10,6 +10,7 @@ private:
     float speed;
     int lives;
     int score;
+    int nextExtraLifeScore = Config::EXTRA_LIFE_SCORE_THRESHOLD; // Xem AddScore() + Reset()
     float invincibleTimer;
     float fireTimer;
 
@@ -46,8 +47,18 @@ public:
     bool HasRapidFire() const { return rapidFireTimer > 0.0f; }
     bool HasPiercing() const { return pierceTimer > 0.0f; }
 
-    void AddScore(int points);
-    void Draw() const;
+    // Tra ve true neu vua duoc +1 mang tu moc diem so (xem Config::EXTRA_LIFE_SCORE_
+    // THRESHOLD) trong lan cong diem NAY - de caller (GameManager::ApplyComboAndScore,
+    // noi duy nhat goi ham nay) biet ma phat hieu ung/am thanh "1UP" tuong ung. Player
+    // tu no khong dung GameEvent/pendingEvents (khong biet gi ve he thong render/audio).
+    bool AddScore(int points);
+    // BUG FIX: truoc day Draw() ve DrawRectangleRec() (hinh chu nhat tron), bo qua han
+    // sprite "phi thuyen" da duoc SpriteSheet::Load() dung san (xem sprites.cpp::BuildShip)
+    // - moi loai dich khac deu co sprite rieng, chi player la bi sot. Nhan tham so
+    // sprite tu ngoai truyen vao (giong cach render_system.cpp truyen gm.sprites.X cho
+    // dich) thay vi Player tu include SpriteSheet, giu dung huong "Player khong biet gi
+    // ve he thong render ngoai chinh no".
+    void Draw(const Texture2D& sprite) const;
 
     Rectangle GetRect() const { return rect; }
     int GetLives() const { return lives; }
