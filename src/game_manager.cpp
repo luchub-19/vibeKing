@@ -472,6 +472,21 @@ void GameManager::Run() {
 
     InitWindow(Config::SCREEN_W, Config::SCREEN_H, "Hardcore Space Invaders");
 
+    // Khong gia dinh InitWindow() luon thanh cong - neu khong co man hinh/driver do hoa hop
+    // le (chay qua SSH khong forward X11, may headless khong co Xvfb, driver GPU loi...)
+    // GLFW se khong tao duoc context, va MOI loi goi do hoa ngay sau day (SetExitKey,
+    // LoadFontEx, sprites.Load(), LoadRenderTexture...) se deref tren context khong ton tai
+    // -> segfault kho hieu thay vi 1 thong bao loi ro rang. Cung triet ly voi
+    // IsSoundValid()/IsFontValid() da dung o noi khac trong file nay - kiem tra ket qua
+    // truoc khi dung tiep, khong gia dinh thanh cong. Chua co tai nguyen nao (font/sprite/
+    // audio/renderTarget) duoc cap phat tinh den day nen chi can dong FileLogger roi thoat,
+    // khong goi CloseWindow()/Unload* (chua co gi de giai phong).
+    if (!IsWindowReady()) {
+        TraceLog(LOG_FATAL, "Khong the khoi tao cua so do hoa (InitWindow that bai) - kiem tra driver GPU/DISPLAY, thoat.");
+        FileLogger::Shutdown();
+        return;
+    }
+
     // BUG FIX: raylib mac dinh gan KEY_ESCAPE lam "exit key" - tu dong goi
     // glfwSetWindowShouldClose() ngay o tang GLFW callback, HOAN TOAN doc lap voi
     // InputSystem::PollMenu(). Vi game nay dung chinh ESC lam phim Pause (xem

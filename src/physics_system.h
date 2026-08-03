@@ -1,4 +1,10 @@
 #pragma once
+#include "raylib.h"
+#include "bullet_pool.h"
+#include "spatial_grid.h"
+#include <array>
+#include <vector>
+#include <cstddef>
 
 class GameManager; // Forward declare - PhysicsSystem thao tac truc tiep tren du lieu
                     // the gioi cua GameManager (pools, grids, bunkers, player...) qua
@@ -37,4 +43,18 @@ public:
 private:
     static void EnemyShoot(GameManager& gm, float x, float y);
     static void FireRadialBurst(GameManager& gm, float x, float y, int count, float speed);
+
+    // Helper noi bo dung de rut gon trung lap trong UpdateEnemies()/CheckCollisions() -
+    // xem chi tiet/ly do o dinh nghia dau physics_system.cpp. La private static member
+    // (khong phai free function) DE THUA HUONG friend access ma GameManager da cap cho
+    // ca class PhysicsSystem - free function thuong se KHONG doc/ghi duoc field private
+    // cua GameManager (da tu kiem chung: build loi bien private ngay lan dau thu voi free
+    // function).
+    static bool ApplyFormationMoveX(Rectangle& r, float direction, float speed, float dt, float formationOffset = 0.0f);
+    static bool DescendRowAndCheckGameOver(GameManager& gm, Rectangle& r);
+    template <typename PoolT, size_t N, typename CustomizeEventFn>
+    static bool ResolveOneHitKillCollision(GameManager& gm, Bullet& bullet, size_t bulletIndex,
+                                            PoolT& pool, SpatialGrid& grid, const Rectangle& bulletRect,
+                                            std::array<bool, N>& pendingKill, std::vector<int>& candidates,
+                                            int scoreValue, bool& removed, CustomizeEventFn customizeEvent);
 };

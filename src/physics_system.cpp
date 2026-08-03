@@ -21,22 +21,76 @@ static GameEvent MakeEnemyKilledEvent(Vector2 position, Color color, int scoreVa
     return ev;
 }
 
-// ==========================================
-// DOI HINH (Basic/Tanky/Zigzag) + CHON DICH BAN
-// ==========================================
+// Di chuyen doi hinh ngang (dung chung cho Basic/Tanky/Zigzag, thay vi lap lai 3 lan y
+// het nhau). `formationOffset` la phan lech KHONG thuoc doi hinh that (vd dao dong sin
+// cua Zigzag) da duoc cong san vao r.x TRUOC khi goi ham nay - mac dinh 0 cho Basic/Tanky
+// (khong co hieu ung phu nao ca). Van la ham thuong (khong virtual), khop DOD - chi rut
+// gon phan than vong lap giong het nhau, khong doi kien truc pool rieng biet.
+bool PhysicsSystem::ApplyFormationMoveX(Rectangle& r, float direction, float speed, float dt, float formationOffset) {
+    r.x += direction * speed * dt;
+    float formationX = r.x - formationOffset;
+    return (formationX <= 0.0f || formationX + r.width >= Config::SCREEN_W);
+}
+
+// Khi hitEdge: tut 1 hang + kep lai trong man hinh + kiem tra thua cuoc (dich cham day
+// player). Tra ve true neu GAME_OVER vua duoc kich hoat - noi goi ngat vong lap ngay
+// (return), giu dung hanh vi cu (dich dau tien cham day la dung lai, khong xu ly tiep
+// cac dich con lai trong wave).
+bool PhysicsSystem::DescendRowAndCheckGameOver(GameManager& gm, Rectangle& r) {
+    r.y += 20.0f;
+    if (r.x < 0) r.x = 0;
+    if (r.x + r.width > Config::SCREEN_W) r.x = Config::SCREEN_W - r.width;
+    if (EnemyBottom(r) >= gm.player.GetY()) {
+        gm.audio.PlayGameOver();
+        gm.lastSubmitResult = gm.leaderboard.TrySubmit(gm.player.GetScore(), gm.wave);
+        gm.RequestTransition(GameState::GAME_OVER);
+        return true;
+    }
+    return false;
+}
+
+// Va cham dan-player voi 1 pool kieu "1 mau, chet ngay khi trung" - Basic/Zigzag/Kamikaze
+// deu khop dung khuon nay (chi khac pool/grid/mang pendingKill/SCORE_VALUE, va vai truong
+// GameEvent muon tuy chinh them qua customizeEvent). KHONG dung cho Tanky (co HP, "trung
+// nhung chua chet" la 1 nhanh rieng that su khac ve logic) hay Boss (1 the duy nhat toan
+// cuc, khong nam trong pool+mang pendingKill nao ca) - ep 2 truong hop do vao chung 1 khuon
+// se lam ham kho doc hon la giup ich. Tra ve true neu dan da "tieu thu" xong (goi noi cap
+// nhat `consumed` cua vong lap ngoai; `removed` duoc ghi truc tiep qua tham chieu).
+template <typename PoolT, size_t N, typename CustomizeEventFn>
+bool PhysicsSystem::ResolveOneHitKillCollision(GameManager& gm, Bullet& bullet, size_t bulletIndex,
+                                        PoolT& pool, SpatialGrid& grid, const Rectangle& bulletRect,
+                                        std::array<bool, N>& pendingKill, std::vector<int>& candidates,
+                                        int scoreValue, bool& removed, CustomizeEventFn customizeEvent) {
+    grid.QueryIndices(bulletRect, candidates);
+    for (int idx : candidates) {
+        if (pendingKill[idx]) continue; // Da bi bullet khac trong frame nay ha roi
+        auto& e = pool[idx];
+        if (!CheckCollisionRecs(bulletRect, e.rect)) continue;
+
+        pendingKill[idx] = true;
+        GameEvent ev = MakeEnemyKilledEvent(EnemyCenter(e.rect), e.color, scoreValue);
+        customizeEvent(ev);
+        gm.pendingEvents.push_back(ev);
+
+        // PIERCING SHOT: neu dan con xuyen duoc, KHONG Destroy() - no van con o dung
+        // index `bulletIndex`, tiep tuc bay va co the trung them muc tieu khac o frame
+        // sau. removed=false -> vong lap ben ngoai se KHONG tang i sai (van dung, vi
+        // bullet nay khong bi swap).
+        removed = !bullet.ConsumePierce();
+        if (removed) gm.playerBullets.Destroy(bulletIndex);
+        return true;
+    }
+    return false;
+}
 void PhysicsSystem::UpdateEnemies(GameManager& gm, float dt) {
     bool hitEdge = false;
 
     // Basic/Tanky: chi ap dung doi hinh di chuyen ngang, khong co hanh vi phu.
     for (size_t i = 0; i < gm.basicEnemies.Size(); i++) {
-        Rectangle& r = gm.basicEnemies[i].rect;
-        r.x += gm.enemyDirection * gm.enemySpeed * dt;
-        if (r.x <= 0 || r.x + r.width >= Config::SCREEN_W) hitEdge = true;
+        if (ApplyFormationMoveX(gm.basicEnemies[i].rect, gm.enemyDirection, gm.enemySpeed, dt)) hitEdge = true;
     }
     for (size_t i = 0; i < gm.tankyEnemies.Size(); i++) {
-        Rectangle& r = gm.tankyEnemies[i].rect;
-        r.x += gm.enemyDirection * gm.enemySpeed * dt;
-        if (r.x <= 0 || r.x + r.width >= Config::SCREEN_W) hitEdge = true;
+        if (ApplyFormationMoveX(gm.tankyEnemies[i].rect, gm.enemyDirection, gm.enemySpeed, dt)) hitEdge = true;
     }
     // Zigzag: hanh vi rieng (dao dong sin) truoc khi ap doi hinh ngang. CHUAN HOA ECS:
     // ZigzagEnemy khong con tu mang Update() - cong thuc dao dong nam thang o day, noi
@@ -51,8 +105,12 @@ void PhysicsSystem::UpdateEnemies(GameManager& gm, float dt) {
         e.rect.x += (newOffset - e.lastOffset); // Chi cong phan thay doi -> khong troi dat tich luy
         e.lastOffset = newOffset;
 
-        e.rect.x += gm.enemyDirection * gm.enemySpeed * dt;
-        if (e.rect.x <= 0 || e.rect.x + e.rect.width >= Config::SCREEN_W) hitEdge = true;
+        // BUG FIX: truyen newOffset lam formationOffset - hitEdge gio duoc xet tren VI TRI
+        // DOI HINH THAT (rect.x - newOffset), KHONG con bi anh huong boi bien do dao dong
+        // sin (+-AMPLITUDE=18px). Truoc day dung thang rect.x (da bao gom offset sin) nen
+        // 1 con Zigzag dao dong ra toi bien co the kich hoat CA DOI HINH doi huong/tut hang
+        // som/tre hon dung luc, du doi hinh that chua thuc su cham bien.
+        if (ApplyFormationMoveX(e.rect, gm.enemyDirection, gm.enemySpeed, dt, newOffset)) hitEdge = true;
     }
     // Kamikaze KHONG tham gia vong lap tren (pool + spawn logic hoan toan rieng, xem
     // UpdateKamikaze) - dung nhu thiet ke "khong pha hong logic kiem tra bien luoi doi hinh".
@@ -75,40 +133,13 @@ void PhysicsSystem::UpdateEnemies(GameManager& gm, float dt) {
         gm.enemySpeed = fminf(gm.enemySpeed + Config::ENEMY_SPEED_INC, stats.enemySpeedMax);
 
         for (size_t i = 0; i < gm.basicEnemies.Size(); i++) {
-            Rectangle& r = gm.basicEnemies[i].rect;
-            r.y += 20.0f;
-            if (r.x < 0) r.x = 0;
-            if (r.x + r.width > Config::SCREEN_W) r.x = Config::SCREEN_W - r.width;
-            if (EnemyBottom(r) >= gm.player.GetY()) {
-                gm.audio.PlayGameOver();
-                gm.lastSubmitResult = gm.leaderboard.TrySubmit(gm.player.GetScore(), gm.wave);
-                gm.RequestTransition(GameState::GAME_OVER);
-                return;
-            }
+            if (DescendRowAndCheckGameOver(gm, gm.basicEnemies[i].rect)) return;
         }
         for (size_t i = 0; i < gm.tankyEnemies.Size(); i++) {
-            Rectangle& r = gm.tankyEnemies[i].rect;
-            r.y += 20.0f;
-            if (r.x < 0) r.x = 0;
-            if (r.x + r.width > Config::SCREEN_W) r.x = Config::SCREEN_W - r.width;
-            if (EnemyBottom(r) >= gm.player.GetY()) {
-                gm.audio.PlayGameOver();
-                gm.lastSubmitResult = gm.leaderboard.TrySubmit(gm.player.GetScore(), gm.wave);
-                gm.RequestTransition(GameState::GAME_OVER);
-                return;
-            }
+            if (DescendRowAndCheckGameOver(gm, gm.tankyEnemies[i].rect)) return;
         }
         for (size_t i = 0; i < gm.zigzagEnemies.Size(); i++) {
-            Rectangle& r = gm.zigzagEnemies[i].rect;
-            r.y += 20.0f;
-            if (r.x < 0) r.x = 0;
-            if (r.x + r.width > Config::SCREEN_W) r.x = Config::SCREEN_W - r.width;
-            if (EnemyBottom(r) >= gm.player.GetY()) {
-                gm.audio.PlayGameOver();
-                gm.lastSubmitResult = gm.leaderboard.TrySubmit(gm.player.GetScore(), gm.wave);
-                gm.RequestTransition(GameState::GAME_OVER);
-                return;
-            }
+            if (DescendRowAndCheckGameOver(gm, gm.zigzagEnemies[i].rect)) return;
         }
     }
 
@@ -352,44 +383,18 @@ void PhysicsSystem::CheckCollisions(GameManager& gm) {
             }
         }
 
-        // Trung don ha guc ngay (Basic/Zigzag, luon 1 mau) - danh dau pendingKill, cong
-        // diem/hieu ung ngay (khong phu thuoc index nen an toan de lam ngay lap tuc).
+        // Trung don ha guc ngay (Basic/Zigzag, luon 1 mau) - dung chung
+        // ResolveOneHitKillCollision (dinh nghia o dau file) thay vi lap lai than vong lap.
         if (!consumed) {
-            gm.basicGrid.QueryIndices(bulletRect, candidates);
-            for (int idx : candidates) {
-                if (basicPendingKill[idx]) continue; // Da bi bullet khac trong frame nay ha roi
-                BasicEnemy& e = gm.basicEnemies[idx];
-                if (!CheckCollisionRecs(bulletRect, e.rect)) continue;
-
-                basicPendingKill[idx] = true;
-                gm.pendingEvents.push_back(MakeEnemyKilledEvent(EnemyCenter(e.rect), e.color, BasicEnemy::SCORE_VALUE));
-
-                // PIERCING SHOT: neu dan con xuyen duoc, KHONG Destroy() - no van con o
-                // dung index `i`, tiep tuc bay va co the trung them muc tieu khac o
-                // frame sau. removed=false -> vong lap ben duoi se KHONG tang i sai
-                // (van dung, vi bullet nay khong bi swap).
-                removed = !bullet.ConsumePierce();
-                if (removed) gm.playerBullets.Destroy(i);
-                consumed = true;
-                break;
-            }
+            consumed = ResolveOneHitKillCollision(gm, bullet, i, gm.basicEnemies, gm.basicGrid, bulletRect,
+                                                   basicPendingKill, candidates, BasicEnemy::SCORE_VALUE,
+                                                   removed, [](GameEvent&) {});
         }
 
         if (!consumed) {
-            gm.zigzagGrid.QueryIndices(bulletRect, candidates);
-            for (int idx : candidates) {
-                if (zigzagPendingKill[idx]) continue;
-                ZigzagEnemy& e = gm.zigzagEnemies[idx];
-                if (!CheckCollisionRecs(bulletRect, e.rect)) continue;
-
-                zigzagPendingKill[idx] = true;
-                gm.pendingEvents.push_back(MakeEnemyKilledEvent(EnemyCenter(e.rect), e.color, ZigzagEnemy::SCORE_VALUE));
-
-                removed = !bullet.ConsumePierce();
-                if (removed) gm.playerBullets.Destroy(i);
-                consumed = true;
-                break;
-            }
+            consumed = ResolveOneHitKillCollision(gm, bullet, i, gm.zigzagEnemies, gm.zigzagGrid, bulletRect,
+                                                   zigzagPendingKill, candidates, ZigzagEnemy::SCORE_VALUE,
+                                                   removed, [](GameEvent&) {});
         }
 
         // Tanky: nhieu mau hon - tru hp ngay (an toan, khong dung toi index), chi danh
@@ -423,25 +428,16 @@ void PhysicsSystem::CheckCollisions(GameManager& gm) {
         }
 
         // Kamikaze: 1 mau, ha guc ngay - grid rieng, khong lien quan gi toi luoi doi hinh.
+        // customizeEvent ghi de so hat/do rung manh hon mac dinh (va cham truc tiep, khong
+        // chi la 1 vien dan nho).
         if (!consumed) {
-            gm.kamikazeGrid.QueryIndices(bulletRect, candidates);
-            for (int idx : candidates) {
-                if (kamikazePendingKill[idx]) continue;
-                KamikazeEnemy& e = gm.kamikazeEnemies[idx];
-                if (!CheckCollisionRecs(bulletRect, e.rect)) continue;
-
-                kamikazePendingKill[idx] = true;
-                GameEvent ev = MakeEnemyKilledEvent(EnemyCenter(e.rect), e.color, KamikazeEnemy::SCORE_VALUE);
-                ev.particleCount = 16;
-                ev.shakeDuration = 0.14f;
-                ev.shakeIntensity = 5.0f;
-                gm.pendingEvents.push_back(ev);
-
-                removed = !bullet.ConsumePierce();
-                if (removed) gm.playerBullets.Destroy(i);
-                consumed = true;
-                break;
-            }
+            consumed = ResolveOneHitKillCollision(gm, bullet, i, gm.kamikazeEnemies, gm.kamikazeGrid, bulletRect,
+                                                   kamikazePendingKill, candidates, KamikazeEnemy::SCORE_VALUE, removed,
+                                                   [](GameEvent& ev) {
+                                                       ev.particleCount = 16;
+                                                       ev.shakeDuration = 0.14f;
+                                                       ev.shakeIntensity = 5.0f;
+                                                   });
         }
 
         // Boss: nhieu mau nhat trong game - tru hp ngay, chi bao "chet" khi hp<=0

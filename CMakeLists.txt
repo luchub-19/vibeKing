@@ -4,13 +4,28 @@ project(HardcoreSpaceInvaders CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# std::from_chars() cho float/double (level_config.cpp, settings.cpp) chi duoc libstdc++
+# (GCC) ho tro DAY DU tu GCC 11 tro len - ban cu hon se bao loi compile kho hieu, tro thang
+# vao <charconv> thay vi vao code cua chinh minh. Chan som o day, thong bao ro rang, thay vi
+# de loi troi len tu 1 file .cpp cu the.
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 11.0)
+    message(FATAL_ERROR
+        "vibeKing can GCC >= 11 (std::from_chars<float> chi duoc libstdc++ ho tro day du tu "
+        "ban nay). GCC hien tai: ${CMAKE_CXX_COMPILER_VERSION}. Dung Clang moi hoac cai GCC moi hon.")
+endif()
+
 # Mac dinh build Release neu khong chi dinh - trong CMake, khong set CMAKE_BUILD_TYPE
 # nghia la KHONG co flag toi uu hoa nao ca (tuong duong -O0), pha vo toan bo cong suc
 # toi uu thuat toan/cache-friendliness da lam trong code (SpatialGrid, EnemyPool...).
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
-set(CMAKE_CXX_FLAGS_RELEASE "-O2")
+# QUAN TRONG: phai tu them lai -DNDEBUG - set() nay GHI DE toan bo gia tri mac dinh cua
+# CMake cho bien nay (von la "-O3 -DNDEBUG" voi GNU), khong phai BO SUNG vao do. Thieu
+# -DNDEBUG nghia la moi assert() (spatial_grid.h, bullet_pool.h, bunker.cpp...) van ACTIVE
+# trong ban "Release" - vua ton CPU kiem tra moi frame, vua co the abort() giua demo/gameplay
+# thuc te neu 1 assert nao do lo trigger, thay vi duoc compile away nhu dung nghia "release".
+set(CMAKE_CXX_FLAGS_RELEASE "-O2 -DNDEBUG")
 
 find_package(raylib REQUIRED)
 

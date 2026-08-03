@@ -225,9 +225,13 @@ thuộc 1 struct Enemy cụ thể), rồi thêm 1 dòng `Assign(...)` tương �
    (`friend`-accessible bởi Physics/RenderSystem).
 3. Hàm `PhysicsSystem::UpdateNewEnemy(GameManager&, float dt)` — di chuyển +
    spawn logic.
-4. Khối xử lý va chạm tương ứng trong `PhysicsSystem::CheckCollisions()` —
-   theo đúng khuôn của khối Kamikaze (query grid → for candidates → xử lý →
-   push `GameEvent`, KHÔNG gọi audio/particle trực tiếp).
+4. Khối xử lý va chạm tương ứng trong `PhysicsSystem::CheckCollisions()` — nếu
+   địch mới "1 máu, chết ngay khi trúng" (như Basic/Zigzag/Kamikaze), gọi thẳng
+   `ResolveOneHitKillCollision(...)` (định nghĩa đầu `physics_system.cpp`) thay
+   vì viết tay lại vòng lặp; chỉ viết khối riêng nếu có state phức tạp hơn kiểu
+   Tanky (nhiều máu, có nhánh "trúng nhưng chưa chết") hoặc Boss (thực thể toàn
+   cục, không nằm trong pool). Dù theo cách nào, vẫn không gọi audio/particle
+   trực tiếp — chỉ push `GameEvent`.
 5. Vòng vẽ + `Culling::IsVisible()` trong `RenderSystem::DrawPlaying()`.
 6. Hằng số cân bằng: `inline` trong `config.h`/struct + dòng `Assign()` trong
    `config.cpp` + field tương ứng trong `assets/balance.json`.

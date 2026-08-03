@@ -1,0 +1,71 @@
+name: build-and-test
+
+# Truoc day README.md va ARCHITECTURE.md deu nhac toi file nay nhu da ton tai va "da xac
+# nhan chay duoc" - nhung repo chua bao gio thuc su co no. File nay lam cho docs dung voi
+# thuc te: build raylib tu source (dung ban --branch 5.5 nhu README huong dan), build
+# project, chay ctest. Ten job (build-and-test) khop voi ten status check duoc nhac toi o
+# ARCHITECTURE.md muc 7 de bat Branch Protection Rule sau nay.
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+env:
+  RAYLIB_VERSION: "5.5"
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cai dat header X11/GL can de compile raylib tren Linux
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev \
+            libgl1-mesa-dev libglu1-mesa-dev
+
+      # Build raylib tu source ton ~1-2 phut - cache lai theo version de cac lan chay sau
+      # (khong doi RAYLIB_VERSION) khoi phai build lai tu dau.
+      - name: Cache raylib build
+        id: cache-raylib
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/raylib-install
+          key: raylib-${{ env.RAYLIB_VERSION }}-${{ runner.os }}-v1
+
+      - name: Build + cai raylib tu source (khop huong dan trong README)
+        if: steps.cache-raylib.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 --branch "${RAYLIB_VERSION}" https://github.com/raysan5/raylib.git
+          cmake -S raylib -B raylib/build -DCMAKE_BUILD_TYPE=Release -DBUILD_EXAMPLES=OFF \
+                -DCMAKE_INSTALL_PREFIX="${{ github.workspace }}/raylib-install"
+          cmake --build raylib/build -j"$(nproc)"
+          cmake --install raylib/build
+
+      - name: Configure (Release)
+        run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=Release \
+                -DCMAKE_PREFIX_PATH="${{ github.workspace }}/raylib-install"
+
+      - name: Build game + unit_tests
+        run: cmake --build build -j"$(nproc)"
+
+      - name: Chay bo test (ctest)
+        working-directory: build
+        run: ctest --output-on-failure
+
+      # Bo sung: build lai voi canh bao nghiem ngat lam RAY LOI (-Werror) - chi de PHAT
+      # HIEN SOM neu code sau nay vo tinh dua warning moi vao, khong phai build de dung.
+      # Hien tai toan bo codebase dang 0 warning duoi cac co nay.
+      - name: Build kiem tra voi canh bao nghiem ngat (-Wall -Wextra -Wpedantic -Wshadow -Werror)
+        run: |
+          cmake -B build-strict -DCMAKE_BUILD_TYPE=Release \
+                -DCMAKE_PREFIX_PATH="${{ github.workspace }}/raylib-install" \
+                -DCMAKE_CXX_FLAGS="-Wall -Wextra -Wpedantic -Wshadow -Werror"
+          cmake --build build-strict -j"$(nproc)"
