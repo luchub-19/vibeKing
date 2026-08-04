@@ -9,6 +9,7 @@
 #include "screen_shake.h"
 #include "audio_system.h"
 #include "leaderboard.h"
+#include "meta_progress.h"
 #include "settings.h"
 #include "player.h"
 #include "enemy_types.h"
@@ -92,6 +93,8 @@ private:
     ScreenShake screenShake;
     AudioSystem audio;
     Leaderboard leaderboard;
+    MetaProgress metaProgress;
+    int selectedLoadout = 0; // Index dang duoc cycle trong Menu (Q/E) - xem UpdateMenu/DrawLoadoutSelect
     Settings settings;
     SpriteSheet sprites;
     Font gameFont{}; // Tai qua LoadFontEx() trong Run() - Texture Atlas rieng thay the font mac dinh mo cua raylib
@@ -187,6 +190,7 @@ private:
     // newGame=true: van choi hoan toan moi (wave=1, reset diem/mang). newGame=false:
     // sang wave ke tiep trong cung 1 van (giu diem/mang, chi doi hinh/toc do kho hon).
     void InitLevel(bool newGame = true);
+    void ApplyLoadoutBonus(); // Ap dung bonus cua loadout dang chon (Vanguard/Overcharge) - goi tu cuoi InitLevel()
     void SpawnBunkers();
     void MaybeDropPowerUp(Vector2 at); // Roll ngau nhien khi 1 dich vua bi ha guc
     void UpdateMenu();

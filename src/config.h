@@ -56,6 +56,13 @@ namespace Config {
     constexpr int FONT_BASE_SIZE = 48;
     constexpr int LEADERBOARD_MAX_ENTRIES = 10;
 
+    // META-PROGRESSION: quy doi diem so cuoi 1 van thanh currency xuyen-van (xem
+    // MetaProgress::AwardCurrency trong meta_progress.cpp) - vd rate=50 tuc 1000 diem =
+    // 20 currency. constexpr (khong phai inline/JSON-tunable nhu nhom "DU LIEU CAN BANG"
+    // ben duoi) vi day la mau so chia - de constexpr tranh hoan toan kha nang 1 gia tri 0
+    // lot vao tu balance.json roi gay chia-cho-0 luc runtime.
+    constexpr int META_SCORE_TO_CURRENCY_RATE = 50;
+
     inline const char* LeaderboardFilePath() { return "leaderboard.dat"; }
     inline const char* LevelConfigFilePath() { return "level.cfg"; }
     inline const char* SettingsFilePath() { return "settings.cfg"; }

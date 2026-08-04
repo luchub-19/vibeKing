@@ -3,6 +3,7 @@
 #include "bullet_pool.h"
 #include "config.h"
 #include "input_system.h"
+#include "meta_progress.h"
 
 class Player {
 private:
@@ -43,6 +44,11 @@ public:
     void GrantShield(float duration) { shieldTimer = duration; }
     void GrantRapidFire(float duration) { rapidFireTimer = duration; }
     void GrantPiercing(float duration) { pierceTimer = duration; }
+
+    // Bonus rieng cua tung loadout (xem meta_progress.h), ap dung 1 lan luc bat dau 1 van
+    // MOI (goi tu GameManager::ApplyLoadoutBonus, sau khi Reset() da chay). Standard:
+    // khong lam gi (giu dung hanh vi hien tai).
+    void ApplyStartBonus(LoadoutType type);
     bool HasShield() const { return shieldTimer > 0.0f; }
     bool HasRapidFire() const { return rapidFireTimer > 0.0f; }
     bool HasPiercing() const { return pierceTimer > 0.0f; }

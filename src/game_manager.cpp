@@ -115,6 +115,21 @@ void GameManager::InitLevel(bool newGame) {
     // khong bao gio bien thanh "dan bay ra day man hinh" khong the choi noi.
     waveFireRateMul = 1.0f - Config::WAVE_FIRE_RATE_STEP * (float)(wave - 1);
     if (waveFireRateMul < Config::WAVE_FIRE_RATE_MIN_MUL) waveFireRateMul = Config::WAVE_FIRE_RATE_MIN_MUL;
+
+    if (newGame) ApplyLoadoutBonus(); // Bonus loadout la "bat dau 1 VAN moi" - KHONG lap lai moi wave (newGame=false)
+}
+
+// ==========================================
+// LOADOUT BONUS - doc loadout dang duoc chon trong Menu (selectedLoadout, xem UpdateMenu)
+// va ap dung dung 1 lan luc bat dau 1 van MOI (xem lenh goi trong InitLevel() o tren).
+// Kiem tra lai IsUnlocked() o day (khong chi tin selectedLoadout) de phong truong hop
+// nguoi choi dang "xem thu" (cycle toi) 1 loadout chua du currency mo khoa that su - luc
+// do van choi dung nhu Standard, khong "quyt" duoc bonus chua tra tien.
+// ==========================================
+void GameManager::ApplyLoadoutBonus() {
+    LoadoutType chosen = (LoadoutType)selectedLoadout;
+    if (chosen != LoadoutType::Standard && !metaProgress.IsUnlocked(chosen)) return;
+    player.ApplyStartBonus(chosen);
 }
 
 void GameManager::SpawnBunkers() {
@@ -278,6 +293,19 @@ void GameManager::UpdateMenu() {
     if (input.VolumeDown) { audio.SetVolume(audio.GetVolume() - 0.1f); changed = true; }
     if (changed) SaveSettings();
 
+    // LOADOUT SELECT: cycle 3 lua chon (Standard/Vanguard/Overcharge) bang Q/E - phim
+    // rieng, KHONG trung voi Trai/Phai doi do kho. Dung tren 1 loadout dang KHOA ma du
+    // currency -> tu dong TryUnlock ngay (tru tien + luu file); chua du thi chi "xem thu"
+    // tien do (hien qua DrawLoadoutSelect trong render_system.cpp), khong lam gi ca.
+    if (input.CycleLoadoutLeft || input.CycleLoadoutRight) {
+        int dir = input.CycleLoadoutRight ? 1 : -1;
+        selectedLoadout = (selectedLoadout + dir + 3) % 3;
+        LoadoutType chosen = (LoadoutType)selectedLoadout;
+        if (chosen != LoadoutType::Standard && !metaProgress.IsUnlocked(chosen)) {
+            metaProgress.TryUnlock(chosen, GetLoadoutUnlockCost(chosen));
+        }
+    }
+
     if (input.ToggleFullscreen) ToggleFullscreen();
 
     if (input.Confirm) {
@@ -436,6 +464,7 @@ void GameManager::UpdatePlaying(float dt) {
     if (player.GetLives() <= 0) {
         audio.PlayGameOver();
         lastSubmitResult = leaderboard.TrySubmit(player.GetScore(), wave);
+        metaProgress.AwardCurrency(player.GetScore());
         RequestTransition(GameState::GAME_OVER);
     }
 }
@@ -512,6 +541,7 @@ void GameManager::Run() {
     audio.Init();
     sprites.Load();
     leaderboard.Load(Config::LeaderboardFilePath());
+    metaProgress.Load("meta_progress.dat");
     levelGrid = LevelGridConfig::LoadFromFile(Config::LevelConfigFilePath());
 
     // FONT: LoadFontEx rasterize toan bo glyph thanh 1 texture atlas duy nhat NGAY LUC
