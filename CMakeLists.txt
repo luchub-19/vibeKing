@@ -47,6 +47,7 @@ set(SOURCES
     src/render_system.cpp
     src/settings.cpp
     src/sprites.cpp
+    src/meta_progress.cpp
 )
 
 add_executable(space_invaders ${SOURCES})
@@ -77,11 +78,13 @@ if(BUILD_TESTS)
         tests/test_player.cpp
         tests/test_settings.cpp
         tests/test_boss.cpp
+        tests/test_meta_progress.cpp
         src/leaderboard.cpp
         src/config.cpp
         src/bunker.cpp
         src/player.cpp
         src/settings.cpp
+        src/meta_progress.cpp
     )
     target_include_directories(unit_tests PRIVATE src tests)
     target_link_libraries(unit_tests raylib)

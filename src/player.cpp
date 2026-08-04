@@ -89,6 +89,25 @@ bool Player::AddScore(int points) {
     return grantedExtraLife;
 }
 
+void Player::ApplyStartBonus(LoadoutType type) {
+    switch (type) {
+        case LoadoutType::Vanguard:
+            // +1 mang luc bat dau van - clamp o MAX_LIVES giong dung quy uoc cua AddScore()
+            // (khong de loadout ghi de gioi han an toan da dinh nghia cho so mang toi da).
+            if (lives < Config::MAX_LIVES) lives++;
+            break;
+        case LoadoutType::Overcharge:
+            // Bat dau van voi RapidFire active san - dung lai CHINH co che power-up nhat
+            // duoc (GrantRapidFire) va CHINH thoi luong power-up do dung (POWERUP_RAPIDFIRE_
+            // DURATION), thay vi bay them 1 hang so rieng chi de dung 1 lan.
+            GrantRapidFire(Config::POWERUP_RAPIDFIRE_DURATION);
+            break;
+        case LoadoutType::Standard:
+        default:
+            break; // Giu dung hanh vi hien tai, khong doi gi ca
+    }
+}
+
 void Player::Draw(const Texture2D& sprite) const {
     if (invincibleTimer > 0.0f) {
         if (((int)(invincibleTimer * 10) % 2) != 0) return; // Nhap nhay khi bat tu

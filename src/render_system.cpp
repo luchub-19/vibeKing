@@ -4,6 +4,24 @@
 #include "culling.h"
 #include "process_metrics.h"
 #include "input_system.h"
+#include "meta_progress.h"
+
+// LOADOUT SELECT - ve dong "LOADOUT: <ten> (...)" ngay duoi dong DIFFICULTY trong Menu.
+// Nhan SAN cac gia tri da doc tu GameManager (khong nhan thang GameManager&) - dung tinh
+// than MakeEnemyKilledEvent trong physics_system.cpp: 1 helper `static` chi thao tac tren
+// gia tri thuan. Bat buoc phai vay: day KHONG phai ham thanh vien RenderSystem nen KHONG
+// duoc huong quyen `friend class RenderSystem` ma GameManager cap (xem game_manager.h) -
+// doc gm.selectedLoadout/gm.metaProgress phai xay ra trong DrawMenu() (ham thanh vien
+// that su) roi truyen gia tri da trich xuat vao day.
+static void DrawLoadoutSelect(UICanvas& canvas, int y, LoadoutType chosen, bool unlockedOrFree, int currency, int cost) {
+    std::string status;
+    if (chosen == LoadoutType::Standard) status = "FREE";
+    else if (unlockedOrFree) status = "UNLOCKED";
+    else status = TextFormat("mo khoa: %d/%d currency", currency, cost);
+
+    Color color = unlockedOrFree ? WHITE : GRAY;
+    canvas.Text(200, y, 18, color, TextFormat("< LOADOUT: %s (%s) >", GetLoadoutName(chosen), status.c_str()));
+}
 
 void RenderSystem::DrawMenu(const GameManager& gm) {
     UICanvas canvas;
@@ -29,10 +47,13 @@ void RenderSystem::DrawMenu(const GameManager& gm) {
     int bottomY = 195 + (int)entries.size() * 20 + 30;
     if (bottomY < 420) bottomY = 420; // Danh sach rong/ngan van giu bo cuc on dinh, khong bi troi len qua cao
     canvas.Text(260, bottomY, 20, WHITE, TextFormat("< DIFFICULTY: %s >", stats.label));
-    canvas.Text(260, bottomY + 35, 18, GRAY, TextFormat("VOLUME: %d%%  (UP/DOWN)", (int)(gm.audio.GetVolume() * 100)));
-    canvas.Text(240, bottomY + 80, 20, WHITE, "PRESS ENTER TO START");
-    canvas.Text(230, bottomY + 108, 16, GRAY, "LEFT/RIGHT: CHANGE DIFFICULTY");
-    canvas.Text(300, bottomY + 130, 16, GRAY, "F11: FULLSCREEN");
+    LoadoutType chosenLoadout = (LoadoutType)gm.selectedLoadout;
+    bool loadoutAvailable = (chosenLoadout == LoadoutType::Standard) || gm.metaProgress.IsUnlocked(chosenLoadout);
+    DrawLoadoutSelect(canvas, bottomY + 24, chosenLoadout, loadoutAvailable, gm.metaProgress.GetCurrency(), GetLoadoutUnlockCost(chosenLoadout));
+    canvas.Text(260, bottomY + 52, 18, GRAY, TextFormat("VOLUME: %d%%  (UP/DOWN)", (int)(gm.audio.GetVolume() * 100)));
+    canvas.Text(240, bottomY + 90, 20, WHITE, "PRESS ENTER TO START");
+    canvas.Text(180, bottomY + 118, 14, GRAY, "LEFT/RIGHT: DIFFICULTY    Q/E: LOADOUT");
+    canvas.Text(300, bottomY + 138, 16, GRAY, "F11: FULLSCREEN");
 
     canvas.Draw(gm.gameFont);
 }

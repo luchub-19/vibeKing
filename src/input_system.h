@@ -41,6 +41,8 @@ struct MenuInput {
     bool PauseToggle = false;          // settings.keyPause hoac KEY_ESCAPE (fallback co dinh)
     bool ToggleFullscreen = false;     // KEY_F11
     bool OpenKeybinds = false;         // KEY_K - chi co y nghia luc dang PAUSED (xem UpdateKeybindScreen)
+    bool CycleLoadoutLeft = false;     // KEY_Q - chi co y nghia luc dang MENU (xem UpdateMenu/DrawLoadoutSelect)
+    bool CycleLoadoutRight = false;    // KEY_E - chi co y nghia luc dang MENU
 };
 
 class InputSystem {
@@ -98,6 +100,8 @@ public:
         m.PauseToggle           = IsKeyPressed(settings.keyPause) || IsKeyPressed(KEY_ESCAPE);
         m.ToggleFullscreen      = IsKeyPressed(KEY_F11);
         m.OpenKeybinds          = IsKeyPressed(KEY_K);
+        m.CycleLoadoutLeft      = IsKeyPressed(KEY_Q);
+        m.CycleLoadoutRight     = IsKeyPressed(KEY_E);
 
         if (IsGamepadAvailable(0)) {
             if (IsGamepadButtonPressed(0, GAMEPAD_BUTTON_LEFT_FACE_LEFT))   m.CycleDifficultyLeft  = true;
