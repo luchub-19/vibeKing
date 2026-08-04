@@ -20,6 +20,8 @@ public:
     Texture2D ufo{};
     Texture2D kamikaze{};
     Texture2D boss{};
+    Texture2D bossSentinel{};
+    Texture2D bossSwarmer{};
 
     void Load();
     void Unload();

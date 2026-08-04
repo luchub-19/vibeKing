@@ -1,6 +1,7 @@
 #pragma once
 #include "raylib.h"
 #include <cstddef>
+#include <cstdint>
 #include <cmath>
 #include "config.h"
 
@@ -91,13 +92,42 @@ struct KamikazeEnemy {
 // SpatialGrid::Insert - đã hỗ trợ sẵn multi-cell từ trước, không cần sửa gì thêm).
 // 3 giai đoạn suy ra trực tiếp từ % HP còn lại (không lưu "stage" rời rạc riêng - tránh
 // state có thể lệch khỏi hp thật).
+//
+// 3 LOAI BOSS (BossType) - GameManager::SpawnBoss() xoay vong qua ca 3 moi lan gap Boss
+// (xem cong thuc trong SpawnBoss()), moi loai mot kieu di chuyen/tan cong RIENG xu ly
+// trong PhysicsSystem::UpdateBoss() - tranh cam giac "chi la 1 con Boss ngay cang nhieu
+// mau" lap lai moi Config::BOSS_WAVE_INTERVAL wave:
+//   - Vanguard: pace het chieu rong man hinh, nhip ban tang theo stage (hanh vi GOC).
+//   - Sentinel: gan nhu dung yen (chi lac nhe quanh diem spawn), dinh ky bat khien tam
+//     bat kha xam pham - ep nguoi choi cho dung nhip thay vi giu nut ban lien tuc.
+//   - Swarmer: lac nhanh/rong that thuong + dinh ky trieu hoi Kamikaze tiep vien.
+// Van CHI 1 struct du lieu duy nhat (khong tach 3 class/kieu rieng) - dung dung tinh
+// than "khong da hinh runtime" cua toan bo file nay; field nao khong dung toi voi 1 loai
+// (vd `direction` voi Sentinel/Swarmer) don gian khong duoc doc toi, khong ton kem gi vi
+// Boss chi co DUNG 1 the hien tai 1 thoi diem (EnemyPool<Boss,1>).
 // ==========================================
+enum class BossType : uint8_t { Vanguard, Sentinel, Swarmer };
+
 struct Boss {
     Rectangle rect{};
     int hp = 0;
     int maxHp = 0;
     int direction = 1;
     float fireTimer = 0.0f;
+
+    BossType type = BossType::Vanguard;
+    float baseX = 0.0f;      // Vi tri X luc spawn - Sentinel/Swarmer lac QUANH diem nay
+                              // thay vi pace het chieu rong man hinh nhu Vanguard.
+    float phaseAccum = 0.0f; // Goc dao dong tich luy dung chung cho Sentinel/Swarmer
+                              // (bien do/tan so khac nhau - xem Config::BOSS_SENTINEL_SWAY_*
+                              // va BOSS_SWARMER_SWAY_*).
+
+    // SENTINEL: dinh ky bat/tat khien tam bat kha xam pham (doc lap voi fireTimer/stage).
+    float phaseTimer = 0.0f;
+    bool shieldActive = false;
+
+    // SWARMER: dinh ky trieu hoi tiep vien tu pool KamikazeEnemy co san (xem UpdateBoss()).
+    float summonTimer = 0.0f;
 
     // KHONG con ham Stage() o day - cung ly do voi ZigzagEnemy o tren: struct nay CHI
     // la du lieu. Dung BossStage(boss) (free function ben duoi) o bat ky system nao can
@@ -113,6 +143,16 @@ inline int BossStage(const Boss& boss) {
     if (ratio > 0.66f) return 1;
     if (ratio > 0.33f) return 2;
     return 3;
+}
+
+// Ten hien thi tren HUD (xem RenderSystem::DrawHUD) - 1 noi DUY NHAT anh xa enum sang
+// chuoi, tranh switch/case lap lai o nhieu noi neu sau nay can ten Boss o cho khac.
+inline const char* BossTypeName(BossType type) {
+    switch (type) {
+        case BossType::Sentinel: return "SENTINEL";
+        case BossType::Swarmer:  return "SWARMER";
+        default:                 return "VANGUARD";
+    }
 }
 
 // ==========================================

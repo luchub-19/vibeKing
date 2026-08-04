@@ -97,6 +97,19 @@ namespace {
         Assign(s, "radial_chance_stage3", Config::BOSS_RADIAL_CHANCE_STAGE3);
         Assign(s, "bullet_speed", Config::BOSS_BULLET_SPEED);
         Assign(s, "score_value", Config::BOSS_SCORE_VALUE);
+
+        // SENTINEL / SWARMER: cung nam trong muc "boss" (khong tach section rieng) - ve
+        // ban chat van la du lieu can bang hanh vi Boss, chi la cho 2 loai xoay vong moi
+        // thay vi loai goc.
+        Assign(s, "sentinel_sway_amplitude", Config::BOSS_SENTINEL_SWAY_AMPLITUDE);
+        Assign(s, "sentinel_sway_frequency", Config::BOSS_SENTINEL_SWAY_FREQUENCY);
+        Assign(s, "sentinel_shield_interval", Config::BOSS_SENTINEL_SHIELD_INTERVAL);
+        Assign(s, "sentinel_shield_duration", Config::BOSS_SENTINEL_SHIELD_DURATION);
+        Assign(s, "sentinel_shield_fire_interval", Config::BOSS_SENTINEL_SHIELD_FIRE_INTERVAL);
+        Assign(s, "swarmer_sway_amplitude", Config::BOSS_SWARMER_SWAY_AMPLITUDE);
+        Assign(s, "swarmer_sway_frequency", Config::BOSS_SWARMER_SWAY_FREQUENCY);
+        Assign(s, "swarmer_summon_interval", Config::BOSS_SWARMER_SUMMON_INTERVAL);
+        Assign(s, "swarmer_summon_count", Config::BOSS_SWARMER_SUMMON_COUNT);
     }
 
     void LoadPowerup(const json& root) {

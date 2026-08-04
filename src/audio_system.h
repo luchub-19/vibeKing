@@ -17,6 +17,7 @@ private:
     VoicePool<2> sfxUfoAppear;
     VoicePool<3> sfxUfoHit;
     VoicePool<2> sfxCleanser;
+    VoicePool<2> sfxBossPhase; // Sentinel bat/tat khien + Swarmer trieu hoi - it khi chong lap nhung van dung pool cho nhat quan
 
     // GameOver/WaveClear/BossDefeat chi phat DUNG 1 LAN moi su kien tuong ung (state
     // chuyen ngay sau do, khong bao gio bi goi de trong luc dang phat) - khong can pool.
@@ -49,6 +50,7 @@ public:
     void PlayUfoHit();    // Phat khi ban trung Mystery Ship
     void PlayCleanser();  // Phat khi kich hoat bom xoa dan (power-up Cleanser)
     void PlayBossDefeat(); // Phat khi ha guc Boss
+    void PlayBossPhase();  // Phat khi Sentinel bat/tat khien HOAC Swarmer trieu hoi tiep vien - goi TRUC TIEP tu PhysicsSystem::UpdateBoss(), khong qua GameEvent (xem comment tai noi goi)
 
     // Gọi mỗi frame khi đang PLAYING. Tempo bassline tăng dần theo enemySpeed hiện tại,
     // tái hiện đúng cơ chế "càng gần thua càng dồn dập" của bản gốc.

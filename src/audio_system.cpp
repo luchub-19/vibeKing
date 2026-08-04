@@ -63,6 +63,7 @@ void AudioSystem::Init() {
     sfxUfoAppear.Init(GenerateTone(500.0f, 0.35f, 0)); // Tieng "vo vo" trung binh khi UFO xuat hien
     sfxUfoHit.Init(GenerateTone(1200.0f, 0.45f, 1));   // Cao & dai hon pickup - cam giac "trung thuong lon"
     sfxCleanser.Init(GenerateTone(80.0f, 0.5f, 2));    // Am tram + noise - cam giac "no bom don gian"
+    sfxBossPhase.Init(GenerateTone(350.0f, 0.25f, 1)); // Vuong, trung binh - tach biet ro voi moi sfx khac (880/990/500/1200/200/120/80Hz)
 
     sfxGameOver   = GenerateTone(110.0f, 0.80f, 0);
     sfxWaveClear  = GenerateTone(660.0f, 0.60f, 0);
@@ -87,6 +88,7 @@ void AudioSystem::Shutdown() {
     sfxUfoAppear.Unload();
     sfxUfoHit.Unload();
     sfxCleanser.Unload();
+    sfxBossPhase.Unload();
 
     UnloadSound(sfxGameOver);
     UnloadSound(sfxWaveClear);
@@ -106,6 +108,7 @@ void AudioSystem::PlayUfoAppear() { sfxUfoAppear.Play(); }
 void AudioSystem::PlayUfoHit()     { sfxUfoHit.Play(); }
 void AudioSystem::PlayCleanser()   { sfxCleanser.Play(); }
 void AudioSystem::PlayBossDefeat() { PlaySound(sfxBossDefeat); }
+void AudioSystem::PlayBossPhase()  { sfxBossPhase.Play(); }
 
 void AudioSystem::UpdateBassline(float dt, float enemySpeed, float enemySpeedMax) {
     float speedRatio = enemySpeedMax > 0.0f ? (enemySpeed / enemySpeedMax) : 0.0f;
@@ -131,6 +134,7 @@ void AudioSystem::SetVolume(float v) {
     sfxUfoAppear.SetVolume(v);
     sfxUfoHit.SetVolume(v);
     sfxCleanser.SetVolume(v);
+    sfxBossPhase.SetVolume(v);
     SetSoundVolume(sfxGameOver, v);
     SetSoundVolume(sfxWaveClear, v);
     SetSoundVolume(sfxBossDefeat, v);

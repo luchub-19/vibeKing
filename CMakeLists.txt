@@ -76,6 +76,7 @@ if(BUILD_TESTS)
         tests/test_bunker.cpp
         tests/test_player.cpp
         tests/test_settings.cpp
+        tests/test_boss.cpp
         src/leaderboard.cpp
         src/config.cpp
         src/bunker.cpp

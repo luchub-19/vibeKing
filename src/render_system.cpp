@@ -107,7 +107,21 @@ void RenderSystem::DrawPlaying(const GameManager& gm) {
         if (Culling::IsVisible(boss.rect)) {
             int stage = BossStage(boss);
             Color tint = (stage == 1) ? WHITE : (stage == 2) ? ORANGE : RED; // Cang yeu cang do, bao hieu "enrage"
-            DrawSprite(gm.sprites.boss, boss.rect, tint);
+
+            const Texture2D& tex = (boss.type == BossType::Sentinel) ? gm.sprites.bossSentinel
+                                  : (boss.type == BossType::Swarmer) ? gm.sprites.bossSwarmer
+                                  : gm.sprites.boss;
+            DrawSprite(tex, boss.rect, tint);
+
+            // VONG KHIEN: chi ve khi Sentinel dang bat kha xam pham - vien tron xanh bao
+            // quanh toan bo rect, bao hieu ro rang "dan khong an thua luc nay" (khop voi
+            // logic mien sat thuong trong PhysicsSystem::CheckCollisions()).
+            if (boss.type == BossType::Sentinel && boss.shieldActive) {
+                Vector2 center = EnemyCenter(boss.rect);
+                float radius = fmaxf(boss.rect.width, boss.rect.height) * 0.62f;
+                DrawCircleLines((int)center.x, (int)center.y, radius, SKYBLUE);
+                DrawCircleLines((int)center.x, (int)center.y, radius - 2.0f, Fade(SKYBLUE, 0.5f));
+            }
         }
     }
     for (const auto& bunker : gm.bunkers) bunker.Draw();
@@ -175,8 +189,12 @@ void RenderSystem::DrawHUD(const GameManager& gm) {
         float barW = 300.0f;
         float ratio = (boss.maxHp > 0) ? ((float)boss.hp / (float)boss.maxHp) : 0.0f;
         float barX = (Config::SCREEN_W - barW) / 2.0f;
-        canvas.Bar({ barX, 8.0f, barW, 14.0f }, ratio, DARKGRAY, RED, WHITE);
-        canvas.Text((int)barX, 24, 14, RED, "BOSS");
+        Color barFill = (boss.type == BossType::Sentinel && boss.shieldActive) ? SKYBLUE : RED;
+        canvas.Bar({ barX, 8.0f, barW, 14.0f }, ratio, DARKGRAY, barFill, WHITE);
+        canvas.Text((int)barX, 24, 14, barFill, TextFormat("BOSS - %s", BossTypeName(boss.type)));
+        if (boss.type == BossType::Sentinel && boss.shieldActive) {
+            canvas.Text((int)(barX + barW - 60.0f), 24, 14, SKYBLUE, "KHIEN!");
+        }
     }
 
     canvas.Draw(gm.gameFont);

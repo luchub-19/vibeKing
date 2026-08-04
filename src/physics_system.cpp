@@ -289,15 +289,82 @@ void PhysicsSystem::UpdateUfo(GameManager& gm, float dt) {
 void PhysicsSystem::UpdateBoss(GameManager& gm, float dt) {
     if (gm.bossPool.Size() == 0) return;
     Boss& boss = gm.bossPool[0];
-
     int stage = BossStage(boss);
-    float speed = (stage == 1) ? Config::BOSS_SPEED_STAGE1 : (stage == 2) ? Config::BOSS_SPEED_STAGE2 : Config::BOSS_SPEED_STAGE3;
-    float fireInterval = (stage == 1) ? Config::BOSS_FIRE_INTERVAL_STAGE1 : (stage == 2) ? Config::BOSS_FIRE_INTERVAL_STAGE2 : Config::BOSS_FIRE_INTERVAL_STAGE3;
 
-    boss.rect.x += (float)boss.direction * speed * dt;
-    if (boss.rect.x <= 0.0f || boss.rect.x + boss.rect.width >= Config::SCREEN_W) {
-        boss.direction *= -1;
-        boss.rect.x = fmaxf(0.0f, fminf(boss.rect.x, Config::SCREEN_W - boss.rect.width));
+    // DI CHUYEN - rieng theo type. Vanguard giu NGUYEN hanh vi goc (pace het chieu rong
+    // man hinh, tang toc theo stage). Sentinel/Swarmer KHONG pace toan man hinh - ca hai
+    // lac quanh `baseX` bang cung 1 cong thuc sin, chi khac bien do/tan so (xem
+    // Config::BOSS_SENTINEL_SWAY_*/BOSS_SWARMER_SWAY_*) - Sentinel lac nhe/cham (ap luc
+    // den tu khien ben duoi, khong phai toc do), Swarmer lac rong/nhanh (cam giac that
+    // thuong, kho ngam hon han).
+    switch (boss.type) {
+        case BossType::Vanguard: {
+            float speed = (stage == 1) ? Config::BOSS_SPEED_STAGE1 : (stage == 2) ? Config::BOSS_SPEED_STAGE2 : Config::BOSS_SPEED_STAGE3;
+            boss.rect.x += (float)boss.direction * speed * dt;
+            if (boss.rect.x <= 0.0f || boss.rect.x + boss.rect.width >= Config::SCREEN_W) {
+                boss.direction *= -1;
+                boss.rect.x = fmaxf(0.0f, fminf(boss.rect.x, Config::SCREEN_W - boss.rect.width));
+            }
+            break;
+        }
+        case BossType::Sentinel: {
+            boss.phaseAccum += Config::BOSS_SENTINEL_SWAY_FREQUENCY * dt;
+            float sway = sinf(boss.phaseAccum) * Config::BOSS_SENTINEL_SWAY_AMPLITUDE;
+            boss.rect.x = fmaxf(0.0f, fminf(boss.baseX + sway, Config::SCREEN_W - boss.rect.width));
+            break;
+        }
+        case BossType::Swarmer: {
+            boss.phaseAccum += Config::BOSS_SWARMER_SWAY_FREQUENCY * dt;
+            float sway = sinf(boss.phaseAccum) * Config::BOSS_SWARMER_SWAY_AMPLITUDE;
+            boss.rect.x = fmaxf(0.0f, fminf(boss.baseX + sway, Config::SCREEN_W - boss.rect.width));
+            break;
+        }
+    }
+
+    // KHIEN TAM (rieng Sentinel) - dinh ky bat/tat, doc lap voi fireTimer/stage, buoc
+    // nguoi choi cho dung nhip thay vi giu nut ban suot tran.
+    if (boss.type == BossType::Sentinel) {
+        boss.phaseTimer -= dt;
+        if (boss.phaseTimer <= 0.0f) {
+            boss.shieldActive = !boss.shieldActive;
+            boss.phaseTimer = boss.shieldActive ? Config::BOSS_SENTINEL_SHIELD_DURATION
+                                                 : Config::BOSS_SENTINEL_SHIELD_INTERVAL;
+            // Goi am thanh/particle/rung man hinh TRUC TIEP (khong qua gm.pendingEvents)
+            // - UpdateBoss() chay TRUOC CheckCollisions() trong UpdatePlaying(), von xoa
+            // sach pendingEvents ngay dau ham (xem events.h: hang doi chi danh cho hieu
+            // ung PHAT SINH TU va cham). Day vao hang doi o day se bi CheckCollisions()
+            // xoa mat truoc khi ProcessEvents() kip xu ly - dung idiom giong het
+            // audio.PlayShoot() duoc goi truc tiep tu ket qua Player::Update() trong
+            // GameManager::UpdatePlaying(), khong qua event queue.
+            gm.audio.PlayBossPhase();
+            gm.particles.Burst(EnemyCenter(boss.rect), 20, boss.shieldActive ? SKYBLUE : GRAY);
+            gm.screenShake.Trigger(0.15f, 4.0f);
+        }
+    }
+
+    // TRIEU HOI TIEP VIEN (rieng Swarmer) - "muon" lai dung GameManager::SpawnKamikaze()
+    // da co san (PhysicsSystem la friend cua GameManager - xem game_manager.h) thay vi tu
+    // viet duong bay/muc tieu rieng. Vi doi hinh dang TRONG trong boss wave (xem
+    // InitLevel()), SpawnKamikaze() se tu dong roi vao nhanh "spawn tu ngoai man hinh"
+    // cua no (xem comment tren struct KamikazeEnemy) - dung y muon.
+    if (boss.type == BossType::Swarmer) {
+        boss.summonTimer -= dt;
+        if (boss.summonTimer <= 0.0f) {
+            for (int i = 0; i < Config::BOSS_SWARMER_SUMMON_COUNT && gm.kamikazeEnemies.Size() < Config::MAX_KAMIKAZE; i++) {
+                gm.SpawnKamikaze();
+            }
+            boss.summonTimer = Config::BOSS_SWARMER_SUMMON_INTERVAL;
+            gm.audio.PlayBossPhase();
+            gm.particles.Burst(EnemyCenter(boss.rect), 14, ORANGE);
+        }
+    }
+
+    // BAN - cung cong thuc voi Vanguard cho ca 3 loai (nhip ban theo stage, doi khi ban
+    // toa tron). Sentinel rieng CO THEM 1 nhip ban nhanh hon han trong luc dang bat khien
+    // (bu lai cho viec khong the bi trung dan luc do, giu can bang tong the giua 3 loai).
+    float fireInterval = (stage == 1) ? Config::BOSS_FIRE_INTERVAL_STAGE1 : (stage == 2) ? Config::BOSS_FIRE_INTERVAL_STAGE2 : Config::BOSS_FIRE_INTERVAL_STAGE3;
+    if (boss.type == BossType::Sentinel && boss.shieldActive) {
+        fireInterval = Config::BOSS_SENTINEL_SHIELD_FIRE_INTERVAL;
     }
 
     boss.fireTimer += dt;
@@ -451,7 +518,11 @@ void PhysicsSystem::CheckCollisions(GameManager& gm) {
                 Boss& boss = gm.bossPool[0];
                 if (!CheckCollisionRecs(bulletRect, boss.rect)) continue;
 
-                if (boss.hp > 0) boss.hp--;
+                // KHIEN SENTINEL: bat kha xam pham HOAN TOAN trong luc active (khong tru
+                // hp, khong bi pierce xuyen qua - dan bi khien "hap thu" het) - buoc
+                // nguoi choi phai cho khien tat thay vi chi dung DPS de vuot qua.
+                bool shielded = (boss.type == BossType::Sentinel && boss.shieldActive);
+                if (!shielded && boss.hp > 0) boss.hp--;
 
                 // BUG FIX: truoc day co 1 "placeholder" GameEvent thua o day, vo tinh
                 // gan particleCount=1 + position=player.GetCenter() -> no lam 1 hat do
@@ -460,16 +531,16 @@ void PhysicsSystem::CheckCollisions(GameManager& gm) {
                 // that, dat dung vi tri bulletRect.
                 GameEvent hitEv;
                 hitEv.position = { bulletRect.x, bulletRect.y };
-                hitEv.color = RED;
-                hitEv.particleCount = 6;
-                if (boss.hp > 0) {
+                hitEv.color = shielded ? SKYBLUE : RED;
+                hitEv.particleCount = shielded ? 3 : 6; // Khien: bat lai it hat hon - cam giac "va be mat cung" thay vi "trung don"
+                if (!shielded && boss.hp > 0) {
                     hitEv.sfx = SfxType::Hit;
                     hitEv.shakeDuration = 0.08f;
                     hitEv.shakeIntensity = 3.0f;
                 }
                 gm.pendingEvents.push_back(hitEv);
 
-                removed = !bullet.ConsumePierce();
+                removed = shielded ? true : !bullet.ConsumePierce();
                 if (removed) gm.playerBullets.Destroy(i);
                 consumed = true;
                 break;

@@ -82,13 +82,43 @@ namespace {
     Texture2D BuildBoss() {
         // Khoi lon co cau truc phan tang ro rang (than chinh + 2 canh + loi tam o giua)
         // - hinh dang nguyen ban, khac biet han moi loai dich khac de nguoi choi nhan ra
-        // ngay day la 1 muc tieu dac biet.
+        // ngay day la 1 muc tieu dac biet. Dung cho BossType::Vanguard.
         Image img = GenImageColor(SPRITE_SIZE, SPRITE_SIZE, BLANK);
         ImageDrawRectangle(&img, 2, 4, 12, 8, WHITE);   // Than chinh
         ImageDrawRectangle(&img, 0, 6, 3, 4, WHITE);    // Canh trai
         ImageDrawRectangle(&img, 13, 6, 3, 4, WHITE);   // Canh phai
         ImageDrawRectangle(&img, 6, 1, 4, 4, WHITE);    // Loi tam tren
         ImageDrawRectangle(&img, 5, 12, 6, 3, WHITE);   // Day
+        Texture2D tex = LoadTextureFromImage(img);
+        UnloadImage(img);
+        return tex;
+    }
+
+    Texture2D BuildBossSentinel() {
+        // Boss loai 2/3 (xem BossType trong enemy_types.h): than be ngang, thap hon
+        // Vanguard, voi 1 VONG TRON lon o giua-tren goi ro "loi khien" - phan biet ngay
+        // bang mat voi khoi vuong/nhon cua Vanguard: tron = "phong thu".
+        Image img = GenImageColor(SPRITE_SIZE, SPRITE_SIZE, BLANK);
+        ImageDrawRectangle(&img, 1, 7, 14, 6, WHITE);   // Than be ngang
+        ImageDrawRectangle(&img, 0, 9, 2, 3, WHITE);    // Canh trai ngan
+        ImageDrawRectangle(&img, 14, 9, 2, 3, WHITE);   // Canh phai ngan
+        ImageDrawCircle(&img, 8, 6, 5, WHITE);          // Loi khien hinh tron
+        ImageDrawCircle(&img, 8, 6, 2, BLANK);          // Khoet tam -> ro la "vong", khong phai khoi dac
+        Texture2D tex = LoadTextureFromImage(img);
+        UnloadImage(img);
+        return tex;
+    }
+
+    Texture2D BuildBossSwarmer() {
+        // Boss loai 3/3: than trung tam nho hep + 4 "vo" tam giac o 4 goc goi cam giac
+        // "to ong dang phong thich quan" - dan trai/nhon hon han khoi tron cua Sentinel
+        // hay khoi vuong cua Vanguard, khop voi hanh vi trieu hoi tiep vien cua no.
+        Image img = GenImageColor(SPRITE_SIZE, SPRITE_SIZE, BLANK);
+        ImageDrawRectangle(&img, 6, 5, 4, 6, WHITE);               // Than trung tam
+        ImageDrawTriangle(&img, {0, 2}, {5, 5}, {0, 8}, WHITE);    // Vo goc tren-trai
+        ImageDrawTriangle(&img, {15, 2}, {10, 5}, {15, 8}, WHITE); // Vo goc tren-phai
+        ImageDrawTriangle(&img, {0, 8}, {5, 11}, {0, 14}, WHITE);  // Vo goc duoi-trai
+        ImageDrawTriangle(&img, {15, 8}, {10, 11}, {15, 14}, WHITE); // Vo goc duoi-phai
         Texture2D tex = LoadTextureFromImage(img);
         UnloadImage(img);
         return tex;
@@ -103,6 +133,8 @@ void SpriteSheet::Load() {
     ufo         = BuildUfo();
     kamikaze    = BuildKamikaze();
     boss        = BuildBoss();
+    bossSentinel = BuildBossSentinel();
+    bossSwarmer  = BuildBossSwarmer();
 }
 
 void SpriteSheet::Unload() {
@@ -113,4 +145,6 @@ void SpriteSheet::Unload() {
     UnloadTexture(ufo);
     UnloadTexture(kamikaze);
     UnloadTexture(boss);
+    UnloadTexture(bossSentinel);
+    UnloadTexture(bossSwarmer);
 }

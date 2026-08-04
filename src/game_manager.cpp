@@ -242,13 +242,25 @@ void GameManager::SpawnBoss() {
     int bossIndex = wave / Config::BOSS_WAVE_INTERVAL; // 1, 2, 3... (wave 5 -> 1, wave 10 -> 2...)
     int hp = Config::BOSS_MAX_HP + (int)(Config::BOSS_HP_PER_WAVE_BONUS * (float)(bossIndex - 1));
 
+    // XOAY VONG 3 LOAI BOSS (wave 5=Vanguard, wave 10=Sentinel, wave 15=Swarmer, wave
+    // 20=Vanguard lai...) - moi loai 1 kieu di chuyen/tan cong rieng (xem enemy_types.h
+    // va PhysicsSystem::UpdateBoss), tranh cam giac "chi la 1 con Boss ngay cang nhieu
+    // mau" lap lai moi Config::BOSS_WAVE_INTERVAL wave.
+    BossType type = (BossType)((bossIndex - 1) % 3);
+    float startX = (Config::SCREEN_W - Config::BOSS_WIDTH) / 2.0f;
+
     Boss b;
-    b.rect = { (Config::SCREEN_W - Config::BOSS_WIDTH) / 2.0f, Config::BOSS_Y,
-               Config::BOSS_WIDTH, Config::BOSS_HEIGHT };
+    b.rect = { startX, Config::BOSS_Y, Config::BOSS_WIDTH, Config::BOSS_HEIGHT };
     b.hp = hp;
     b.maxHp = hp;
     b.direction = 1;
     b.fireTimer = 0.0f;
+    b.type = type;
+    b.baseX = startX;
+    b.phaseAccum = 0.0f;
+    b.phaseTimer = Config::BOSS_SENTINEL_SHIELD_INTERVAL;   // Sentinel: lan bat khien dau tien sau dung 1 chu ky
+    b.shieldActive = false;
+    b.summonTimer = Config::BOSS_SWARMER_SUMMON_INTERVAL;   // Swarmer: lan trieu hoi dau tien sau dung 1 chu ky
 
     bossPool.Clear();
     bossPool.Spawn(b);

@@ -65,7 +65,18 @@
     "radial_chance_stage2": 0.4,
     "radial_chance_stage3": 0.8,
     "bullet_speed": 260.0,
-    "score_value": 1000
+    "score_value": 1000,
+
+    "sentinel_sway_amplitude": 90.0,
+    "sentinel_sway_frequency": 0.6,
+    "sentinel_shield_interval": 6.0,
+    "sentinel_shield_duration": 2.5,
+    "sentinel_shield_fire_interval": 0.35,
+
+    "swarmer_sway_amplitude": 220.0,
+    "swarmer_sway_frequency": 1.8,
+    "swarmer_summon_interval": 5.0,
+    "swarmer_summon_count": 2
   },
 
   "powerup": {

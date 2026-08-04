@@ -146,6 +146,22 @@ namespace Config {
     inline float BOSS_BULLET_SPEED = 260.0f;
     inline int   BOSS_SCORE_VALUE = 1000;
 
+    // BOSS - SENTINEL (loai 2/3, xoay vong - xem enemy_types.h): gan nhu dung yen, chi
+    // lac nhe quanh diem spawn (KHONG dung BOSS_SPEED_STAGE*), dinh ky bat khien tam bat
+    // kha xam pham buoc nguoi choi cho dung nhip thay vi giu nut ban lien tuc.
+    inline float BOSS_SENTINEL_SWAY_AMPLITUDE = 90.0f;   // px
+    inline float BOSS_SENTINEL_SWAY_FREQUENCY = 0.6f;    // rad/s
+    inline float BOSS_SENTINEL_SHIELD_INTERVAL = 6.0f;   // Giay KHONG co khien truoc lan bat tiep theo
+    inline float BOSS_SENTINEL_SHIELD_DURATION = 2.5f;   // Khien ton tai bao lau moi lan bat
+    inline float BOSS_SENTINEL_SHIELD_FIRE_INTERVAL = 0.35f; // Nhip ban RIENG (nhanh hon) trong luc co khien
+
+    // BOSS - SWARMER (loai 3/3, xoay vong): lac NHANH+RONG hon Sentinel han nhieu (cam
+    // giac that thuong, kho ngam), dinh ky trieu hoi tiep vien tu pool Kamikaze co san.
+    inline float BOSS_SWARMER_SWAY_AMPLITUDE = 220.0f;   // px
+    inline float BOSS_SWARMER_SWAY_FREQUENCY = 1.8f;     // rad/s
+    inline float BOSS_SWARMER_SUMMON_INTERVAL = 5.0f;    // Giay giua 2 lan trieu hoi
+    inline int   BOSS_SWARMER_SUMMON_COUNT = 2;          // So Kamikaze trieu hoi moi lan
+
     // BUNKER LINH HOẠT
     inline float BUNKER_REGEN_INTERVAL = 4.0f;
     inline int   BUNKER_REGEN_PER_TICK = 3;
