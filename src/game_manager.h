@@ -5,8 +5,10 @@
 #include "config.h"
 #include "bullet_pool.h"
 #include "particle_pool.h"
+#include "floating_text.h"
 #include "powerup.h"
 #include "screen_shake.h"
+#include "hit_stop.h"
 #include "audio_system.h"
 #include "leaderboard.h"
 #include "meta_progress.h"
@@ -89,8 +91,10 @@ private:
     BulletPool<Config::MAX_PLAYER_BULLETS> playerBullets;
     BulletPool<Config::MAX_ENEMY_BULLETS> enemyBullets;
     ParticlePool<Config::MAX_PARTICLES> particles;
+    FloatingTextPool<16> floatingTexts; // Popup diem/combo bay len - xem floating_text.h
     PowerUpPool<Config::MAX_POWERUPS> powerUps;
     ScreenShake screenShake;
+    HitStop hitStop; // Dong bang logic vai chuc mili-giay khi ha guc dich - xem hit_stop.h + UpdatePlaying()
     AudioSystem audio;
     Leaderboard leaderboard;
     MetaProgress metaProgress;

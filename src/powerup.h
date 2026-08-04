@@ -53,18 +53,7 @@ public:
         }
     }
 
-    void Draw() const {
-        for (size_t i = 0; i < count; i++) {
-            Color c;
-            switch (items[i].type) {
-                case PowerUpType::RapidFire: c = ORANGE;  break;
-                case PowerUpType::Shield:    c = SKYBLUE; break;
-                case PowerUpType::Piercing:  c = MAGENTA; break;
-                case PowerUpType::Cleanser:  c = LIME;    break;
-                default: c = WHITE; break;
-            }
-            DrawRectangleRec(items[i].rect, c);
-            DrawRectangleLinesEx(items[i].rect, 1.5f, WHITE);
-        }
-    }
+    // Ve icon rieng theo tung PowerUpType (SpriteSheet) thay vi DrawRectangle mau tron -
+    // can Texture2D nen chuyen sang RenderSystem::DrawPlaying(), cung 1 cho voi cach
+    // Basic/Tanky/Zigzag/Kamikaze/Boss da chon sprite theo loai (xem render_system.cpp).
 };

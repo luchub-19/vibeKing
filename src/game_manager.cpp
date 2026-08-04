@@ -61,6 +61,7 @@ void GameManager::InitLevel(bool newGame) {
     playerBullets.Reset();
     enemyBullets.Reset();
     particles.Reset();
+    floatingTexts.Reset();
     powerUps.Reset();
     comboTimer = 0.0f;
     comboCount = 0;
@@ -162,6 +163,7 @@ int GameManager::ApplyComboAndScore(int baseScore) {
     int steps = comboCount - 1;
     if (steps > Config::COMBO_MAX_STEPS) steps = Config::COMBO_MAX_STEPS;
     int finalScore = (int)((float)baseScore * (1.0f + Config::COMBO_BONUS_PER_STEP * (float)steps));
+    floatingTexts.Spawn(player.GetCenter(), finalScore, comboCount); // Chi hien thi - khong dung toi phep tinh diem o tren
 
     if (player.AddScore(finalScore)) {
         // +1 MANG tu moc diem (xem Config::EXTRA_LIFE_SCORE_THRESHOLD) - dung mau GOLD
@@ -408,6 +410,9 @@ void GameManager::UpdateKeybindScreen() {
 // cham nao nam truc tiep trong ham nay nua.
 // ==========================================
 void GameManager::UpdatePlaying(float dt) {
+    hitStop.Update(dt);
+    if (hitStop.IsActive()) return; // Dong bang toan bo logic ben duoi - Run() ngoai vong lap van goi Draw() binh thuong nen hinh khong dung, chi gameplay dung khung trong choc lat
+
     MenuInput menuInput = InputSystem::PollMenu(settings);
     if (menuInput.PauseToggle) { state = GameState::PAUSED; return; }
     if (menuInput.Restart) { InitLevel(true); return; }
@@ -415,6 +420,7 @@ void GameManager::UpdatePlaying(float dt) {
 
     screenShake.Update(dt);
     particles.Update(dt);
+    floatingTexts.Update(dt);
     powerUps.Update(dt, Config::POWERUP_FALL_SPEED, (float)Config::SCREEN_H);
     PhysicsSystem::UpdateUfo(*this, dt);
     PhysicsSystem::UpdateKamikaze(*this, dt);
@@ -449,6 +455,7 @@ void GameManager::UpdatePlaying(float dt) {
         audio.PlayBossDefeat();
         particles.Burst(bossCenter, 40, RED);
         screenShake.Trigger(0.4f, 12.0f);
+        hitStop.Trigger(0.1f); // Nang do hon dong bang thuong (0.04f) - xem physics_system.cpp
         ApplyComboAndScore(Config::BOSS_SCORE_VALUE);
         wave++;
         lastSubmitResult = leaderboard.TrySubmit(player.GetScore(), wave);

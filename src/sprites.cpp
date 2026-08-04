@@ -123,6 +123,67 @@ namespace {
         UnloadImage(img);
         return tex;
     }
+
+    // ==========================================
+    // ICON POWER-UP - 4 silhouette 16x16 rieng biet cho tung loai (xem PowerUpType trong
+    // powerup.h), thay cho hinh chu nhat mau tron truoc day. Cung triet ly "khong asset
+    // ngoai" voi moi sprite dich/Boss o tren: chi hinh hoc nguyen ban (rectangle/
+    // triangle/circle), ve WHITE roi nhuom mau rieng tung loai luc DrawSprite() (xem
+    // RenderSystem::DrawPlaying) - khong bake mau vao texture de tai su dung 1 texture
+    // cho moi tint neu can sau nay.
+    // ==========================================
+    Texture2D BuildIconRapidFire() {
+        // RAPID FIRE: 3 tam giac nho xep chong huong len, hoi long vao nhau - goi "nhieu
+        // vien dan lien tiep, nhip ban don don" - khac han khoi/thoi/tron cua cac dich.
+        Image img = GenImageColor(SPRITE_SIZE, SPRITE_SIZE, BLANK);
+        ImageDrawTriangle(&img, {2, 5}, {8, 0}, {14, 5}, WHITE);
+        ImageDrawTriangle(&img, {2, 10}, {8, 5}, {14, 10}, WHITE);
+        ImageDrawTriangle(&img, {2, 15}, {8, 10}, {14, 15}, WHITE);
+        Texture2D tex = LoadTextureFromImage(img);
+        UnloadImage(img);
+        return tex;
+    }
+
+    Texture2D BuildIconShield() {
+        // SHIELD: khoi khien co dien - than vuong phia tren thu hep dan xuong 1 diem
+        // nhon o day, khoet 1 o nho giua nhu phu hieu - quy mo NHO va dang khac han vong
+        // tron rong cua khien Boss Sentinel (bao quanh toan bo Boss, xem BuildBossSentinel).
+        Image img = GenImageColor(SPRITE_SIZE, SPRITE_SIZE, BLANK);
+        ImageDrawRectangle(&img, 2, 1, 12, 8, WHITE);
+        ImageDrawTriangle(&img, {2, 9}, {8, 15}, {14, 9}, WHITE);
+        ImageDrawRectangle(&img, 5, 4, 6, 3, BLANK); // Khoet 1 o chu nhat nho - "phu hieu" tren mat khien
+        Texture2D tex = LoadTextureFromImage(img);
+        UnloadImage(img);
+        return tex;
+    }
+
+    Texture2D BuildIconPiercing() {
+        // PIERCING: 1 mui ten dai xuyen suot tu tren xuong duoi, xuyen qua 1 vong tron
+        // nho o giua - goi truc tiep "dan xuyen qua muc tieu" thay vi chi 1 mui ten don
+        // thuan chi huong ban.
+        Image img = GenImageColor(SPRITE_SIZE, SPRITE_SIZE, BLANK);
+        ImageDrawRectangle(&img, 7, 0, 2, 16, WHITE);             // Than mui ten xuyen suot
+        ImageDrawTriangle(&img, {4, 5}, {8, 0}, {12, 5}, WHITE);  // Dau nhon tren
+        ImageDrawCircle(&img, 8, 10, 5, WHITE);                   // Vong "muc tieu" quanh doan than bi xuyen
+        ImageDrawCircle(&img, 8, 10, 2, BLANK);                   // Khoet tam -> ro la vong, khong phai khoi dac
+        Texture2D tex = LoadTextureFromImage(img);
+        UnloadImage(img);
+        return tex;
+    }
+
+    Texture2D BuildIconCleanser() {
+        // CLEANSER: hinh "tia sang/lap lanh" 4 canh (2 thoi mong vuong goc long vao
+        // nhau) - goi cam giac "quet sach/toa sang" man hinh ngay lap tuc, khac han cac
+        // hinh khoi dac/mui nhon mang tinh "tan cong" cua 3 icon con lai.
+        Image img = GenImageColor(SPRITE_SIZE, SPRITE_SIZE, BLANK);
+        ImageDrawTriangle(&img, {8, 0}, {6, 8}, {10, 8}, WHITE);   // Nhon tren
+        ImageDrawTriangle(&img, {8, 15}, {10, 8}, {6, 8}, WHITE);  // Nhon duoi
+        ImageDrawTriangle(&img, {0, 8}, {8, 6}, {8, 10}, WHITE);   // Nhon trai
+        ImageDrawTriangle(&img, {15, 8}, {8, 10}, {8, 6}, WHITE);  // Nhon phai
+        Texture2D tex = LoadTextureFromImage(img);
+        UnloadImage(img);
+        return tex;
+    }
 }
 
 void SpriteSheet::Load() {
@@ -135,6 +196,11 @@ void SpriteSheet::Load() {
     boss        = BuildBoss();
     bossSentinel = BuildBossSentinel();
     bossSwarmer  = BuildBossSwarmer();
+
+    iconRapidFire = BuildIconRapidFire();
+    iconShield    = BuildIconShield();
+    iconPiercing  = BuildIconPiercing();
+    iconCleanser  = BuildIconCleanser();
 }
 
 void SpriteSheet::Unload() {
@@ -147,4 +213,9 @@ void SpriteSheet::Unload() {
     UnloadTexture(boss);
     UnloadTexture(bossSentinel);
     UnloadTexture(bossSwarmer);
+
+    UnloadTexture(iconRapidFire);
+    UnloadTexture(iconShield);
+    UnloadTexture(iconPiercing);
+    UnloadTexture(iconCleanser);
 }

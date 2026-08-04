@@ -68,6 +68,7 @@ bool PhysicsSystem::ResolveOneHitKillCollision(GameManager& gm, Bullet& bullet, 
         if (!CheckCollisionRecs(bulletRect, e.rect)) continue;
 
         pendingKill[idx] = true;
+        gm.hitStop.Trigger(0.04f);
         GameEvent ev = MakeEnemyKilledEvent(EnemyCenter(e.rect), e.color, scoreValue);
         customizeEvent(ev);
         gm.pendingEvents.push_back(ev);
@@ -253,6 +254,7 @@ void PhysicsSystem::UpdateKamikaze(GameManager& gm, float dt) {
                 hitEv.sfx = SfxType::Hit;
                 gm.pendingEvents.push_back(hitEv);
             }
+            gm.hitStop.Trigger(0.04f); // Kamikaze chet that (lao vao player) - duong chet con lai ngoai ResolveOneHitKillCollision
             gm.kamikazeEnemies.Destroy(i);
             continue;
         }
@@ -476,6 +478,7 @@ void PhysicsSystem::CheckCollisions(GameManager& gm) {
                 if (e.hp > 0) e.hp--;
                 if (e.hp <= 0) {
                     tankyPendingKill[idx] = true;
+                    gm.hitStop.Trigger(0.04f);
                     gm.pendingEvents.push_back(MakeEnemyKilledEvent(EnemyCenter(e.rect), e.color, TankyEnemy::SCORE_VALUE));
                 } else {
                     // Dich mau day van con song sau don nay - phan hoi nhe hon de phan

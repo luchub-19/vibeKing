@@ -23,6 +23,14 @@ public:
     Texture2D bossSentinel{};
     Texture2D bossSwarmer{};
 
+    // ICON POWER-UP (16x16, silhouette hinh hoc thuan - cung triet ly voi cac sprite
+    // dich/Boss o tren) - thay cho DrawRectangle mau tron truoc day (xem PowerUpType
+    // trong powerup.h va vong ve trong RenderSystem::DrawPlaying).
+    Texture2D iconRapidFire{};
+    Texture2D iconShield{};
+    Texture2D iconPiercing{};
+    Texture2D iconCleanser{};
+
     void Load();
     void Unload();
 };

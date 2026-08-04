@@ -111,9 +111,7 @@ public:
     void Destroy(size_t index) {
         if (index >= activeCount) return;
         activeCount--;
-        Bullet temp = pool[index];
         pool[index] = pool[activeCount];
-        pool[activeCount] = temp;
     }
 
     void Update(float dt) {

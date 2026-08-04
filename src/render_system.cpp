@@ -6,6 +6,45 @@
 #include "input_system.h"
 #include "meta_progress.h"
 
+// Logo tieu de MENU: hang alien nho nhap nhoi len xuong theo sin(GetTime()) - hinh hoc
+// thuan (DrawRectangle truc tiep), KHONG dung SpriteSheet vi can animation LIEN TUC theo
+// thoi gian thuc, khac voi sprite gameplay chi nap 1 lan tinh luc SpriteSheet::Load().
+static void DrawTitleLogo() {
+    float t = (float)GetTime();
+    const int alienCount = 5;
+    const float spacing = 44.0f;
+    const float startX = (float)Config::SCREEN_W / 2.0f - spacing * (float)(alienCount - 1) / 2.0f;
+    const float baseY = 50.0f;
+
+    for (int i = 0; i < alienCount; i++) {
+        // Moi con lac len xuong LECH PHA nhau (offset theo i) - tranh cam giac "ca hang
+        // dong bo cung luc" cung nhac, giong dang song lac dac trung cua the loai game nay.
+        float bob = sinf(t * 2.5f + (float)i * 0.6f) * 5.0f;
+        float x = startX + (float)i * spacing;
+        float y = baseY + bob;
+        Color c = (i % 2 == 0) ? GREEN : LIME;
+
+        // Silhouette alien don gian: than + 2 "cang" 2 ben + 2 "chan" nho - ve truc tiep,
+        // khong qua BuildXxx()/texture tinh nao ca (logo nay DONG, sprite gameplay TINH).
+        DrawRectangle((int)(x - 10.0f), (int)(y - 6.0f), 20, 10, c);
+        DrawRectangle((int)(x - 14.0f), (int)(y - 2.0f), 6, 6, c);
+        DrawRectangle((int)(x + 8.0f), (int)(y - 2.0f), 6, 6, c);
+        DrawRectangle((int)(x - 5.0f), (int)(y + 4.0f), 3, 4, c);
+        DrawRectangle((int)(x + 2.0f), (int)(y + 4.0f), 3, 4, c);
+    }
+}
+
+// Icon mui ten nho, nhap nhay nhe (sin theo thoi gian) dat canh dong menu dang duoc
+// "chon"/dieu chinh - HIEN CHI gan cho dong DIFFICULTY (xem ghi chu tai noi goi trong
+// DrawMenu ve viec LOADOUT chua co icon rieng). Tach thanh ham rieng de tai su dung cho
+// cac dong menu dieu huong duoc khac sau nay thay vi copy lai code ve tam giac nay.
+static void DrawMenuSelectorIcon(float x, float y, Color color) {
+    float pulse = 0.5f + 0.5f * sinf((float)GetTime() * 4.0f);
+    Color c = Fade(color, 0.6f + 0.4f * pulse);
+    float half = 4.0f + pulse * 1.0f;
+    DrawTriangle({ x, y - half }, { x, y + half }, { x + half * 2.0f, y }, c);
+}
+
 // LOADOUT SELECT - ve dong "LOADOUT: <ten> (...)" ngay duoi dong DIFFICULTY trong Menu.
 // Nhan SAN cac gia tri da doc tu GameManager (khong nhan thang GameManager&) - dung tinh
 // than MakeEnemyKilledEvent trong physics_system.cpp: 1 helper `static` chi thao tac tren
@@ -24,6 +63,8 @@ static void DrawLoadoutSelect(UICanvas& canvas, int y, LoadoutType chosen, bool 
 }
 
 void RenderSystem::DrawMenu(const GameManager& gm) {
+    DrawTitleLogo();
+
     UICanvas canvas;
     canvas.Text(250, 100, 40, GREEN, "SPACE INVADERS");
 
@@ -46,6 +87,11 @@ void RenderSystem::DrawMenu(const GameManager& gm) {
     DifficultyStats stats = GetDifficultyStats(gm.difficulty);
     int bottomY = 195 + (int)entries.size() * 20 + 30;
     if (bottomY < 420) bottomY = 420; // Danh sach rong/ngan van giu bo cuc on dinh, khong bi troi len qua cao
+    // TODO(sau merge Nguoi A + Nguoi B): icon nay hien CHI tro vao dong DIFFICULTY. Tu khi
+    // co them dong LOADOUT (Nguoi A, xem DrawLoadoutSelect ben duoi), menu co 2 dong dieu
+    // huong duoc nhung chi 1 co icon - can ban bac lai xem co nen doi icon theo dong dang
+    // "active" hay them 1 icon thu 2 cho LOADOUT, chua tu quyet dinh thay o day.
+    DrawMenuSelectorIcon(238.0f, (float)bottomY + 10.0f, YELLOW); // Tro vao dong DIFFICULTY
     canvas.Text(260, bottomY, 20, WHITE, TextFormat("< DIFFICULTY: %s >", stats.label));
     LoadoutType chosenLoadout = (LoadoutType)gm.selectedLoadout;
     bool loadoutAvailable = (chosenLoadout == LoadoutType::Standard) || gm.metaProgress.IsUnlocked(chosenLoadout);
@@ -149,7 +195,27 @@ void RenderSystem::DrawPlaying(const GameManager& gm) {
     gm.playerBullets.Draw(YELLOW);
     gm.enemyBullets.Draw(RED);
     gm.particles.Draw();
-    gm.powerUps.Draw();
+    gm.floatingTexts.Draw(gm.gameFont);
+
+    // POWER-UP: icon rieng theo tung loai (xem PowerUpType trong powerup.h + 4 ham
+    // BuildIcon*() trong sprites.cpp) thay vi hinh chu nhat mau tron - cung khuon chon
+    // texture theo loai nhu khoi Boss o tren. KHONG culling (xem culling.h: PowerUp tu
+    // huy ngay khi vuot bien man hinh nen luon o gan/trong man hinh suot vong doi active,
+    // kiem tra o day chi la chi phi thua, khong loai duoc lenh ve nao ca).
+    for (size_t i = 0; i < gm.powerUps.Size(); i++) {
+        const PowerUp& p = gm.powerUps[i];
+        Texture2D tex;
+        Color tint;
+        switch (p.type) {
+            case PowerUpType::RapidFire: tex = gm.sprites.iconRapidFire; tint = ORANGE;  break;
+            case PowerUpType::Shield:    tex = gm.sprites.iconShield;    tint = SKYBLUE; break;
+            case PowerUpType::Piercing:  tex = gm.sprites.iconPiercing;  tint = MAGENTA; break;
+            case PowerUpType::Cleanser:  tex = gm.sprites.iconCleanser;  tint = LIME;    break;
+            default:                     tex = gm.sprites.iconRapidFire; tint = WHITE;   break;
+        }
+        DrawSprite(tex, p.rect, tint);
+    }
+
     gm.player.Draw(gm.sprites.player);
     EndMode2D();
 
