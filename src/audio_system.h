@@ -27,6 +27,16 @@ private:
 
     Sound bassNotes[4]{};
 
+    // A8 - LAYER NHIP PHU (hi-hat): noise trang, rat ngan, tick DEU voi nhip GAP DOI
+    // bass (kieu "8 nghich pham" tren "4 nghich pham" cua bass - xem UpdateBassline() de
+    // biet chi tiet nhip) - hoan toan doc lap voi bassline (khong dung chung voice/
+    // timer), chi la 1 lop "texture" nen them vao BEN TREN nhip bass da co, KHONG doi
+    // tempo/logic bass hien tai. Tu no khong can VoicePool (nhu sfxShoot/sfxHit...) vi
+    // UpdateBassline() da tu gian cach cac lan Play() du xa (>= nua interval) de
+    // khong bao gio chong lap.
+    Sound hiHat{};
+    float hiHatTimer = 0.0f;
+
     int bassIndex = 0;
     float bassTimer = 0.0f;
     float masterVolume = 0.6f;

@@ -140,6 +140,16 @@ namespace {
         Assign(s, "patrol_amplitude", Config::BUNKER_PATROL_AMPLITUDE);
         Assign(s, "patrol_speed", Config::BUNKER_PATROL_SPEED);
     }
+
+    void LoadDda(const json& root) {
+        if (!root.contains("dda")) return;
+        const json& s = root.at("dda");
+        Assign(s, "step_up", Config::DDA_STEP_UP);
+        Assign(s, "step_down", Config::DDA_STEP_DOWN);
+        Assign(s, "min_mul", Config::DDA_MIN_MUL);
+        Assign(s, "max_mul", Config::DDA_MAX_MUL);
+        Assign(s, "struggle_threshold", Config::DDA_STRUGGLE_THRESHOLD);
+    }
 }
 
 void Config::LoadBalance(const char* path) {
@@ -188,6 +198,7 @@ void Config::LoadBalance(const char* path) {
     safeLoad("powerup", LoadPowerup);
     safeLoad("combo", LoadCombo);
     safeLoad("bunker", LoadBunker);
+    safeLoad("dda", LoadDda);
 
     TraceLog(LOG_INFO, "Balance: da nap du lieu can bang tu '%s'", actualPath);
 }

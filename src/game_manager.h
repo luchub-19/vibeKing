@@ -20,6 +20,7 @@
 #include "bunker.h"
 #include "sprites.h"
 #include "events.h"
+#include "localization.h"
 
 enum class GameState { MENU, PLAYING, PAUSED, GAME_OVER, WAVE_CLEAR, KEYBIND };
 enum class TransitionPhase { NONE, FADE_OUT, FADE_IN };
@@ -35,10 +36,10 @@ struct RebindableAction { const char* label; int Settings::*keyField; };
 constexpr int REBINDABLE_ACTION_COUNT = 4;
 inline const RebindableAction* GetRebindableActions() {
     static const RebindableAction actions[REBINDABLE_ACTION_COUNT] = {
-        { "Trai",  &Settings::keyMoveLeft  },
-        { "Phai",  &Settings::keyMoveRight },
-        { "Ban",   &Settings::keyShoot     },
-        { "Pause", &Settings::keyPause     },
+        { Loc::ActionMoveLeft,  &Settings::keyMoveLeft  },
+        { Loc::ActionMoveRight, &Settings::keyMoveRight },
+        { Loc::ActionShoot,     &Settings::keyShoot     },
+        { "Pause",              &Settings::keyPause     },
     };
     return actions;
 }
@@ -71,9 +72,25 @@ enum class EnemyKind : uint8_t { Basic, Tanky, Zigzag };
 class PhysicsSystem;
 class RenderSystem;
 
+// TEST SEAM - CHI phuc vu tests/game_manager_test_access.h (dung boi tests/test_game_manager.cpp
+// va tests/test_physics_system.cpp). Dinh nghia THAT su cua class nay KHONG ton tai o dau trong
+// target `space_invaders` (chi trong target `unit_tests`, xem CMakeLists.txt) - forward-declare
+// mot class khong bao gio duoc dinh nghia trong build production la hop le trong C++ va khong
+// anh huong gi (friend cua 1 class chua tung ton tai don gian khong bao gio duoc dung toi).
+//
+// TRUOC DAY (xem lich su comment trong tests/test_boss.cpp) du an co chu dich KHONG lam dieu
+// nay - ly do la khong he thong nao tung can toi. Gio Track C them GameManagerTestAccess vi
+// Track B sap sua UpdatePlaying() (DDA) va boss refactor - can 1 luoi an toan that su goi duoc
+// state machine/CheckCollisions() headless truoc khi 2 thay doi rui ro do dung vao, thay vi tiep
+// tuc dua vao doc code + chay binary qua Xvfb thu cong. Dung LAI CHINH XAC tinh than "friend thay
+// hang chuc getter/setter" da co san cho PhysicsSystem/RenderSystem o tren, khong phai 1 huong di
+// moi - xem tests/game_manager_test_access.h de biet chinh xac nhung gi test duoc phep dung toi.
+class GameManagerTestAccess;
+
 class GameManager {
     friend class PhysicsSystem;
     friend class RenderSystem;
+    friend class GameManagerTestAccess;
 
 private:
     GameState state = GameState::MENU;
@@ -129,6 +146,20 @@ private:
     int wave = 1;
     float waveFireRateMul = 1.0f; // Tinh 1 lan trong InitLevel() theo wave hien tai
     bool isBossWave = false;      // wave % Config::BOSS_WAVE_INTERVAL == 0 -> spawn Boss thay vi luoi doi hinh
+
+    // DYNAMIC DIFFICULTY ADJUSTMENT (DDA) - xem Config::DDA_* (config.h) cho hang so dieu
+    // chinh. ddaSpeedMul la he so NHAN THEM vao DifficultyStats::enemySpeedMax/enemyFireRate
+    // (doc trong PhysicsSystem::UpdateEnemies() - xem physics_system.cpp - tren 1 BAN SAO
+    // cuc bo, KHONG dung vao Config::g_difficultyTable goc). Tinh lai moi CHECKPOINT (moi
+    // lan ha Boss, khong phai moi wave thuong) dua tren ddaLivesLostSinceCheck - cong don
+    // MOI FRAME trong UpdatePlaying() bang cach so sanh player.GetLives() voi
+    // ddaLastKnownLives (KHONG can moc vao tung diem va cham rieng le trong PhysicsSystem::
+    // CheckCollisions()/UpdateKamikaze() - 1 diem so sanh DUY NHAT o day gon hon nhieu).
+    // Ca 3 field deu KHONG lien quan Difficulty EASY/NORMAL/HARD nguoi choi chon trong
+    // Menu - DDA la 1 tang dieu chinh CONG THEM, khong thay the lua chon do.
+    float ddaSpeedMul = 1.0f;
+    int ddaLivesLostSinceCheck = 0;
+    int ddaLastKnownLives = Config::MAX_LIVES;
 
     // COMBO SCORE: ha guc lien tiep trong Config::COMBO_WINDOW giay se duoc nhan diem.
     float comboTimer = 0.0f;

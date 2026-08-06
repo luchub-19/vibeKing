@@ -24,6 +24,11 @@ struct UIText {
     std::string text;
     int fontSize;
     Color color;
+    // A1: khi true, pos.x dang la TOA DO TAM (center X) mong muon, KHONG phai canh
+    // trai. Canh trai thuc su chi tinh duoc trong Draw() (can do rong that qua
+    // MeasureTextEx VOI DUNG font se dung de ve - UICanvas khong giu font rieng nen
+    // khong the tinh o CenteredText()).
+    bool centered = false;
 };
 
 struct UIBar {
@@ -49,7 +54,15 @@ public:
     }
 
     void Text(int x, int y, int fontSize, Color color, const std::string& text) {
-        texts.push_back({ { (float)x, (float)y }, text, fontSize, color });
+        texts.push_back({ { (float)x, (float)y }, text, fontSize, color, false });
+    }
+
+    // A1: giong Text() nhung `centerX` la TAM ngang mong muon cua dong chu (vd
+    // Config::SCREEN_W/2 de can giua man hinh), khong phai canh trai - giai quyet
+    // dung 1 lop bug "can le tay bang mat" (vd Bug 1: LOADOUT/DIFFICULTY lech nhau vi
+    // 2 dong dung x hardcode khac nhau, khong dong bo voi do rong chu thuc te).
+    void CenteredText(int centerX, int y, int fontSize, Color color, const std::string& text) {
+        texts.push_back({ { (float)centerX, (float)y }, text, fontSize, color, true });
     }
 
     // Nhan san 1 chuoi da TextFormat() - giu API goi tuong tu DrawText cu, tranh phai
@@ -73,7 +86,15 @@ public:
             DrawRectangleLinesEx(b.rect, 1.0f, b.borderColor);
         }
         for (const UIText& t : texts) {
-            DrawTextEx(font, t.text.c_str(), t.pos, (float)t.fontSize, 1.0f, t.color);
+            Vector2 pos = t.pos;
+            if (t.centered) {
+                // MeasureTextEx CAN dung font/spacing se dung de ve (khong phai uoc
+                // luong tho theo fontSize*0.5 hay gi tuong tu) - moi ky tu trong font
+                // Texture Atlas nay khong co do rong bang nhau.
+                Vector2 size = MeasureTextEx(font, t.text.c_str(), (float)t.fontSize, 1.0f);
+                pos.x -= size.x / 2.0f;
+            }
+            DrawTextEx(font, t.text.c_str(), pos, (float)t.fontSize, 1.0f, t.color);
         }
     }
 };

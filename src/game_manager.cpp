@@ -4,6 +4,7 @@
 #include "physics_system.h"
 #include "render_system.h"
 #include "file_logger.h"
+#include "wave_generator.h"
 
 // ==========================================
 // TRANSITION (fade giua cac state)
@@ -49,6 +50,19 @@ void GameManager::InitLevel(bool newGame) {
     if (newGame) {
         wave = 1;
         player.Reset();
+        // DDA (Track B2): dong bo lai theo mang THAT SU cua player vua Reset(), khong dung
+        // Config::MAX_LIVES (do la TRAN treo, khong phai mang bat dau - xem Player::Player(),
+        // mang bat dau la 1 hang so rieng = 3). Truoc fix nay, GameManager moi tao co
+        // ddaLastKnownLives=5 nhung player.lives that su=3 -> frame dau tien cua UpdatePlaying()
+        // tu ghi nham "+2 mang da mat" vao ddaLivesLostSinceCheck ngay ca khi nguoi choi
+        // chua he bi trung don nao - lech nay khong tu sua truoc checkpoint DDA dau tien
+        // (wave 5) vi ddaLivesLostSinceCheck chi reset O checkpoint, khong o dau khac. Cung
+        // reset ddaSpeedMul/ddaLivesLostSinceCheck o day de 1 van MOI luon bat dau tu muc do
+        // kho goc, khong mang theo dieu chinh cua lan choi truoc (neu GameManager duoc tai
+        // su dung qua nhieu "New Game" thay vi luon khoi tao lai tu dau).
+        ddaLastKnownLives = player.GetLives();
+        ddaLivesLostSinceCheck = 0;
+        ddaSpeedMul = 1.0f;
     } else {
         player.ResetForNewWave();
     }
@@ -79,25 +93,24 @@ void GameManager::InitLevel(bool newGame) {
     if (isBossWave) {
         SpawnBoss();
     } else {
-        // WAVE PROGRESSION: cu moi Config::WAVE_EXTRA_ROW_EVERY wave thi them 1 hang
-        // dich, clamp theo gioi han pool tinh toi da (Config::MAX_GRID_ROWS) - khong
-        // bao gio vuot capacity da tinh san cho 3 EnemyPool.
-        int extraRows = (wave - 1) / Config::WAVE_EXTRA_ROW_EVERY;
-        int rows = levelGrid.rows + extraRows;
-        if (rows > Config::MAX_GRID_ROWS) rows = Config::MAX_GRID_ROWS;
-
-        for (int r = 0; r < rows; r++) {
-            for (int c = 0; c < levelGrid.cols; c++) {
-                float x = levelGrid.startX + c * levelGrid.spacingX;
-                float y = levelGrid.startY + r * levelGrid.spacingY;
-                Color col = (r % 2 == 0) ? PURPLE : VIOLET;
-
-                if (r == 0) {
-                    zigzagEnemies.Spawn(ZigzagEnemy{ {x, y, 36.0f, 22.0f}, SKYBLUE, c, 0.0f, 0.0f });
-                } else if (c % 5 == 0) {
-                    tankyEnemies.Spawn(TankyEnemy{ {x, y, 44.0f, 30.0f}, MAROON, c, TankyEnemy::HP });
-                } else {
-                    basicEnemies.Spawn(BasicEnemy{ {x, y, 40.0f, 25.0f}, col, c });
+        // WAVE/FORMATION PROCEDURAL (B3): WaveGenerator (wave_generator.h/.cpp) quyet
+        // dinh "o nao co dich loai gi" - THUAN TUY, khong biet GameManager ton tai (xem
+        // comment dau wave_generator.h, cung tinh than level_config.h). InitLevel() chi
+        // con viec duyet ket qua va goi dung EnemyPool::Spawn() tuong ung - mau/kich
+        // thuoc/hp mac dinh cua tung loai VAN o day, dung cho vi tri no da o san truoc
+        // gio (khong thuoc ve "hinh dang doi hinh").
+        for (const FormationSpawn& spawn : WaveGenerator::Generate(wave, levelGrid)) {
+            switch (spawn.kind) {
+                case FormationEnemyKind::Zigzag:
+                    zigzagEnemies.Spawn(ZigzagEnemy{ {spawn.x, spawn.y, 36.0f, 22.0f}, SKYBLUE, spawn.column, 0.0f, 0.0f });
+                    break;
+                case FormationEnemyKind::Tanky:
+                    tankyEnemies.Spawn(TankyEnemy{ {spawn.x, spawn.y, 44.0f, 30.0f}, MAROON, spawn.column, TankyEnemy::HP });
+                    break;
+                case FormationEnemyKind::Basic: {
+                    Color col = (spawn.row % 2 == 0) ? PURPLE : VIOLET;
+                    basicEnemies.Spawn(BasicEnemy{ {spawn.x, spawn.y, 40.0f, 25.0f}, col, spawn.column });
+                    break;
                 }
             }
         }
@@ -447,6 +460,16 @@ void GameManager::UpdatePlaying(float dt) {
     PhysicsSystem::CheckCollisions(*this);
     ProcessEvents(); // Xu ly tach biet moi hieu ung/he qua ma CheckCollisions() vua ghi nhan
 
+    // DYNAMIC DIFFICULTY ADJUSTMENT: cong don so mang mat trong frame nay (neu co) vao
+    // chu ky Boss hien tai. So sanh CHENH LECH voi ddaLastKnownLives thay vi moc vao tung
+    // diem va cham rieng le trong PhysicsSystem (TakeDamage() duoc goi tu ca
+    // CheckCollisions lan UpdateKamikaze) - 1 diem ghi nhan DUY NHAT o day gon hon nhieu.
+    // Chi cong don khi GIAM (mat mang) - tang (vd +1 mang tu moc diem, xem Player::AddScore)
+    // khong bi tinh nham la "mat mang".
+    int currentLives = player.GetLives();
+    if (currentLives < ddaLastKnownLives) ddaLivesLostSinceCheck += (ddaLastKnownLives - currentLives);
+    ddaLastKnownLives = currentLives;
+
     // BOSS DEFEAT: dung CHUNG dinh nghia "con song" voi moi pool khac (Size()>0) - khong
     // con bool `bossActive` rieng phai kiem tra dong bo voi hp.
     if (isBossWave && bossPool.Size() > 0 && bossPool[0].hp <= 0) {
@@ -459,6 +482,23 @@ void GameManager::UpdatePlaying(float dt) {
         ApplyComboAndScore(Config::BOSS_SCORE_VALUE);
         wave++;
         lastSubmitResult = leaderboard.TrySubmit(player.GetScore(), wave);
+
+        // DYNAMIC DIFFICULTY ADJUSTMENT: CHECKPOINT moi chu ky Boss (khong phai moi wave
+        // thuong) - doc lai ddaLivesLostSinceCheck vua cong don o tren de dieu chinh
+        // ddaSpeedMul cho chu ky ke tiep (PhysicsSystem::UpdateEnemies() ap dung thuc su,
+        // xem physics_system.cpp), roi RESET ve 0 cho chu ky moi. Khong mat mang nao ca
+        // chu ky -> nguoi choi lam chu qua tot -> tang nhe; mat tu Config::
+        // DDA_STRUGGLE_THRESHOLD tro len -> dang vat lon -> giam NHIEU HON (uu tien "cuu"
+        // nguoi choi kip thoi hon la thu thach them nguoi choi da gioi). O giua 2 nguong
+        // nay (vd mat dung 1 mang khi threshold=2) -> giu nguyen, tranh rung lac do kho
+        // vi 1 lan trung don ngau nhien.
+        if (ddaLivesLostSinceCheck == 0) {
+            ddaSpeedMul = fminf(ddaSpeedMul + Config::DDA_STEP_UP, Config::DDA_MAX_MUL);
+        } else if (ddaLivesLostSinceCheck >= Config::DDA_STRUGGLE_THRESHOLD) {
+            ddaSpeedMul = fmaxf(ddaSpeedMul - Config::DDA_STEP_DOWN, Config::DDA_MIN_MUL);
+        }
+        ddaLivesLostSinceCheck = 0;
+
         RequestTransition(GameState::WAVE_CLEAR);
         return;
     }
@@ -538,7 +578,7 @@ void GameManager::Run() {
     // BUG FIX: raylib mac dinh gan KEY_ESCAPE lam "exit key" - tu dong goi
     // glfwSetWindowShouldClose() ngay o tang GLFW callback, HOAN TOAN doc lap voi
     // InputSystem::PollMenu(). Vi game nay dung chinh ESC lam phim Pause (xem
-    // InputSystem::PollMenu, man Pause ghi "P/ESC: RESUME"), neu khong tat hanh vi
+    // InputSystem::PollMenu, man Pause ghi "P/ESC: TIEP TUC"), neu khong tat hanh vi
     // mac dinh nay thi nhan ESC de Pause se VO TINH dong luon ca cua so game (thoat
     // hoan toan) thay vi chi tam dung. PHAI goi truoc khi vong lap While(!WindowShouldClose())
     // o duoi bat dau chay.

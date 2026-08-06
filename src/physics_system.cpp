@@ -129,6 +129,16 @@ void PhysicsSystem::UpdateEnemies(GameManager& gm, float dt) {
 
     DifficultyStats stats = GetDifficultyStats(gm.difficulty);
 
+    // DYNAMIC DIFFICULTY ADJUSTMENT (B2): nhan gm.ddaSpeedMul (tinh lai moi checkpoint -
+    // xem GameManager::UpdatePlaying() nhanh BOSS DEFEAT trong game_manager.cpp) vao CA 2
+    // tran duoi day TRUOC khi dung tiep ben duoi. Sua tren BAN SAO cuc bo `stats`, KHONG
+    // dung vao Config::g_difficultyTable - bang goc giu nguyen ven cho muc do kho NGUOI
+    // CHOI TU CHON trong Menu, DDA chi la 1 tang dieu chinh CONG THEM rieng cua wave nay.
+    // enemyFireRate la KHOANG CACH giua 2 phat (giay) - nho hon = ban nhanh hon, nen CHIA
+    // (khong phai NHAN) khi ddaSpeedMul > 1 (dang "thuong" nguoi choi choi tot).
+    stats.enemySpeedMax *= gm.ddaSpeedMul;
+    stats.enemyFireRate /= gm.ddaSpeedMul;
+
     if (hitEdge) {
         gm.enemyDirection *= -1;
         gm.enemySpeed = fminf(gm.enemySpeed + Config::ENEMY_SPEED_INC, stats.enemySpeedMax);
@@ -215,8 +225,14 @@ void PhysicsSystem::FireRadialBurst(GameManager& gm, float x, float y, int count
 }
 
 // ==========================================
-// KAMIKAZE
+// KAMIKAZE - HOMING LIEN TUC (B1): gioi han xoay Config-doc-lap KAMIKAZE_TURN_RATE
+// (rad/s) - hang so RIENG cua file nay, khong dua len Config::/balance.json vi B1 duoc
+// giao lam voc chuc "0 file chung" (xem bang phan cong task). Sau nay neu can designer
+// tune tu JSON, chi viec chuyen thanh Config::KAMIKAZE_TURN_RATE + 1 dong Assign() trong
+// config.cpp, khong dung gi den cong thuc ben duoi.
 // ==========================================
+static constexpr float KAMIKAZE_TURN_RATE = 3.5f; // rad/s (~200 do/s) - du "bam duoi" nhung khong aim-bot tuyet doi, nguoi choi van ne duoc bang cach doi huong gap
+
 void PhysicsSystem::UpdateKamikaze(GameManager& gm, float dt) {
     gm.kamikazeSpawnTimer -= dt;
     if (gm.kamikazeSpawnTimer <= 0.0f && gm.kamikazeEnemies.Size() < Config::MAX_KAMIKAZE) {
@@ -225,6 +241,33 @@ void PhysicsSystem::UpdateKamikaze(GameManager& gm, float dt) {
 
     for (size_t i = 0; i < gm.kamikazeEnemies.Size(); ) {
         KamikazeEnemy& k = gm.kamikazeEnemies[i];
+
+        // TRUOC DAY: k.vel duoc tinh DUY NHAT 1 LAN luc SpawnKamikaze() ("khoa muc tieu
+        // vinh vien" - xem comment cu tren struct KamikazeEnemy trong enemy_types.h/
+        // GameManager::SpawnKamikaze(), gio da lac hau nhung giu lai lam lich su vi ngoai
+        // pham vi B1). GIO: xoay dan k.vel ve huong player HIEN TAI moi frame, gioi han
+        // boi KAMIKAZE_TURN_RATE - khong gan lai huong tuc thi (se thanh aim-bot 100%).
+        // Do lon toc do GIU NGUYEN dung bang do lon cua vel hien tai (doc lai tu chinh no
+        // thay vi Config::KAMIKAZE_SPEED) de tuong thich san voi bat ky jitter/randomize
+        // toc do nao co the them vao luc spawn sau nay ma khong can sua file nay them lan
+        // nua - homing CHI xoay HUONG, khong dung toi TOC DO.
+        float speed = sqrtf(k.vel.x * k.vel.x + k.vel.y * k.vel.y);
+        if (speed > 0.01f) {
+            Vector2 toPlayer{ gm.player.GetCenter().x - EnemyCenter(k.rect).x,
+                               gm.player.GetCenter().y - EnemyCenter(k.rect).y };
+            float desiredAngle = atan2f(toPlayer.y, toPlayer.x);
+            float currentAngle  = atan2f(k.vel.y, k.vel.x);
+
+            float angleDiff = desiredAngle - currentAngle;
+            while (angleDiff > PI)  angleDiff -= 2.0f * PI; // Chuan hoa ve [-PI, PI] - luon
+            while (angleDiff < -PI) angleDiff += 2.0f * PI; // xoay theo duong NGAN hon
+
+            float maxTurn = KAMIKAZE_TURN_RATE * dt;
+            float appliedTurn = fmaxf(-maxTurn, fminf(maxTurn, angleDiff));
+            float newAngle = currentAngle + appliedTurn;
+            k.vel = { cosf(newAngle) * speed, sinf(newAngle) * speed };
+        }
+
         k.rect.x += k.vel.x * dt;
         k.rect.y += k.vel.y * dt;
 
@@ -292,15 +335,16 @@ void PhysicsSystem::UpdateBoss(GameManager& gm, float dt) {
     if (gm.bossPool.Size() == 0) return;
     Boss& boss = gm.bossPool[0];
     int stage = BossStage(boss);
+    const BossTypeDescriptor& desc = GetBossTypeDescriptor(boss.type);
 
-    // DI CHUYEN - rieng theo type. Vanguard giu NGUYEN hanh vi goc (pace het chieu rong
-    // man hinh, tang toc theo stage). Sentinel/Swarmer KHONG pace toan man hinh - ca hai
-    // lac quanh `baseX` bang cung 1 cong thuc sin, chi khac bien do/tan so (xem
-    // Config::BOSS_SENTINEL_SWAY_*/BOSS_SWARMER_SWAY_*) - Sentinel lac nhe/cham (ap luc
-    // den tu khien ben duoi, khong phai toc do), Swarmer lac rong/nhanh (cam giac that
-    // thuong, kho ngam hon han).
-    switch (boss.type) {
-        case BossType::Vanguard: {
+    // DI CHUYEN (B4 - DATA-DRIVEN): dispatch qua desc.movement (BossTypeDescriptor, xem
+    // enemy_types.h) THAY VI switch(boss.type) truoc day. Vanguard = Pace (pace het chieu
+    // rong man hinh, tang toc theo stage - hanh vi GOC, KHONG doi). Sentinel/Swarmer = Sway
+    // CUNG 1 cong thuc sin, chi khac bien do/tan so doc qua con tro desc.swayAmplitude/
+    // swayFrequency (Sentinel: nhe/cham - ap luc den tu khien ben duoi; Swarmer: rong/nhanh
+    // - cam giac that thuong, kho ngam hon han).
+    switch (desc.movement) {
+        case BossMovementPattern::Pace: {
             float speed = (stage == 1) ? Config::BOSS_SPEED_STAGE1 : (stage == 2) ? Config::BOSS_SPEED_STAGE2 : Config::BOSS_SPEED_STAGE3;
             boss.rect.x += (float)boss.direction * speed * dt;
             if (boss.rect.x <= 0.0f || boss.rect.x + boss.rect.width >= Config::SCREEN_W) {
@@ -309,28 +353,24 @@ void PhysicsSystem::UpdateBoss(GameManager& gm, float dt) {
             }
             break;
         }
-        case BossType::Sentinel: {
-            boss.phaseAccum += Config::BOSS_SENTINEL_SWAY_FREQUENCY * dt;
-            float sway = sinf(boss.phaseAccum) * Config::BOSS_SENTINEL_SWAY_AMPLITUDE;
-            boss.rect.x = fmaxf(0.0f, fminf(boss.baseX + sway, Config::SCREEN_W - boss.rect.width));
-            break;
-        }
-        case BossType::Swarmer: {
-            boss.phaseAccum += Config::BOSS_SWARMER_SWAY_FREQUENCY * dt;
-            float sway = sinf(boss.phaseAccum) * Config::BOSS_SWARMER_SWAY_AMPLITUDE;
+        case BossMovementPattern::Sway: {
+            boss.phaseAccum += (*desc.swayFrequency) * dt;
+            float sway = sinf(boss.phaseAccum) * (*desc.swayAmplitude);
             boss.rect.x = fmaxf(0.0f, fminf(boss.baseX + sway, Config::SCREEN_W - boss.rect.width));
             break;
         }
     }
 
-    // KHIEN TAM (rieng Sentinel) - dinh ky bat/tat, doc lap voi fireTimer/stage, buoc
-    // nguoi choi cho dung nhip thay vi giu nut ban suot tran.
-    if (boss.type == BossType::Sentinel) {
+    // KHIEN TAM (B4 - DATA-DRIVEN): dispatch qua desc.hasShieldMechanic THAY VI if
+    // (boss.type == BossType::Sentinel) truoc day - dinh ky bat/tat, doc lap voi
+    // fireTimer/stage, buoc nguoi choi cho dung nhip thay vi giu nut ban suot tran. BossType
+    // moi muon co khien chi can bat co nay + gan 3 con tro Config trong
+    // g_bossTypeDescriptors[], khong sua gi o day.
+    if (desc.hasShieldMechanic) {
         boss.phaseTimer -= dt;
         if (boss.phaseTimer <= 0.0f) {
             boss.shieldActive = !boss.shieldActive;
-            boss.phaseTimer = boss.shieldActive ? Config::BOSS_SENTINEL_SHIELD_DURATION
-                                                 : Config::BOSS_SENTINEL_SHIELD_INTERVAL;
+            boss.phaseTimer = boss.shieldActive ? (*desc.shieldDuration) : (*desc.shieldInterval);
             // Goi am thanh/particle/rung man hinh TRUC TIEP (khong qua gm.pendingEvents)
             // - UpdateBoss() chay TRUOC CheckCollisions() trong UpdatePlaying(), von xoa
             // sach pendingEvents ngay dau ham (xem events.h: hang doi chi danh cho hieu
@@ -344,29 +384,31 @@ void PhysicsSystem::UpdateBoss(GameManager& gm, float dt) {
         }
     }
 
-    // TRIEU HOI TIEP VIEN (rieng Swarmer) - "muon" lai dung GameManager::SpawnKamikaze()
-    // da co san (PhysicsSystem la friend cua GameManager - xem game_manager.h) thay vi tu
-    // viet duong bay/muc tieu rieng. Vi doi hinh dang TRONG trong boss wave (xem
-    // InitLevel()), SpawnKamikaze() se tu dong roi vao nhanh "spawn tu ngoai man hinh"
-    // cua no (xem comment tren struct KamikazeEnemy) - dung y muon.
-    if (boss.type == BossType::Swarmer) {
+    // TRIEU HOI TIEP VIEN (B4 - DATA-DRIVEN): dispatch qua desc.hasSummonMechanic THAY VI
+    // if (boss.type == BossType::Swarmer) truoc day - "muon" lai dung
+    // GameManager::SpawnKamikaze() da co san (PhysicsSystem la friend cua GameManager - xem
+    // game_manager.h) thay vi tu viet duong bay/muc tieu rieng. Vi doi hinh dang TRONG
+    // trong boss wave (xem InitLevel()), SpawnKamikaze() se tu dong roi vao nhanh "spawn tu
+    // ngoai man hinh" cua no (xem comment tren struct KamikazeEnemy) - dung y muon.
+    if (desc.hasSummonMechanic) {
         boss.summonTimer -= dt;
         if (boss.summonTimer <= 0.0f) {
-            for (int i = 0; i < Config::BOSS_SWARMER_SUMMON_COUNT && gm.kamikazeEnemies.Size() < Config::MAX_KAMIKAZE; i++) {
+            for (int i = 0; i < (*desc.summonCount) && gm.kamikazeEnemies.Size() < Config::MAX_KAMIKAZE; i++) {
                 gm.SpawnKamikaze();
             }
-            boss.summonTimer = Config::BOSS_SWARMER_SUMMON_INTERVAL;
+            boss.summonTimer = *desc.summonInterval;
             gm.audio.PlayBossPhase();
             gm.particles.Burst(EnemyCenter(boss.rect), 14, ORANGE);
         }
     }
 
-    // BAN - cung cong thuc voi Vanguard cho ca 3 loai (nhip ban theo stage, doi khi ban
-    // toa tron). Sentinel rieng CO THEM 1 nhip ban nhanh hon han trong luc dang bat khien
-    // (bu lai cho viec khong the bi trung dan luc do, giu can bang tong the giua 3 loai).
+    // BAN - cung cong thuc cho ca 3 loai (nhip ban theo stage, doi khi ban toa tron). Boss
+    // nao CO khien (desc.hasShieldMechanic) VA dang bat khien thi dung nhip ban RIENG
+    // (desc.shieldFireInterval) nhanh hon han - bu lai cho viec khong the bi trung dan luc
+    // do (truoc day chi Sentinel, gio tong quat cho MOI BossType co khien).
     float fireInterval = (stage == 1) ? Config::BOSS_FIRE_INTERVAL_STAGE1 : (stage == 2) ? Config::BOSS_FIRE_INTERVAL_STAGE2 : Config::BOSS_FIRE_INTERVAL_STAGE3;
-    if (boss.type == BossType::Sentinel && boss.shieldActive) {
-        fireInterval = Config::BOSS_SENTINEL_SHIELD_FIRE_INTERVAL;
+    if (desc.hasShieldMechanic && boss.shieldActive) {
+        fireInterval = *desc.shieldFireInterval;
     }
 
     boss.fireTimer += dt;

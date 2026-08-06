@@ -19,7 +19,7 @@ flowchart TB
     subgraph DATA["TẦNG DỮ LIỆU (DOD — Data-Oriented Design)"]
         Pools["EnemyPool / BulletPool / ParticlePool / PowerUpPool<br/>mảng tĩnh liền khối, KHÔNG hàm ảo"]
         Balance["assets/balance.json<br/>HP, tốc độ, wave pattern, hành vi Boss"]
-        Saves["settings.cfg · level.cfg · leaderboard.dat (có checksum)"]
+        Saves["settings.cfg · level.cfg · leaderboard.dat · meta_progress.dat<br/>(2 file sau có checksum)"]
     end
 
     subgraph SYSTEMS["TẦNG SYSTEM (hành vi — GameManager là friend, không sở hữu logic)"]
@@ -47,6 +47,10 @@ flowchart TB
 Ngược lại thì có — `PhysicsSystem`/`RenderSystem` là `friend class` của
 `GameManager` (xem `game_manager.h`) nên đọc/ghi thẳng dữ liệu thế giới mà
 không cần một lớp getter/setter dày cộp chỉ tồn tại để "đúng OOP hình thức".
+Cùng lý do đó, `GameManager` còn khai báo thêm 1 friend thứ 3 —
+`GameManagerTestAccess` — nhưng đây KHÔNG phải hệ thống runtime nên không có
+mặt trong sơ đồ trên: nó chỉ tồn tại trong target `unit_tests`, phục vụ đúng
+2 file test (xem §7).
 
 ## 2. Vì sao DOD, không phải EnTT/ECS "thật"
 
@@ -166,20 +170,33 @@ nâng cấp thành hàng đợi có timestamp — chưa cần ở quy mô hiện
 
 | File | Vai trò | Không nên làm gì |
 |---|---|---|
+| `main.cpp` | Entry point — dựng 1 `GameManager` rồi gọi `Run()`, không gì khác | Không thêm logic gì vào đây (kể cả parse argv) — đưa vào `GameManager` |
 | `game_manager.h/.cpp` | Sở hữu TOÀN BỘ dữ liệu thế giới (pools, player, bunkers...) + điều phối vòng lặp chính, wave progression, transition state | Không thêm phép tính va chạm/hình học/vẽ trực tiếp vào đây — đẩy sang System tương ứng |
+| `player.h/.cpp` | Dữ liệu + hành vi Player (di chuyển, bắn, mạng, bất tử tạm thời, power-up timers) — 1 trong các ngoại lệ "container tự quản lý" ở §2, không phải component swarm | Player KHÔNG nằm trong danh sách friend của `GameManager` — field mới cần GameManager đọc thẳng thì phải qua API public, không tự thêm friend rải rác |
 | `input_system.h` | Nơi DUY NHẤT gọi `IsKeyDown/IsKeyPressed/IsGamepad*` | Không đọc phần cứng ở bất kỳ file nào khác |
 | `physics_system.h/.cpp` | Di chuyển entity + va chạm; sinh `GameEvent`, KHÔNG tự gọi audio/particle | Không gọi `AudioSystem`/`ParticlePool` trực tiếp — luôn qua `GameEvent` |
 | `render_system.h/.cpp` | Vẽ mọi màn hình qua `UICanvas`; hàm `const`, chỉ đọc | Không sửa bất kỳ field nào của `GameManager` |
 | `audio_system.h/.cpp` | Tổng hợp & phát âm thanh procedural (không file `.wav`) | — |
+| `voice_pool.h` | `VoicePool<N>` — luân phiên N bản `LoadSoundAlias()` của 1 `Sound` gốc để SFX bắn/trúng liên tiếp không cắt ngang nhau; dùng nội bộ bởi `AudioSystem` | Không gọi trực tiếp từ ngoài `AudioSystem` |
+| `sprites.h/.cpp` | `SpriteSheet` — texture sinh bằng thao tác `Image` trong RAM lúc `Load()`, không cần file `.png` rời | `Load()` phải gọi SAU `InitWindow()`, `Unload()` phải TRƯỚC `CloseWindow()` |
 | `ui_system.h` | `UICanvas`/`UIText`/`UIBar` — widget chế độ immediate | Không gọi `DrawTextEx` rải rác ngoài file này |
 | `events.h` | Định nghĩa `GameEvent`/`SfxType` — "hợp đồng" giữa PhysicsSystem và ProcessEvents | — |
-| `enemy_types.h` | Struct dữ liệu thuần cho từng loại địch + `EnemyPool<T,N>` | Không thêm hàm `Update()`/hành vi vào các struct Enemy (xem §2) |
+| `enemy_types.h` | Struct dữ liệu thuần cho từng loại địch + `EnemyPool<T,N>` + `BossStage()` (1-nguồn-duy-nhất suy giai đoạn Boss từ %HP) | Không thêm hàm `Update()`/hành vi vào các struct Enemy (xem §2) |
 | `bullet_pool.h` | `Bullet` (CCD qua swept rect) + `BulletPool<N>` | — |
+| `powerup.h` | `PowerUp` (rơi + tự huỷ ngoài màn hình) + `PowerUpPool<N>` — cùng khuôn DOD với Bullet/Enemy | — |
+| `particle_pool.h` | `Particle` (2 hình dạng Square/Spark) + `ParticlePool<N>` cho hiệu ứng nổ/trúng đòn | — |
+| `screen_shake.h` | `ScreenShake` — rung màn hình độc lập FPS, random hoá nằm trong `Update()` chứ không phải lúc vẽ | Không gọi `GetRandomValue` ở đâu ngoài `Update()` (kể cả trong `GetOffset()`) |
+| `hit_stop.h` | `HitStop` — bộ đếm thuần đóng băng GAMEPLAY (không phải màn hình) vài chục ms khi hạ Boss/đòn nặng; `GameManager::UpdatePlaying()` là nơi return sớm khi `IsActive()` | — |
+| `floating_text.h` | `FloatingText`/`FloatingTextPool<N>` — popup "+50"/"COMBO xN" tại vị trí hạ gục, tự vẽ bằng `Font` (không qua UICanvas) | — |
 | `spatial_grid.h` | Lưới không gian broad-phase cho va chạm | — |
 | `bunker.h/.cpp` | Voxel-grid bunker: khoét/hồi phục O(1) qua `damagedVoxels` | — |
 | `config.h/.cpp` | Hằng số kỹ thuật (`constexpr`) + biến cân bằng (`inline`, ghi đè runtime) | Không thêm hằng số CÂN BẰNG mới dạng `constexpr` — phải `inline` + có mặt trong `LoadBalance()` (xem §6) |
+| `level_config.h/.cpp` | `LevelGridConfig` — số hàng/cột/khoảng cách đội hình đọc từ `level.cfg`, thay vì hardcode trong vòng lặp `InitLevel()` | — |
+| `settings.h/.cpp` | `Settings` — độ khó/âm lượng/4 phím rebind, đọc/ghi `settings.cfg` (KEY=VALUE) | — |
+| `text_utils.h` | `TextUtils::Trim`/`IEquals` — tiện ích `string_view` dùng chung bởi 2 parser KEY=VALUE (`level_config.cpp`, `settings.cpp`), không copy chuỗi | — |
 | `save_checksum.h` | Checksum FNV-1a cho file save | — |
 | `leaderboard.h/.cpp` | Top 10 điểm cao, có xác thực checksum | — |
+| `meta_progress.h/.cpp` | `MetaProgress` — currency tích luỹ xuyên nhiều lượt chơi, ghi file có checksum cùng khuôn Leaderboard | `AwardCurrency()` HIỆN chỉ được gọi ở đúng 1 nhánh của `UpdatePlaying()` (lives<=0) — xem lưu ý currency ở CLAUDE.md trước khi thêm nhánh gọi mới |
 | `file_logger.h/.cpp` | Hook `SetTraceLogCallback` → ghi mọi `TraceLog` ra file xoay vòng | — |
 | `culling.h` | `Culling::IsVisible()` — bỏ lệnh vẽ cho thực thể ngoài camera | — |
 | `process_metrics.h` | Đọc RAM (RSS) thật từ `/proc/self/status` | — |
@@ -209,14 +226,45 @@ thuộc 1 struct Enemy cụ thể), rồi thêm 1 dòng `Assign(...)` tương �
 
 ## 7. Kiểm thử & CI
 
-- `tests/` — Catch2 (vendor sẵn, không cần mạng lúc build) — test các khối
-  logic THUẦN không cần cửa sổ/GPU: swept-AABB CCD (`test_bullet_ccd.cpp`),
-  `SpatialGrid` (`test_spatial_grid.cpp`), `Leaderboard` + checksum
-  (`test_leaderboard.cpp`), `Config::LoadBalance` (`test_balance_config.cpp`).
-- `.github/workflows/ci.yml` — build raylib từ source, build project, chạy
-  `ctest`. Bật thêm **Branch Protection Rule** (Settings → Branches, yêu cầu
-  status check `build-and-test`) để thật sự chặn merge khi test đỏ — phần đó
-  nằm ở cấu hình repo, không set được từ code.
+`tests/` — Catch2 v2 (vendor sẵn tại `tests/thirdparty/catch.hpp`, không cần
+mạng lúc build). 2 nhóm:
+
+- **Logic thuần, không cần `GameManager`**: swept-AABB CCD
+  (`test_bullet_ccd.cpp`), `SpatialGrid` (`test_spatial_grid.cpp`),
+  `Leaderboard`+checksum (`test_leaderboard.cpp`), `Config::LoadBalance`
+  (`test_balance_config.cpp`), `Bunker` (`test_bunker.cpp`), `Player`
+  (`test_player.cpp`), `Settings` (`test_settings.cpp`), hành vi tĩnh của
+  Boss (`test_boss.cpp` — hành vi ĐỘNG như dao động/triệu hồi được xác minh
+  thủ công qua Xvfb, không có test tự động, xem comment đầu file đó),
+  `MetaProgress` (`test_meta_progress.cpp`).
+- **`GameManager`/`PhysicsSystem`** (`test_game_manager.cpp`,
+  `test_physics_system.cpp`): state machine (MENU/PLAYING/GAME_OVER/
+  WAVE_CLEAR + thời điểm cộng currency) và `CheckCollisions()` (1 phát chết,
+  Tanky nhiều phát, boss stage/shield, điều kiện rơi power-up). 2 file này
+  từng KHÔNG tồn tại có chủ đích — `GameManager` chỉ friend
+  `PhysicsSystem`/`RenderSystem`, không friend gì phục vụ test (xem lịch sử
+  trong comment đầu `test_boss.cpp`). Được thêm lại khi cần 1 lưới an toàn
+  THẬT SỰ trước 2 thay đổi rủi ro (sửa `UpdatePlaying()` cho DDA, refactor
+  Boss) — qua đúng 1 friend test-only: `tests/game_manager_test_access.h`
+  (`class GameManagerTestAccess`, xem cách dùng chi tiết ở `CLAUDE.md`). Cả 2
+  file KHÔNG gọi `GameManager::Run()`/`InitWindow()` — gọi thẳng
+  `UpdatePlaying()`/`CheckCollisions()` qua seam đó; đã kiểm chứng bằng probe
+  thật (không phải giả định) rằng an toàn 100% headless — raylib tự no-op
+  khi `IsKeyDown`/`IsGamepadAvailable`/`GetRandomValue`/`PlaySound` được gọi
+  trước `InitWindow()`/`InitAudioDevice()`. Hệ quả phụ: vì
+  `game_manager.cpp`/`physics_system.cpp` kéo theo toàn bộ chuỗi phụ thuộc
+  biên dịch của `GameManager::Run()`, target `unit_tests` giờ link thêm cả
+  `render_system.cpp`/`audio_system.cpp`/`sprites.cpp`/`file_logger.cpp`/
+  `level_config.cpp` — dù không đường nào trong số đó thực sự CHẠY lúc test.
+
+`.github/workflows/ci.yml` — 2 bước build tách biệt: **(1)** build raylib từ
+source + build project (cấu hình mặc định) + `ctest`; **(2)** build lại TOÀN
+BỘ với `-Wall -Wextra -Wpedantic -Wshadow -Werror` để biến cảnh báo mới
+thành lỗi cứng — codebase hiện ở mức 0 warning, PR nào làm phát sinh cảnh
+báo sẽ đỏ ở bước (2) dù bước (1) có thể vẫn xanh (2 bước độc lập, không cái
+nào thay được cái kia). Bật thêm **Branch Protection Rule** (Settings →
+Branches, yêu cầu status check `build-and-test`) để thật sự chặn merge khi
+test đỏ — phần đó nằm ở cấu hình repo, không set được từ code.
 
 ## 8. Khi cần thêm 1 loại địch mới — checklist nhanh
 

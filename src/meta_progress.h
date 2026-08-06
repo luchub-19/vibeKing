@@ -38,11 +38,34 @@ inline int GetLoadoutUnlockCost(LoadoutType type) {
     }
 }
 
+// ==========================================
+// A7 - SKIN: entry MOI, hoan toan doc lap voi LoadoutType ben tren (khong sua bat ky
+// gia tri/enum cu nao). Chi 1 skin tra phi (Amber) cho phien ban dau - cung khuon
+// GetLoadoutName()/GetLoadoutUnlockCost() de UI (sau nay, khi wire vao RenderSystem)
+// va logic mo khoa luon doc CHUNG 1 nguon.
+// ==========================================
+enum class SkinType : uint8_t { Default, Amber };
+
+inline const char* GetSkinName(SkinType type) {
+    switch (type) {
+        case SkinType::Amber: return "AMBER";
+        default:              return "DEFAULT"; // Default va moi gia tri la ngoai du kien
+    }
+}
+
+inline int GetSkinUnlockCost(SkinType type) {
+    switch (type) {
+        case SkinType::Amber: return 100;
+        default:              return 0; // Default - mien phi, khong can mo khoa
+    }
+}
+
 struct MetaProgress {
 private:
     int totalCurrency = 0;
     bool unlockedVanguard = false;
     bool unlockedOvercharge = false;
+    bool unlockedSkinAmber = false; // ENTRY MOI (A7) - khong dung/sua 2 flag loadout o tren
     std::string filePath;
 
 public:
@@ -64,4 +87,10 @@ public:
 
     int GetCurrency() const { return totalCurrency; }
     bool IsUnlocked(LoadoutType type) const;
+
+    // A7: tuong tu TryUnlock(LoadoutType)/IsUnlocked(LoadoutType) o tren nhung cho
+    // SkinType - 2 khong gian mo khoa (loadout vs skin) HOAN TOAN doc lap, mo 1 cai
+    // khong tru currency danh cho cai kia.
+    bool TryUnlockSkin(SkinType type, int cost);
+    bool IsSkinUnlocked(SkinType type) const;
 };

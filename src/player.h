@@ -22,6 +22,11 @@ private:
     float rapidFireTimer = 0.0f;
     float pierceTimer = 0.0f; // Piercing Shot (power-up) - dan ban ra xuyen qua nhieu muc tieu
 
+    // A7: mau than tau, mac dinh GREEN (giu DUNG hanh vi hardcode cu trong Draw()).
+    // DrawSprite() (sprites.h) da nhan san tham so tint tu truoc - Player chi can giu
+    // 1 field de "nho" skin dang chon thay vi hardcode GREEN thang trong Draw().
+    Color skinTint = GREEN;
+
 public:
     Player();
 
@@ -49,6 +54,13 @@ public:
     // MOI (goi tu GameManager::ApplyLoadoutBonus, sau khi Reset() da chay). Standard:
     // khong lam gi (giu dung hanh vi hien tai).
     void ApplyStartBonus(LoadoutType type);
+
+    // A7: chon mau skin hien thi (xem MetaProgress::SkinType, meta_progress.h). Chua
+    // wire vao input/menu trong ticket nay - ha tang thuan tuy, goi ham nay tu noi nao
+    // do (menu skin select) se doi mau tau ngay lap tuc trong Draw() ben duoi.
+    void SetSkinTint(Color tint) { skinTint = tint; }
+    Color GetSkinTint() const { return skinTint; }
+
     bool HasShield() const { return shieldTimer > 0.0f; }
     bool HasRapidFire() const { return rapidFireTimer > 0.0f; }
     bool HasPiercing() const { return pierceTimer > 0.0f; }

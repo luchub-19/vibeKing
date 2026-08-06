@@ -5,6 +5,7 @@
 #include "process_metrics.h"
 #include "input_system.h"
 #include "meta_progress.h"
+#include "localization.h"
 
 // Logo tieu de MENU: hang alien nho nhap nhoi len xuong theo sin(GetTime()) - hinh hoc
 // thuan (DrawRectangle truc tiep), KHONG dung SpriteSheet vi can animation LIEN TUC theo
@@ -52,14 +53,23 @@ static void DrawMenuSelectorIcon(float x, float y, Color color) {
 // duoc huong quyen `friend class RenderSystem` ma GameManager cap (xem game_manager.h) -
 // doc gm.selectedLoadout/gm.metaProgress phai xay ra trong DrawMenu() (ham thanh vien
 // that su) roi truyen gia tri da trich xuat vao day.
-static void DrawLoadoutSelect(UICanvas& canvas, int y, LoadoutType chosen, bool unlockedOrFree, int currency, int cost) {
+static void DrawLoadoutSelect(UICanvas& canvas, int y, LoadoutType chosen, bool unlockedOrFree, int currency, int cost, float pulse) {
     std::string status;
     if (chosen == LoadoutType::Standard) status = "FREE";
     else if (unlockedOrFree) status = "UNLOCKED";
-    else status = TextFormat("mo khoa: %d/%d currency", currency, cost);
+    else status = TextFormat(Loc::UnlockCostFmt, currency, cost);
 
-    Color color = unlockedOrFree ? WHITE : GRAY;
-    canvas.Text(200, y, 18, color, TextFormat("< LOADOUT: %s (%s) >", GetLoadoutName(chosen), status.c_str()));
+    // BUG FIX (Bug 1): truoc day dong nay dung size 18 va x=200 hardcode, trong khi
+    // dong DIFFICULTY ngay TREN no (xem DrawMenu) dung size 20 va x=260 - 2 con so
+    // lech nhau tu 1 merge, khong phai chu y (khong co ly do thiet ke nao de 2 dong
+    // dieu huong CUNG cap (Q/E vs LEFT/RIGHT) trong CUNG 1 khoi menu lai khac co chu
+    // nhau). Chon lai size 20 cho DONG BO voi DIFFICULTY, va CenteredText (xem A1) de
+    // ca 2 dong luon nam giua man hinh du do dai chuoi (ten loadout, trang thai...)
+    // thay doi the nao.
+    // A6: chi pulse khi dong nay dang "kha dung" (WHITE) - GRAY (dang khoa) giu tinh.
+    Color color = unlockedOrFree ? Fade(WHITE, 0.7f + 0.3f * pulse) : GRAY;
+    canvas.CenteredText(Config::SCREEN_W / 2, y, 20, color,
+                         TextFormat("< LOADOUT: %s (%s) >", GetLoadoutName(chosen), status.c_str()));
 }
 
 void RenderSystem::DrawMenu(const GameManager& gm) {
@@ -73,7 +83,7 @@ void RenderSystem::DrawMenu(const GameManager& gm) {
     const auto& entries = gm.leaderboard.GetEntries();
     canvas.Text(350, 165, 22, YELLOW, "TOP 10");
     if (entries.empty()) {
-        canvas.Text(290, 195, 16, GRAY, "(chua co ky luc nao)");
+        canvas.Text(290, 195, 16, GRAY, Loc::NoRecordsYet);
     } else {
         int y = 195;
         for (size_t i = 0; i < entries.size(); i++) {
@@ -87,45 +97,76 @@ void RenderSystem::DrawMenu(const GameManager& gm) {
     DifficultyStats stats = GetDifficultyStats(gm.difficulty);
     int bottomY = 195 + (int)entries.size() * 20 + 30;
     if (bottomY < 420) bottomY = 420; // Danh sach rong/ngan van giu bo cuc on dinh, khong bi troi len qua cao
-    // TODO(sau merge Nguoi A + Nguoi B): icon nay hien CHI tro vao dong DIFFICULTY. Tu khi
-    // co them dong LOADOUT (Nguoi A, xem DrawLoadoutSelect ben duoi), menu co 2 dong dieu
-    // huong duoc nhung chi 1 co icon - can ban bac lai xem co nen doi icon theo dong dang
-    // "active" hay them 1 icon thu 2 cho LOADOUT, chua tu quyet dinh thay o day.
-    DrawMenuSelectorIcon(238.0f, (float)bottomY + 10.0f, YELLOW); // Tro vao dong DIFFICULTY
-    canvas.Text(260, bottomY, 20, WHITE, TextFormat("< DIFFICULTY: %s >", stats.label));
+
+    // A2/A4: dong DIFFICULTY gio CENTERED (do rong thay doi theo label - "EASY"/"HARD"
+    // (4 ky tu) ngan hon "NORMAL" (6 ky tu)) thay vi hardcode x=260 nhu truoc. Icon mui
+    // ten PHAI do lai canh trai THAT SU cua dong nay (MeasureTextEx, cung font/size se
+    // dung de ve) roi neo theo do, khong con duoc phep hardcode 1 x co dinh (238) nhu
+    // truoc nua - hardcode se lech dan theo label moi lan doi do kho (vd dung tot voi
+    // NORMAL nhung lech ~1 chu voi EASY/HARD do do rong chuoi khac nhau).
+    //
+    // TODO(sau merge Nguoi A + Nguoi B, van con nguyen tu ban truoc A6): icon nay hien
+    // CHI tro vao dong DIFFICULTY. Menu co 2 dong dieu huong duoc (DIFFICULTY + LOADOUT,
+    // xem DrawLoadoutSelect ben duoi) nhung chi 1 co icon - van can ban bac xem co nen
+    // doi icon theo dong dang "active" hay them 1 icon thu 2 cho LOADOUT; A6 (menu
+    // pulse) khong tu quyet dinh thay cau hoi nay, chi lam CA 2 dong cung "tho" nhe.
+    std::string difficultyLine = TextFormat("< DIFFICULTY: %s >", stats.label);
+    Vector2 difficultySize = MeasureTextEx(gm.gameFont, difficultyLine.c_str(), 20.0f, 1.0f);
+    float difficultyLeftX = (float)Config::SCREEN_W / 2.0f - difficultySize.x / 2.0f;
+    DrawMenuSelectorIcon(difficultyLeftX - 22.0f, (float)bottomY + 10.0f, YELLOW); // -22: giu dung khoang cach icon<->chu nhu ban cu (238 vs x=260 hardcode truoc day)
+
+    // A6 - MENU JUICE: 2 dong dieu huong duoc (DIFFICULTY qua LEFT/RIGHT, LOADOUT qua
+    // Q/E) "tho" nhe theo thoi gian thuc, cung cong thuc pulse ma DrawMenuSelectorIcon()
+    // da dung cho icon tam giac ben tren - dong bo pha giua icon va chu thay vi 2 nhip
+    // rieng biet nhin roi mat. Day la cong viec THUAN VE (chi doi do sang/toi cua mau
+    // moi frame, khong doi state gi), nen khong can dung/cham GameManager - da kiem tra
+    // truoc: TransitionPhase (game_manager.h) DA duoc GameManager::Run() ve lam man
+    // hinh den fade roi (xem `float alpha = GetTransitionAlpha()` trong game_manager.cpp),
+    // nen khong phat sinh viec moi nao can bao Track B ve day.
+    float navPulse = 0.5f + 0.5f * sinf((float)GetTime() * 4.0f);
+    Color difficultyColor = Fade(WHITE, 0.7f + 0.3f * navPulse);
+    canvas.CenteredText(Config::SCREEN_W / 2, bottomY, 20, difficultyColor, difficultyLine);
+
     LoadoutType chosenLoadout = (LoadoutType)gm.selectedLoadout;
     bool loadoutAvailable = (chosenLoadout == LoadoutType::Standard) || gm.metaProgress.IsUnlocked(chosenLoadout);
-    DrawLoadoutSelect(canvas, bottomY + 24, chosenLoadout, loadoutAvailable, gm.metaProgress.GetCurrency(), GetLoadoutUnlockCost(chosenLoadout));
-    canvas.Text(260, bottomY + 52, 18, GRAY, TextFormat("VOLUME: %d%%  (UP/DOWN)", (int)(gm.audio.GetVolume() * 100)));
-    canvas.Text(240, bottomY + 90, 20, WHITE, "PRESS ENTER TO START");
-    canvas.Text(180, bottomY + 118, 14, GRAY, "LEFT/RIGHT: DIFFICULTY    Q/E: LOADOUT");
-    canvas.Text(300, bottomY + 138, 16, GRAY, "F11: FULLSCREEN");
+    DrawLoadoutSelect(canvas, bottomY + 24, chosenLoadout,
+                       loadoutAvailable, gm.metaProgress.GetCurrency(), GetLoadoutUnlockCost(chosenLoadout), navPulse);
+
+    canvas.CenteredText(Config::SCREEN_W / 2, bottomY + 52, 18, GRAY, TextFormat("VOLUME: %d%%  (UP/DOWN)", (int)(gm.audio.GetVolume() * 100)));
+    canvas.CenteredText(Config::SCREEN_W / 2, bottomY + 90, 20, WHITE, "PRESS ENTER TO START");
+    canvas.CenteredText(Config::SCREEN_W / 2, bottomY + 118, 14, GRAY, "LEFT/RIGHT: DIFFICULTY    Q/E: LOADOUT");
+    canvas.CenteredText(Config::SCREEN_W / 2, bottomY + 138, 16, GRAY, Loc::MenuFullscreenHint);
 
     canvas.Draw(gm.gameFont);
 }
 
 void RenderSystem::DrawEndScreen(const GameManager& gm) {
     UICanvas canvas;
+    // A4: toan bo man hinh nay la banner/thong bao mang tinh "trung tam" (khong phai
+    // du lieu dang bang/cot can can le trai) - doi sang CenteredText() de luon nam
+    // giua man hinh (Config::SCREEN_W/2) bat ke do dai chuoi (vd "SCORE: 12345" vs
+    // "SCORE: 5") thay vi toa do x hardcode tung dong nhu truoc.
+    int centerX = Config::SCREEN_W / 2;
     bool waveClear = (gm.state == GameState::WAVE_CLEAR);
     if (waveClear) {
-        canvas.Text(240, 180, 36, YELLOW, TextFormat("WAVE %d CLEARED!", gm.wave - 1));
-        canvas.Text(300, 240, 20, WHITE, TextFormat("SCORE: %d", gm.player.GetScore()));
-        canvas.Text(210, 300, 20, GRAY, "ENTER: NEXT WAVE   R: RESTART");
+        canvas.CenteredText(centerX, 180, 36, YELLOW, TextFormat("WAVE %d CLEARED!", gm.wave - 1));
+        canvas.CenteredText(centerX, 240, 20, WHITE, TextFormat("SCORE: %d", gm.player.GetScore()));
+        canvas.CenteredText(centerX, 300, 20, GRAY, "ENTER: NEXT WAVE   R: RESTART");
     } else {
-        canvas.Text(300, 180, 40, RED, "GAME OVER");
-        canvas.Text(190, 240, 20, WHITE, TextFormat("FINAL SCORE: %d   WAVE REACHED: %d", gm.player.GetScore(), gm.wave));
+        canvas.CenteredText(centerX, 180, 40, RED, "GAME OVER");
+        canvas.CenteredText(centerX, 240, 20, WHITE, TextFormat("FINAL SCORE: %d   WAVE REACHED: %d", gm.player.GetScore(), gm.wave));
 
         // 3 trang thai ro rang thay vi 1 bool "co pha ky luc hay khong": NewRecord (giờ
         // la #1), MadeTop10 (lot danh sach nhung khong phai #1), hoac khong lot top nao
         // ca (van hien diem cao nhat hien tai de nguoi choi biet minh con thieu bao nhieu).
         if (gm.lastSubmitResult == SubmitResult::NewRecord) {
-            canvas.Text(300, 270, 20, YELLOW, "KY LUC MOI! (#1)");
+            canvas.CenteredText(centerX, 270, 20, YELLOW, Loc::NewRecordBanner);
         } else if (gm.lastSubmitResult == SubmitResult::MadeTop10) {
-            canvas.Text(300, 270, 20, LIME, "LOT TOP 10!");
+            canvas.CenteredText(centerX, 270, 20, LIME, Loc::MadeTop10Banner);
         } else {
-            canvas.Text(300, 270, 18, GRAY, TextFormat("TOP SCORE: %d", gm.leaderboard.GetTopScore()));
+            canvas.CenteredText(centerX, 270, 18, GRAY, TextFormat("TOP SCORE: %d", gm.leaderboard.GetTopScore()));
         }
-        canvas.Text(220, 330, 20, GRAY, "ENTER: MENU   R: RESTART");
+        canvas.CenteredText(centerX, 330, 20, GRAY, "ENTER: MENU   R: RESTART");
     }
     canvas.Draw(gm.gameFont);
 }
@@ -222,34 +263,54 @@ void RenderSystem::DrawPlaying(const GameManager& gm) {
     // HUD ve ngoai camera de khong bi rung theo
     DrawHUD(gm);
 
+    int centerX = Config::SCREEN_W / 2;
     if (gm.state == GameState::PAUSED) {
         DrawRectangle(0, 0, Config::SCREEN_W, Config::SCREEN_H, Fade(BLACK, 0.6f));
         UICanvas canvas;
-        canvas.Text(330, 250, 40, WHITE, "PAUSED");
-        canvas.Text(280, 310, 18, GRAY, TextFormat("VOLUME: %d%%  (UP/DOWN)", (int)(gm.audio.GetVolume() * 100)));
-        canvas.Text(250, 340, 18, GRAY, "P / ESC: RESUME   F11: FULLSCREEN   K: DOI PHIM DIEU KHIEN");
+        // A4: CenteredText thay cho toa do x hardcode - "PAUSED" (40pt) va 2 dong gia
+        // huong dan (18pt) truoc day dung 3 x khac nhau (330/280/250) uoc luong thu
+        // cong theo do dai chuoi, khong con chinh xac neu font/chuoi doi sau nay.
+        canvas.CenteredText(centerX, 250, 40, WHITE, "PAUSED");
+        canvas.CenteredText(centerX, 310, 18, GRAY, TextFormat("VOLUME: %d%%  (UP/DOWN)", (int)(gm.audio.GetVolume() * 100)));
+        canvas.CenteredText(centerX, 340, 18, GRAY, Loc::PausedControlsHint);
         canvas.Draw(gm.gameFont);
     } else if (gm.state == GameState::KEYBIND) {
         DrawRectangle(0, 0, Config::SCREEN_W, Config::SCREEN_H, Fade(BLACK, 0.75f));
         UICanvas canvas;
-        canvas.Text(230, 90, 32, WHITE, "DOI PHIM DIEU KHIEN");
+        canvas.CenteredText(centerX, 90, 32, WHITE, Loc::KeybindTitle);
 
         const RebindableAction* actions = GetRebindableActions();
+
+        // A4 - FIX: canh giua TUNG dong rebind DOC LAP se lam dau ':' nhay lech giua
+        // cac dong co gia tri khac do dai (vd "SPACE" dai hon "A"/"D"/"P" nhieu -> dong
+        // do bi keo lech trai de giu TAM rieng no, pha mat cot ':' thang hang von co tu
+        // %-6s). Thay vao do: do truoc CA 4 dong, lay dong RONG NHAT lam chuan, roi ve
+        // TAT CA left-align chung 1 canh trai (= tam man hinh - rongNhat/2) - vua giu
+        // nguyen khoi 4 dong nam GIUA man hinh (dung tinh than CenteredText/A4), vua giu
+        // cot ':' thang hang nhu ban goc (Text() hardcode truoc day, chi khac la gio
+        // TU DONG can giua ca khoi thay vi 1 x hardcode rieng).
+        std::string lines[REBINDABLE_ACTION_COUNT];
+        float maxLineWidth = 0.0f;
+        for (int i = 0; i < REBINDABLE_ACTION_COUNT; i++) {
+            bool isBeingRebound = (gm.rebindingActionIndex == i);
+            int currentKey = gm.settings.*(actions[i].keyField);
+            lines[i] = TextFormat("%d) %-6s: %s", i + 1, actions[i].label,
+                                   isBeingRebound ? "..." : InputSystem::KeyName(currentKey));
+            float w = MeasureTextEx(gm.gameFont, lines[i].c_str(), 22.0f, 1.0f).x;
+            if (w > maxLineWidth) maxLineWidth = w;
+        }
+        float rowsLeftX = (float)centerX - maxLineWidth / 2.0f;
         for (int i = 0; i < REBINDABLE_ACTION_COUNT; i++) {
             bool isBeingRebound = (gm.rebindingActionIndex == i);
             Color rowColor = isBeingRebound ? YELLOW : WHITE;
-            int currentKey = gm.settings.*(actions[i].keyField);
-            std::string line = TextFormat("%d) %-6s: %s", i + 1, actions[i].label,
-                                           isBeingRebound ? "..." : InputSystem::KeyName(currentKey));
-            canvas.Text(280, 160 + i * 36, 22, rowColor, line);
+            canvas.Text((int)rowsLeftX, 160 + i * 36, 22, rowColor, lines[i]);
         }
 
         if (gm.rebindingActionIndex >= 0) {
-            canvas.Text(180, 340, 18, YELLOW,
-                        TextFormat("Nhan phim moi cho '%s'... (ESC de huy)",
-                                   actions[gm.rebindingActionIndex].label));
+            canvas.CenteredText(centerX, 340, 18, YELLOW,
+                        TextFormat(Loc::RebindPromptFmt, actions[gm.rebindingActionIndex].label));
         } else {
-            canvas.Text(180, 340, 16, GRAY, "Bam 1-4 de doi 1 phim.  0 hoac R: khoi phuc mac dinh.  ESC: quay lai");
+            canvas.CenteredText(centerX, 340, 16, GRAY, Loc::KeybindHelp);
         }
         canvas.Draw(gm.gameFont);
     }
@@ -278,9 +339,12 @@ void RenderSystem::DrawHUD(const GameManager& gm) {
         float barX = (Config::SCREEN_W - barW) / 2.0f;
         Color barFill = (boss.type == BossType::Sentinel && boss.shieldActive) ? SKYBLUE : RED;
         canvas.Bar({ barX, 8.0f, barW, 14.0f }, ratio, DARKGRAY, barFill, WHITE);
-        canvas.Text((int)barX, 24, 14, barFill, TextFormat("BOSS - %s", BossTypeName(boss.type)));
+        // A4: nhan ten Boss can GIUA thanh mau (truoc day can trai theo canh barX) -
+        // nhat quan voi cach cac man hinh khac trong track nay deu can giua theo tam
+        // vung lien quan, khong con toa do trai hardcode.
+        canvas.CenteredText((int)(barX + barW / 2.0f), 24, 14, barFill, TextFormat("BOSS - %s", BossTypeName(boss.type)));
         if (boss.type == BossType::Sentinel && boss.shieldActive) {
-            canvas.Text((int)(barX + barW - 60.0f), 24, 14, SKYBLUE, "KHIEN!");
+            canvas.Text((int)(barX + barW - 60.0f), 24, 14, SKYBLUE, Loc::ShieldTag);
         }
     }
 

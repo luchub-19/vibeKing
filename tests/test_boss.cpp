@@ -9,22 +9,19 @@
 // BOSS (Sentinel/Swarmer moi them - xem enemy_types.h va PhysicsSystem::UpdateBoss).
 // PhysicsSystem::UpdateBoss()/GameManager::SpawnBoss() can mot GameManager& that, nhung
 // bossPool/kamikazeEnemies/wave deu la PRIVATE trong GameManager (chi friend
-// PhysicsSystem/RenderSystem duoc dung truc tiep - xem game_manager.h) - dung dung
-// thiet ke hien co cua du an: khong he co test_game_manager.cpp hay
-// test_physics_system.cpp nao ca, moi test trong tests/ tu truoc gio deu nham vao logic
-// THUAN/standalone (Bunker, Player, SpatialGrid, Settings, Leaderboard, BalanceConfig).
-// File nay giu dung tinh than do, CHI test phan khong can noi long private/friend hien
-// co:
+// PhysicsSystem/RenderSystem duoc dung truc tiep - xem game_manager.h). File nay CHI test
+// phan khong can noi long private/friend:
 //   1) BossTypeName() - free function thuan.
 //   2) Cong thuc xoay vong loai Boss dung trong SpawnBoss() - tach rieng ra day de test
 //      dung cong thuc (khong goi thang duoc ham private SpawnBoss()).
 //   3) Config::LoadBalance() doc dung cac field Sentinel/Swarmer moi them tu JSON - noi
 //      tiep pattern co san trong test_balance_config.cpp.
-// Hanh vi DONG (lac trong man hinh, bat/tat khien dung nhip, trieu hoi dung so luong/
-// khong vuot MAX_KAMIKAZE) da duoc xac minh bang doc code thu cong nhieu luot + chay
-// thu binary that qua Xvfb (khong crash qua nhieu frame lien tuc, xem ghi chu trong hoi
-// thoai) - KHONG co unit test tu dong cho phan nay, vi se phai noi long private/friend
-// ma chua he thong nao khac trong du an tung can toi.
+// [CAP NHAT] boss.hp/BossStage()/khien Sentinel GIO co test rieng qua CheckCollisions()
+// THAT (tests/test_physics_system.cpp, dung 1 friend test-only - GameManagerTestAccess,
+// xem tests/game_manager_test_access.h) - khong dat lai o day de tranh trung lap. Van
+// CHUA co test tu dong cho hanh vi DONG cua rieng UpdateBoss() (lac trong man hinh, nhip
+// bat/tat khien, trieu hoi dung so luong/khong vuot MAX_KAMIKAZE) - phan do van chi duoc
+// xac minh bang doc code thu cong + chay thu binary qua Xvfb nhu truoc, khong doi.
 // ==========================================
 
 TEST_CASE("BossTypeName: anh xa dung ten hien thi cho ca 3 loai", "[boss]") {
@@ -88,4 +85,46 @@ TEST_CASE("Config::LoadBalance: doc dung cac field Sentinel/Swarmer moi them tro
     Config::BOSS_SENTINEL_SWAY_AMPLITUDE = origAmp;
     Config::BOSS_SWARMER_SUMMON_INTERVAL = origInterval;
     Config::BOSS_SWARMER_SUMMON_COUNT = origCount;
+}
+
+// ==========================================
+// BOSS TYPE DESCRIPTOR (B4) - GetBossTypeDescriptor()/g_bossTypeDescriptors[] la free
+// function/bien thuan (khong can GameManager) nen test duoc ngay tai day, dung tinh than
+// "chi test phan khong can noi long private/friend" cua file nay (xem comment dau file).
+// ==========================================
+TEST_CASE("GetBossTypeDescriptor: dung movement pattern + co che rieng cho ca 3 loai", "[boss][descriptor]") {
+    const BossTypeDescriptor& vanguard = GetBossTypeDescriptor(BossType::Vanguard);
+    REQUIRE(vanguard.movement == BossMovementPattern::Pace);
+    REQUIRE_FALSE(vanguard.hasShieldMechanic);
+    REQUIRE_FALSE(vanguard.hasSummonMechanic);
+
+    const BossTypeDescriptor& sentinel = GetBossTypeDescriptor(BossType::Sentinel);
+    REQUIRE(sentinel.movement == BossMovementPattern::Sway);
+    REQUIRE(sentinel.hasShieldMechanic);
+    REQUIRE_FALSE(sentinel.hasSummonMechanic);
+    REQUIRE(sentinel.swayAmplitude != nullptr);
+    REQUIRE(sentinel.shieldFireInterval != nullptr);
+
+    const BossTypeDescriptor& swarmer = GetBossTypeDescriptor(BossType::Swarmer);
+    REQUIRE(swarmer.movement == BossMovementPattern::Sway);
+    REQUIRE_FALSE(swarmer.hasShieldMechanic);
+    REQUIRE(swarmer.hasSummonMechanic);
+    REQUIRE(swarmer.summonCount != nullptr);
+}
+
+TEST_CASE("GetBossTypeDescriptor: con tro TRO THANG Config (khong sao chep) - LoadBalance ghi de van thay ngay", "[boss][descriptor][balance]") {
+    BossCleanupGuard guard;
+    float origAmp = Config::BOSS_SENTINEL_SWAY_AMPLITUDE;
+
+    const BossTypeDescriptor& sentinel = GetBossTypeDescriptor(BossType::Sentinel);
+    REQUIRE(*sentinel.swayAmplitude == Approx(origAmp));
+
+    WriteBossTestFile(R"({ "boss": { "sentinel_sway_amplitude": 321.0 } })");
+    Config::LoadBalance(BossTestJsonPath());
+
+    // Doc lai QUA CUNG 1 con tro (khong goi lai GetBossTypeDescriptor) - phai thay gia
+    // tri MOI ngay lap tuc vi descriptor chi giu dia chi, khong giu ban sao.
+    REQUIRE(*sentinel.swayAmplitude == Approx(321.0f));
+
+    Config::BOSS_SENTINEL_SWAY_AMPLITUDE = origAmp;
 }

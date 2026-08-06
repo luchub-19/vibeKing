@@ -116,10 +116,12 @@ void Player::Draw(const Texture2D& sprite) const {
     // HOAN THIEN: truoc day than tau doi mau theo THU TU UU TIEN Shield > Piercing >
     // RapidFire - neu 2+ power-up active CUNG LUC (hoan toan co the xay ra, cac
     // timer doc lap nhau) thi chi con power-up uu tien cao nhat con "nhin thay duoc",
-    // may lai bi che mat. Gio: than tau LUON mau GREEN co dinh (mau goc cua sprite),
-    // moi power-up active co 1 pip mau rieng xep hang duoi tau - nhin duoc DUNG TAP
-    // HOP nhung gi dang active, khong gioi han chi 1 loai.
-    DrawSprite(sprite, rect, GREEN);
+    // may lai bi che mat. Gio: than tau LUON mau CO DINH theo skin dang chon (skinTint,
+    // xem player.h - A7; mac dinh GREEN, giu dung mau goc cua sprite nhu truoc A7), moi
+    // power-up active co 1 pip mau rieng xep hang duoi tau - nhin duoc DUNG TAP HOP
+    // nhung gi dang active, khong gioi han chi 1 loai, VA khong con lam "mat" mau skin
+    // nguoi choi da chon du power-up nao dang active.
+    DrawSprite(sprite, rect, skinTint);
 
     if (HasShield()) {
         // Vong khien bao quanh - giu lai rieng vi no truyen dat y nghia khac voi pip

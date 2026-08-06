@@ -175,6 +175,21 @@ namespace Config {
     inline float BUNKER_PATROL_AMPLITUDE = 14.0f;
     inline float BUNKER_PATROL_SPEED = 0.8f;
 
+    // ==========================================
+    // DYNAMIC DIFFICULTY ADJUSTMENT (DDA) - KHOI RIENG, KHONG dung chung voi bang do kho
+    // g_difficultyTable o cuoi file (nguoi choi TU CHON EASY/NORMAL/HARD trong Menu - DDA
+    // la 1 TANG DIEU CHINH THEM o TREN lua chon do, khong thay the). GameManager doc so
+    // mang mat tu lan hieu chinh truoc moi khi ha Boss (checkpoint moi Config::
+    // BOSS_WAVE_INTERVAL wave - xem UpdatePlaying() nhanh BOSS DEFEAT trong game_manager.cpp)
+    // roi tinh lai ddaSpeedMul; PhysicsSystem::UpdateEnemies() nhan he so nay vao ban sao
+    // cuc bo DifficultyStats (khong dung vao g_difficultyTable goc - xem physics_system.cpp).
+    // ==========================================
+    inline float DDA_STEP_UP   = 0.05f; // Khong mat mang nao ca chu ky Boss -> +5%
+    inline float DDA_STEP_DOWN = 0.10f; // Vat lon (dat nguong) -> -10%, giam nhanh hon tang de "cuu" nguoi choi kip thoi
+    inline float DDA_MIN_MUL   = 0.7f;  // San duoi - khong bao gio de dich cham/ban thua hon 70% muc do kho da chon
+    inline float DDA_MAX_MUL   = 1.3f;  // Tran tren - khong bao gio vuot 130% du nguoi choi gioi den dau
+    inline int   DDA_STRUGGLE_THRESHOLD = 2; // Mat >= 2 mang trong 1 chu ky Boss moi tinh la "vat lon"
+
     // Nạp assets/balance.json (hoặc đường dẫn tùy chọn) đè lên MỌI giá trị `inline` ở
     // trên - field nào KHÔNG có trong JSON thì GIỮ NGUYÊN giá trị mặc định phía trên
     // (không phải lỗi, không crash) - cùng triết lý "không bao giờ chết vì thiếu file/

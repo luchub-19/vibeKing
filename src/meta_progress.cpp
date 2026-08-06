@@ -11,6 +11,7 @@ void MetaProgress::Load(const std::string& path) {
     totalCurrency = 0;
     unlockedVanguard = false;
     unlockedOvercharge = false;
+    unlockedSkinAmber = false;
 
     std::ifstream file(path);
     if (!file.is_open()) {
@@ -45,6 +46,15 @@ void MetaProgress::Load(const std::string& path) {
         totalCurrency = currency;
         unlockedVanguard = (vanguardFlag != 0);
         unlockedOvercharge = (overchargeFlag != 0);
+
+        // A7: truong THU 4, THEM SAU (skin). File cu (tu ban truoc A7) chi co 3 truong
+        // dau - >> that bai o day la BINH THUONG (khong phai loi), skinFlag gio 0 theo
+        // dung dinh nghia cua operator>> that bai tren kieu so (C++11), khop chinh xac
+        // gia tri mac dinh unlockedSkinAmber=false da dat o dau ham -> tuong thich nguoc
+        // hoan toan, khong can bump version/dinh dang file.
+        int skinFlag = 0;
+        bodyIn >> skinFlag;
+        unlockedSkinAmber = (skinFlag != 0);
     }
     // Doc thieu/sai dinh dang (vd file bi cat cut dung luc) -> giu nguyen mac dinh da dat
     // o dau ham, khong nap "nua tin nua ngo" 1 phan gia tri.
@@ -59,7 +69,8 @@ void MetaProgress::Save(const std::string& path) const {
     // Xay noi dung "than" file (khong ke dong checksum) TRUOC de tinh hash tren dung chuoi
     // se duoc ghi xuong - tranh lech giua noi dung thuc te va hash neu format thay doi sau.
     std::ostringstream bodyBuf;
-    bodyBuf << totalCurrency << " " << (unlockedVanguard ? 1 : 0) << " " << (unlockedOvercharge ? 1 : 0) << "\n";
+    bodyBuf << totalCurrency << " " << (unlockedVanguard ? 1 : 0) << " " << (unlockedOvercharge ? 1 : 0)
+            << " " << (unlockedSkinAmber ? 1 : 0) << "\n"; // A7: them truong thu 4 (skin) cuoi dong
     std::string body = bodyBuf.str();
     std::string sigHex = SaveChecksum::ToHex(SaveChecksum::Fnv1a64(body));
 
@@ -101,5 +112,23 @@ bool MetaProgress::IsUnlocked(LoadoutType type) const {
         case LoadoutType::Vanguard:   return unlockedVanguard;
         case LoadoutType::Overcharge: return unlockedOvercharge;
         default:                      return true; // Standard - mien phi, luon san sang
+    }
+}
+
+bool MetaProgress::TryUnlockSkin(SkinType type, int cost) {
+    if (type == SkinType::Default || IsSkinUnlocked(type)) return false; // Mien phi san / da mo khoa
+    if (totalCurrency < cost) return false;
+
+    totalCurrency -= cost;
+    if (type == SkinType::Amber) unlockedSkinAmber = true;
+
+    Save(filePath);
+    return true;
+}
+
+bool MetaProgress::IsSkinUnlocked(SkinType type) const {
+    switch (type) {
+        case SkinType::Amber: return unlockedSkinAmber;
+        default:              return true; // Default - mien phi, luon san sang
     }
 }

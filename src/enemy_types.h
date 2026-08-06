@@ -156,6 +156,67 @@ inline const char* BossTypeName(BossType type) {
 }
 
 // ==========================================
+// BOSS TYPE DESCRIPTOR (B4) - DATA-DRIVEN: thay the switch(boss.type)/if(boss.type==...)
+// rai rac trong PhysicsSystem::UpdateBoss() (truoc day) bang 1 BANG duy nhat, dung KHUON
+// voi Config::g_difficultyTable/GetDifficultyStats (config.h) - g_bossTypeDescriptors[]
+// index THANG bang (int)BossType, KHONG switch/case. Muon them 1 BossType moi TAI SU
+// DUNG 1 trong 2 kieu di chuyen/co che khien/trieu hoi da co (vd Vanguard-pace + co
+// khien) chi can 1 dong MOI trong bang duoi day - KHONG dung den nhanh code nao trong
+// UpdateBoss(). Chi that su can sua UpdateBoss() khi co 1 CO CHE HOAN TOAN MOI (vd 1 kieu
+// di chuyen thu 3 ngoai Pace/Sway).
+//
+// Cac con tro (KHONG PHAI gia tri sao chep) TRO THANG toi bien Config::BOSS_* co san (vd
+// &Config::BOSS_SENTINEL_SWAY_AMPLITUDE) - khong nhan doi so lieu can bang: JSON
+// (assets/balance.json) ghi de Config::BOSS_* thi descriptor TU DONG "thay" theo vi chi
+// giu DIA CHI, khong giu ban sao. Vi vay file nay KHONG can sua them config.h/config.cpp
+// cho B4 - moi so lieu can bang Sentinel/Swarmer da co san tu truoc (xem config.cpp::
+// LoadBoss). Lay dia chi 1 bien `inline` hang so - hop le tai thoi diem bien dich/lien
+// ket (constant initialization), khong co rui ro thu tu khoi tao giua 2 file.
+// ==========================================
+enum class BossMovementPattern : uint8_t { Pace, Sway };
+
+struct BossTypeDescriptor {
+    BossMovementPattern movement = BossMovementPattern::Pace;
+
+    // SWAY - CHI duoc doc khi movement == Sway (Pace bo qua hoan toan, de nullptr an toan).
+    const float* swayAmplitude = nullptr;
+    const float* swayFrequency = nullptr;
+
+    // KHIEN TAM dinh ky (rieng Sentinel truoc day) - hasShieldMechanic=false thi 3 con
+    // tro duoi khong bao gio duoc doc toi.
+    bool hasShieldMechanic = false;
+    const float* shieldInterval = nullptr;
+    const float* shieldDuration = nullptr;
+    const float* shieldFireInterval = nullptr;
+
+    // TRIEU HOI TIEP VIEN dinh ky (rieng Swarmer truoc day).
+    bool hasSummonMechanic = false;
+    const float* summonInterval = nullptr;
+    const int* summonCount = nullptr;
+};
+
+// Index THANG bang (int)BossType (Vanguard=0, Sentinel=1, Swarmer=2 - xem enum BossType
+// o tren) - dung khuon voi Config::g_difficultyTable, KHONG switch/case.
+inline BossTypeDescriptor g_bossTypeDescriptors[3] = {
+    // Vanguard: pace het chieu rong man hinh, khong khien, khong trieu hoi.
+    { BossMovementPattern::Pace, nullptr, nullptr, false, nullptr, nullptr, nullptr, false, nullptr, nullptr },
+    // Sentinel: lac quanh baseX + khien tam dinh ky.
+    { BossMovementPattern::Sway, &Config::BOSS_SENTINEL_SWAY_AMPLITUDE, &Config::BOSS_SENTINEL_SWAY_FREQUENCY,
+      true, &Config::BOSS_SENTINEL_SHIELD_INTERVAL, &Config::BOSS_SENTINEL_SHIELD_DURATION, &Config::BOSS_SENTINEL_SHIELD_FIRE_INTERVAL,
+      false, nullptr, nullptr },
+    // Swarmer: lac quanh baseX (bien do/tan so khac Sentinel) + trieu hoi Kamikaze dinh ky.
+    { BossMovementPattern::Sway, &Config::BOSS_SWARMER_SWAY_AMPLITUDE, &Config::BOSS_SWARMER_SWAY_FREQUENCY,
+      false, nullptr, nullptr, nullptr,
+      true, &Config::BOSS_SWARMER_SUMMON_INTERVAL, &Config::BOSS_SWARMER_SUMMON_COUNT },
+};
+
+inline const BossTypeDescriptor& GetBossTypeDescriptor(BossType type) {
+    int idx = (int)type;
+    if (idx < 0 || idx > 2) idx = 0;
+    return g_bossTypeDescriptors[idx];
+}
+
+// ==========================================
 // ENEMY POOL - SWAP-AND-POP, KHÔNG CÓ CỜ active/ZOMBIE
 // Mảng tĩnh cấp phát 1 lần trên stack (như BulletPool/ParticlePool). Không có field
 // "active" nào trên từng phần tử - biên giới [0, count) LÀ định nghĩa duy nhất của

@@ -93,3 +93,25 @@ TEST_CASE("Config::LoadBalance: ghi de dung bang do kho (difficulty.hard)", "[ba
 
     Config::g_difficultyTable[2].enemyBaseSpeed = originalHardSpeed; // Khoi phuc
 }
+
+TEST_CASE("Config::LoadBalance: ghi de dung muc 'dda' (B2), khong dung toi g_difficultyTable", "[balance][dda]") {
+    CleanupGuard guard;
+    float originalStepUp = Config::DDA_STEP_UP;
+    int originalThreshold = Config::DDA_STRUGGLE_THRESHOLD;
+    float originalEasySpeed = Config::g_difficultyTable[0].enemyBaseSpeed;
+
+    WriteFile(R"({
+        "dda": { "step_up": 0.2, "struggle_threshold": 5 }
+    })");
+    Config::LoadBalance(TestJsonPath());
+
+    REQUIRE(Config::DDA_STEP_UP == Approx(0.2f));
+    REQUIRE(Config::DDA_STRUGGLE_THRESHOLD == 5);
+    // Field khac trong CUNG muc "dda" nhung khong nhac toi -> giu mac dinh.
+    REQUIRE(Config::DDA_MAX_MUL == Approx(1.3f));
+    // DDA la khoi RIENG - khong duoc dung vao bang do kho goc.
+    REQUIRE(Config::g_difficultyTable[0].enemyBaseSpeed == Approx(originalEasySpeed));
+
+    Config::DDA_STEP_UP = originalStepUp;
+    Config::DDA_STRUGGLE_THRESHOLD = originalThreshold;
+}

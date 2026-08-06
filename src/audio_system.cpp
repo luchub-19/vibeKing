@@ -75,6 +75,13 @@ void AudioSystem::Init() {
     const float notes[4] = { 220.0f, 196.0f, 174.6f, 164.8f };
     for (int i = 0; i < 4; i++) bassNotes[i] = GenerateTone(notes[i], 0.15f, 0);
 
+    // A8: hi-hat - noise TRANG (uniform, xem GenerateTone() o tren: waveType != 0/1 bo
+    // qua tham so frequency, chi random moi sample) RAT ngan (0.04s) de nghe nhu 1 tieng
+    // "tsk" gon. Khac bass (sinf() thuan, cao do RO RANG ~165-220Hz - xem mang `notes`
+    // o tren) ca ve BAN CHAT (dai pho vs 1 tan so don) lan DO DAI (0.04s vs 0.15s) nen
+    // tach biet ro, khong lan vao nhau du 2 lop vang GAN NHAU ve mat thoi gian.
+    hiHat = GenerateTone(2400.0f, 0.04f, 2);
+
     SetVolume(masterVolume);
     initialized = true;
 }
@@ -94,6 +101,7 @@ void AudioSystem::Shutdown() {
     UnloadSound(sfxWaveClear);
     UnloadSound(sfxBossDefeat);
     for (int i = 0; i < 4; i++) UnloadSound(bassNotes[i]);
+    UnloadSound(hiHat);
     CloseAudioDevice();
     initialized = false;
 }
@@ -121,6 +129,21 @@ void AudioSystem::UpdateBassline(float dt, float enemySpeed, float enemySpeedMax
         PlaySound(bassNotes[bassIndex]);
         bassIndex = (bassIndex + 1) % 4;
     }
+
+    // A8: hi-hat tick DEU dan voi nhip do GAP DOI bass (hiHatInterval = interval/2) qua
+    // 1 timer RIENG (hiHatTimer, khong dung chung/doc bassTimer) - nghia la hi-hat va
+    // bass CHIA se 1 nua so lan tick voi nhau (rieng: 0.5*interval, 1.5*interval...;
+    // trung voi bass: 1.0*interval, 2.0*interval...) va NUA con lai hi-hat vang MOT
+    // MINH xen giua 2 not bass - dung kieu "hi-hat 8 nghich pham deu tren bass 4 nghich
+    // pham" pho bien, khong phai kieu offbeat tuyet doi (khong bao gio trung). Cung
+    // scale theo speedRatio nhu bass (qua `interval`) de hi-hat gap gap dan dung nhip
+    // voi bass khi dich tien gan, khong bi "tut lai" phia sau.
+    hiHatTimer += dt;
+    float hiHatInterval = interval * 0.5f;
+    if (hiHatTimer >= hiHatInterval) {
+        hiHatTimer = 0.0f;
+        PlaySound(hiHat);
+    }
 }
 
 void AudioSystem::SetVolume(float v) {
@@ -139,4 +162,5 @@ void AudioSystem::SetVolume(float v) {
     SetSoundVolume(sfxWaveClear, v);
     SetSoundVolume(sfxBossDefeat, v);
     for (int i = 0; i < 4; i++) SetSoundVolume(bassNotes[i], v * 0.7f); // Bass nhỏ hơn SFX chính 1 chút
+    SetSoundVolume(hiHat, v * 0.35f); // Hi-hat chi la lop nen tinh te, nho hon ca bass
 }

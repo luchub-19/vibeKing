@@ -48,6 +48,7 @@ set(SOURCES
     src/settings.cpp
     src/sprites.cpp
     src/meta_progress.cpp
+    src/wave_generator.cpp
 )
 
 add_executable(space_invaders ${SOURCES})
@@ -61,8 +62,19 @@ endif()
 # ==========================================
 # UNIT TESTS (Catch2 v2, single-header, vendor sẵn tại tests/thirdparty/catch.hpp -
 # không cần internet/package manager lúc build, không phụ thuộc gì ngoài raylib đã có
-# sẵn). Chỉ test các khối logic THUẦN (Swept-AABB CCD, SpatialGrid, Leaderboard) - không
-# cần InitWindow/GPU context nào, nên chạy được cả trong CI headless.
+# sẵn). Đa số test nhắm vào các khối logic THUẦN (Swept-AABB CCD, SpatialGrid,
+# Leaderboard...) - không cần InitWindow/GPU context nào.
+#
+# test_game_manager.cpp/test_physics_system.cpp la ngoai le duy nhat can link CA
+# game_manager.cpp/physics_system.cpp (va theo do la render_system.cpp/audio_system.cpp/
+# sprites.cpp/file_logger.cpp/level_config.cpp - moi file GameManager::Run() dung toi, dai
+# dien ca binary phai bien dich duoc) - nhung BAN THAN cac test do van KHONG goi Run()/
+# InitWindow() o bat ky dau (goi thang UpdatePlaying()/CheckCollisions() qua
+# GameManagerTestAccess, xem tests/game_manager_test_access.h). Van chay headless duoc vi
+# raylib tu no-op an toan khi chua InitWindow()/InitAudioDevice() (IsKeyDown/
+# IsGamepadAvailable/GetRandomValue tra ve 0/false, PlaySound() tren Sound{} chua load
+# khong crash) - da kiem chung truc tiep, khong phai suy doan, truoc khi 2 file test nay
+# duoc viet.
 # ==========================================
 option(BUILD_TESTS "Build unit test suite (Catch2)" ON)
 if(BUILD_TESTS)
@@ -79,12 +91,23 @@ if(BUILD_TESTS)
         tests/test_settings.cpp
         tests/test_boss.cpp
         tests/test_meta_progress.cpp
+        tests/test_wave_generator.cpp
+        tests/test_game_manager.cpp
+        tests/test_physics_system.cpp
         src/leaderboard.cpp
         src/config.cpp
         src/bunker.cpp
         src/player.cpp
         src/settings.cpp
         src/meta_progress.cpp
+        src/wave_generator.cpp
+        src/game_manager.cpp
+        src/physics_system.cpp
+        src/render_system.cpp
+        src/audio_system.cpp
+        src/sprites.cpp
+        src/file_logger.cpp
+        src/level_config.cpp
     )
     target_include_directories(unit_tests PRIVATE src tests)
     target_link_libraries(unit_tests raylib)
