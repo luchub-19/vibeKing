@@ -7,15 +7,20 @@
 #include "meta_progress.h"
 #include "localization.h"
 
-// Logo tieu de MENU: hang alien nho nhap nhoi len xuong theo sin(GetTime()) - hinh hoc
-// thuan (DrawRectangle truc tiep), KHONG dung SpriteSheet vi can animation LIEN TUC theo
-// thoi gian thuc, khac voi sprite gameplay chi nap 1 lan tinh luc SpriteSheet::Load().
-static void DrawTitleLogo() {
+// Logo tieu de MENU: hang basicAlien THAT (SpriteSheet, dung atlas Kenney neu co - xem
+// docs/ASSET_INTEGRATION.md, fallback procedural neu khong - xem sprites.cpp) nhap nhoi
+// len xuong theo sin(GetTime()), lech pha tung con - giu NGUYEN kieu bob da co truoc day,
+// chi doi phan VE tu hinh hoc thuan (DrawRectangle) sang DrawSprite() that. Nhan thang
+// Texture2D (KHONG nhan ca GameManager&) - dung tinh than DrawLoadoutSelect() ngay duoi:
+// day la ham static, khong co `friend class RenderSystem`, nen chi thao tac tren gia tri
+// DA duoc trich xuat san tu DrawMenu() (noi THAT su co quyen doc gm.sprites).
+static void DrawTitleLogo(const Texture2D& alienTex) {
     float t = (float)GetTime();
     const int alienCount = 5;
     const float spacing = 44.0f;
     const float startX = (float)Config::SCREEN_W / 2.0f - spacing * (float)(alienCount - 1) / 2.0f;
     const float baseY = 50.0f;
+    const float w = 34.0f, h = 27.0f; // Xap xi ti le atlas that (basicAlien 104x84 - xem assets/sprites/atlas.cfg)
 
     for (int i = 0; i < alienCount; i++) {
         // Moi con lac len xuong LECH PHA nhau (offset theo i) - tranh cam giac "ca hang
@@ -23,15 +28,14 @@ static void DrawTitleLogo() {
         float bob = sinf(t * 2.5f + (float)i * 0.6f) * 5.0f;
         float x = startX + (float)i * spacing;
         float y = baseY + bob;
-        Color c = (i % 2 == 0) ? GREEN : LIME;
 
-        // Silhouette alien don gian: than + 2 "cang" 2 ben + 2 "chan" nho - ve truc tiep,
-        // khong qua BuildXxx()/texture tinh nao ca (logo nay DONG, sprite gameplay TINH).
-        DrawRectangle((int)(x - 10.0f), (int)(y - 6.0f), 20, 10, c);
-        DrawRectangle((int)(x - 14.0f), (int)(y - 2.0f), 6, 6, c);
-        DrawRectangle((int)(x + 8.0f), (int)(y - 2.0f), 6, 6, c);
-        DrawRectangle((int)(x - 5.0f), (int)(y + 4.0f), 3, 4, c);
-        DrawRectangle((int)(x + 2.0f), (int)(y + 4.0f), 3, 4, c);
+        // PURPLE/VIOLET xen ke - DUNG mau basicAlien that su dung trong gameplay (xem
+        // GameManager::InitLevel(): "Color col = (spawn.row % 2 == 0) ? PURPLE : VIOLET"),
+        // khong con GREEN/LIME cu (chi hop ly luc logo la silhouette rieng, khong lien
+        // quan mau dich that). Logo gio la 1 "xem truoc" trung thuc, khong phai trang tri
+        // tuy y - doi mau dich trong gameplay sau nay thi doi luon o day cho khop.
+        Color c = (i % 2 == 0) ? PURPLE : VIOLET;
+        DrawSprite(alienTex, { x - w / 2.0f, y - h / 2.0f, w, h }, c);
     }
 }
 
@@ -73,7 +77,7 @@ static void DrawLoadoutSelect(UICanvas& canvas, int y, LoadoutType chosen, bool 
 }
 
 void RenderSystem::DrawMenu(const GameManager& gm) {
-    DrawTitleLogo();
+    DrawTitleLogo(gm.sprites.basicAlien);
 
     UICanvas canvas;
     canvas.Text(250, 100, 40, GREEN, "SPACE INVADERS");
