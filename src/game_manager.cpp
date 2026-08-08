@@ -449,6 +449,10 @@ void GameManager::UpdatePlaying(float dt) {
     InputState input = InputSystem::Poll(settings);
     if (player.Update(dt, input, playerBullets)) {
         audio.PlayShoot();
+        // MUZZLE FLASH (Nguoi 3 - Audio & UI): dau nong = giua-tren rect player, dung
+        // CHINH vi tri playerBullets.Fire() dat vien dan dau tien (xem player.cpp).
+        Rectangle pr = player.GetRect();
+        particles.Burst({ pr.x + pr.width / 2.0f, pr.y }, Config::MUZZLE_FLASH_PARTICLE_COUNT, YELLOW);
     }
 
     if (isBossWave) PhysicsSystem::UpdateBoss(*this, dt);
@@ -503,10 +507,23 @@ void GameManager::UpdatePlaying(float dt) {
         return;
     }
 
+    DifficultyStats stats = GetDifficultyStats(difficulty);
     if (!isBossWave) {
-        DifficultyStats stats = GetDifficultyStats(difficulty);
         audio.UpdateBassline(dt, enemySpeed, stats.enemySpeedMax);
     }
+
+    // NHAC NEN PROCEDURAL (Nguoi 3 - Audio & UI): goi MOI frame, KHONG boc trong
+    // if(!isBossWave) nhu UpdateBassline o tren - chinh vi bassline IM LANG luc danh Boss
+    // (nhanh if ngay tren) nen nhac nen tro thanh lop am nen DUY NHAT con lai luc do, can
+    // tiep tuc chay (va tang cuong do qua MusicContext::bossActive, xem FillMusicBuffer()
+    // trong audio_system.cpp) thay vi cung tat theo.
+    MusicContext musicCtx;
+    musicCtx.enemySpeedRatio = (stats.enemySpeedMax > 0.0f) ? fminf(enemySpeed / stats.enemySpeedMax, 1.0f) : 0.0f;
+    musicCtx.wave = wave;
+    musicCtx.bossActive = isBossWave;
+    musicCtx.livesRemaining = player.GetLives();
+    musicCtx.comboCount = comboCount;
+    audio.UpdateMusic(dt, musicCtx);
 
     if (player.GetLives() <= 0) {
         audio.PlayGameOver();
@@ -525,6 +542,10 @@ void GameManager::UpdatePlaying(float dt) {
 void GameManager::ProcessEvents() {
     for (const GameEvent& ev : pendingEvents) {
         if (ev.particleCount > 0) particles.Burst(ev.position, ev.particleCount, ev.color);
+        // HIT-FLASH (Nguoi 3 - Audio & UI): cum particle TRANG rieng, CONG DON voi burst
+        // mau thuong o tren neu co (khong thay the) - bao "chi trung", tach voi burst mau
+        // dang bao "loai gi/khien hay khong" (xem events.h + physics_system.cpp).
+        if (ev.flashOnHit) particles.Burst(ev.position, Config::HITFLASH_PARTICLE_COUNT, WHITE);
 
         switch (ev.sfx) {
             case SfxType::Explosion: audio.PlayExplosion(); break;

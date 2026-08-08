@@ -85,6 +85,14 @@ TEST_CASE("CheckCollisions: Tanky enemy can dung TankyEnemy::HP phat moi chet - 
         REQUIRE(events[0].scoreValue == 0);       // CHUA chet -> chua cong diem
         REQUIRE(events[0].dropPowerUp == false);  // CHUA chet -> chua roi power-up
         REQUIRE(events[0].sfx == SfxType::Hit);
+        // Nguoi 3 (Audio & UI) - hit-flash: truoc day nhanh "con song" nay khong set
+        // position/flashOnHit gi ca (khong co phan hoi hinh anh nao). Gio phai bat
+        // flashOnHit=true VA dat dung vi tri va cham (EnemyCenter that, khong con {0,0}
+        // mac dinh) de ProcessEvents() bat flash dung cho.
+        REQUIRE(events[0].flashOnHit == true);
+        Vector2 expectedCenter = EnemyCenter(GTA::TankyEnemies(gm)[0].rect);
+        REQUIRE(events[0].position.x == expectedCenter.x);
+        REQUIRE(events[0].position.y == expectedCenter.y);
     }
 
     // Phat thu totalHp - ha guc that su
@@ -97,6 +105,7 @@ TEST_CASE("CheckCollisions: Tanky enemy can dung TankyEnemy::HP phat moi chet - 
     REQUIRE(finalEvents[0].scoreValue == TankyEnemy::SCORE_VALUE);
     REQUIRE(finalEvents[0].dropPowerUp == true);
     REQUIRE(finalEvents[0].sfx == SfxType::Explosion);
+    REQUIRE(finalEvents[0].flashOnHit == false); // Ha guc han dung nhanh khac - hit-flash KHONG ap dung o day
 }
 
 // ==========================================
@@ -134,6 +143,15 @@ TEST_CASE("CheckCollisions: boss khong shield (Vanguard) mat dung 1 HP moi phat 
     REQUIRE(GTA::BossPool(gm).Size() == 1); // con song (40 -> 39)
     REQUIRE(GTA::BossPool(gm)[0].hp == 39);
     REQUIRE(GTA::PlayerBullets(gm).GetActiveCount() == 0);
+
+    // Nguoi 3 (Audio & UI) - hit-flash: duong "boss trung, con song, khong shield" la 1
+    // trong 2 diem noi flashOnHit da ghi trong TASK_DIVISION.md (diem con lai la Tanky,
+    // xem test C3.2 o tren) - truoc gio chua co test nao kiem noi dung pendingEvents cho
+    // đúng nhánh nay ca, chi kiem HP/dan.
+    const auto& events = GTA::PendingEvents(gm);
+    REQUIRE(events.size() == 1);
+    REQUIRE(events[0].sfx == SfxType::Hit);
+    REQUIRE(events[0].flashOnHit == true);
 }
 
 TEST_CASE("CheckCollisions: boss HP ve 0 sau don cuoi van con trong bossPool (UpdatePlaying(), khong phai CheckCollisions(), moi Destroy() va bao WAVE_CLEAR)", "[physics][collision][boss]") {
@@ -183,6 +201,7 @@ TEST_CASE("CheckCollisions: khien Sentinel dang active chan HOAN TOAN sat thuong
     const auto& events = GTA::PendingEvents(gm);
     REQUIRE(events.size() == 1);
     REQUIRE(events[0].sfx == SfxType::None); // KHONG phat "Hit" - chi gan sfx=Hit khi (!shielded && hp>0)
+    REQUIRE(events[0].flashOnHit == false);  // Nguoi 3: cung 1 dieu kien (!shielded && hp>0) nen khien chan CA hit-flash, khong chi sfx
 }
 
 // ==========================================

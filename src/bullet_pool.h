@@ -4,6 +4,7 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <cmath>
 
 class Bullet {
 private:
@@ -42,7 +43,29 @@ public:
         if (offVertical || offHorizontal) active = false; // Can horizontal check vi gio dan co the bay cheo/ngang (aimed, radial)
     }
 
-    void Draw(Color color) const { DrawRectangleRec(rect, color); }
+    // BULLET GLOW (Nguoi 3 - Audio & UI): 1 vach mo NGUOC huong bay, dung LAI dung ky
+    // thuat ParticleShape::Spark (xem particle_pool.h: DrawLineEx theo huong van toc) -
+    // ve TRUOC loi dan dac ben duoi (blend cong/additive rieng CHI cho vach nay, tra ve
+    // blend mac dinh truoc khi ve loi) de loi dan van 100% net/dac, vach chi "hao quang"
+    // phia sau. Hoan toan tu chua (Bullet da co san `vel`), khong them tham so/khong dung
+    // toi he thong nao khac.
+    void Draw(Color color) const {
+        float speed = sqrtf(vel.x * vel.x + vel.y * vel.y);
+        if (speed > 1.0f) {
+            Vector2 center = { rect.x + rect.width / 2.0f, rect.y + rect.height / 2.0f };
+            Vector2 dir = { vel.x / speed, vel.y / speed };
+            Vector2 tail = { center.x - dir.x * Config::BULLET_GLOW_TRAIL_LENGTH,
+                              center.y - dir.y * Config::BULLET_GLOW_TRAIL_LENGTH };
+            Color glow = color;
+            glow.a = (unsigned char)(255.0f * Config::BULLET_GLOW_ALPHA);
+            float thickness = fmaxf(rect.width, rect.height) * Config::BULLET_GLOW_THICKNESS_MUL;
+
+            BeginBlendMode(BLEND_ADDITIVE); // Chi vach mo - cong don anh sang thay vi che phu, moi ra cam giac "phat sang"
+            DrawLineEx(center, tail, thickness, glow);
+            EndBlendMode();
+        }
+        DrawRectangleRec(rect, color);
+    }
 
     bool IsActive() const { return active; }
     Rectangle GetRect() const { return rect; }

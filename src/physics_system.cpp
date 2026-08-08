@@ -524,11 +524,17 @@ void PhysicsSystem::CheckCollisions(GameManager& gm) {
                     gm.pendingEvents.push_back(MakeEnemyKilledEvent(EnemyCenter(e.rect), e.color, TankyEnemy::SCORE_VALUE));
                 } else {
                     // Dich mau day van con song sau don nay - phan hoi nhe hon de phan
-                    // biet voi don ha guc han
+                    // biet voi don ha guc han.
+                    // HIT-FLASH: truoc day nhanh nay KHONG set position/particleCount -
+                    // trung Tanky ma chua chet hoan toan khong co phan hoi hinh anh nao (chi
+                    // sfx+rung). flashOnHit dua vao dung vi tri va cham that (EnemyCenter,
+                    // khong phai {0,0} mac dinh) de ProcessEvents() bat 1 flash tai do.
                     GameEvent ev;
+                    ev.position = EnemyCenter(e.rect);
                     ev.sfx = SfxType::Hit;
                     ev.shakeDuration = 0.05f;
                     ev.shakeIntensity = 2.0f;
+                    ev.flashOnHit = true;
                     gm.pendingEvents.push_back(ev);
                 }
 
@@ -582,6 +588,7 @@ void PhysicsSystem::CheckCollisions(GameManager& gm) {
                     hitEv.sfx = SfxType::Hit;
                     hitEv.shakeDuration = 0.08f;
                     hitEv.shakeIntensity = 3.0f;
+                    hitEv.flashOnHit = true; // Cong don voi burst mau (particleCount o tren) - flash trang rieng
                 }
                 gm.pendingEvents.push_back(hitEv);
 

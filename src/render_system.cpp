@@ -374,17 +374,54 @@ void RenderSystem::DrawPlaying(const GameManager& gm) {
 
 void RenderSystem::DrawHUD(const GameManager& gm) {
     UICanvas canvas;
-    canvas.Text(10, 10, 20, WHITE, TextFormat("SCORE: %d", gm.player.GetScore()));
-    canvas.Text(10, 35, 18, SKYBLUE, TextFormat("WAVE: %d", gm.wave));
-    canvas.Text(700, 10, 20, WHITE, TextFormat("LIVES: %d", gm.player.GetLives()));
-    canvas.Text(290, 10, 16, GRAY, "P: PAUSE   R: RESTART");
 
+    // PANEL/ICON HUD (Nguoi 3 - Audio & UI, TASK_DIVISION.md): thay nen-den-trong-suot
+    // truoc day bang UIPanel (nen toi + vien) quanh TUNG CUM thong tin lien quan, va
+    // UIIcon (SpriteSheet::iconShield/iconRapidFire/iconPiercing - CUNG texture/tint da
+    // dung cho pickup roi tren mat dat, xem nhanh PowerUpType duoi day trong file nay)
+    // thay 3 dong chu SHIELD/RAPID FIRE/PIERCING truoc day. 1 bo mau panel DUY NHAT dung
+    // chung ca HUD thay vi hardcode rieng tung noi.
+    Color panelFill = { 16, 16, 26, (unsigned char)(255.0f * Config::HUD_PANEL_ALPHA) };
+    Color panelBorder = GRAY;
+
+    // --- Diem / Wave / Combo (top-left) ---
+    canvas.Panel({ 6.0f, 6.0f, 180.0f, 80.0f }, panelFill, panelBorder, Config::HUD_PANEL_BORDER_THICKNESS);
+    canvas.Text(16, 14, 20, WHITE, TextFormat("SCORE: %d", gm.player.GetScore()));
+    canvas.Text(16, 40, 18, SKYBLUE, TextFormat("WAVE: %d", gm.wave));
     if (gm.comboCount > 1) {
-        canvas.Text(330, 35, 18, YELLOW, TextFormat("COMBO x%d", gm.comboCount));
+        canvas.Text(16, 62, 18, YELLOW, TextFormat("COMBO x%d", gm.comboCount));
     }
-    if (gm.player.HasShield()) canvas.Text(690, 35, 16, SKYBLUE, "SHIELD");
-    if (gm.player.HasRapidFire()) canvas.Text(660, 55, 16, ORANGE, "RAPID FIRE");
-    if (gm.player.HasPiercing()) canvas.Text(670, 75, 16, MAGENTA, "PIERCING");
+
+    // A4: an luc Boss active - panel Boss moi (duoi) chiem dung vung ngang nay, de ca 2
+    // cung hien se de len nhau (da tung de len ngay ca truoc panel, chi khong ro bang).
+    if (gm.bossPool.Size() == 0) {
+        canvas.Text(290, 10, 16, GRAY, "P: PAUSE   R: RESTART");
+    }
+
+    // --- Mang (top-right) ---
+    canvas.Panel({ (float)Config::SCREEN_W - 110.0f, 6.0f, 104.0f, 32.0f }, panelFill, panelBorder, Config::HUD_PANEL_BORDER_THICKNESS);
+    canvas.Text(Config::SCREEN_W - 100, 14, 20, WHITE, TextFormat("LIVES: %d", gm.player.GetLives()));
+
+    // --- Trang thai power-up: icon badge thay chu, CHI ve panel khi co it nhat 1
+    // power-up active (giu HUD trong khi khong co gi active, dung tinh than code cu) -
+    // 3 O CO DINH theo THU TU Shield/RapidFire/Piercing (khong dich trai lap khoang
+    // trong) de vi tri tung icon on dinh, khong "nhay" khi cac power-up bat/tat khac nhau.
+    if (gm.player.HasShield() || gm.player.HasRapidFire() || gm.player.HasPiercing()) {
+        float iconY = 46.0f;
+        float iconX = (float)Config::SCREEN_W - 102.0f;
+        float slot = Config::HUD_ICON_SIZE + 4.0f;
+        canvas.Panel({ (float)Config::SCREEN_W - 110.0f, 40.0f, 104.0f, Config::HUD_ICON_SIZE + 12.0f },
+                     panelFill, panelBorder, Config::HUD_PANEL_BORDER_THICKNESS);
+        if (gm.player.HasShield()) {
+            canvas.Icon({ iconX, iconY, Config::HUD_ICON_SIZE, Config::HUD_ICON_SIZE }, gm.sprites.iconShield, SKYBLUE);
+        }
+        if (gm.player.HasRapidFire()) {
+            canvas.Icon({ iconX + slot, iconY, Config::HUD_ICON_SIZE, Config::HUD_ICON_SIZE }, gm.sprites.iconRapidFire, ORANGE);
+        }
+        if (gm.player.HasPiercing()) {
+            canvas.Icon({ iconX + slot * 2.0f, iconY, Config::HUD_ICON_SIZE, Config::HUD_ICON_SIZE }, gm.sprites.iconPiercing, MAGENTA);
+        }
+    }
 
     if (gm.bossPool.Size() > 0) {
         const Boss& boss = gm.bossPool[0];
@@ -394,6 +431,7 @@ void RenderSystem::DrawHUD(const GameManager& gm) {
         float ratio = (boss.maxHp > 0) ? ((float)boss.hp / (float)boss.maxHp) : 0.0f;
         float barX = (Config::SCREEN_W - barW) / 2.0f;
         Color barFill = (boss.type == BossType::Sentinel && boss.shieldActive) ? SKYBLUE : RED;
+        canvas.Panel({ barX - 10.0f, 4.0f, barW + 20.0f, 36.0f }, panelFill, panelBorder, Config::HUD_PANEL_BORDER_THICKNESS);
         canvas.Bar({ barX, 8.0f, barW, 14.0f }, ratio, DARKGRAY, barFill, WHITE);
         // A4: nhan ten Boss can GIUA thanh mau (truoc day can trai theo canh barX) -
         // nhat quan voi cach cac man hinh khac trong track nay deu can giua theo tam

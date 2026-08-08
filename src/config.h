@@ -212,6 +212,54 @@ namespace Config {
     inline float DDA_MAX_MUL   = 1.3f;  // Tran tren - khong bao gio vuot 130% du nguoi choi gioi den dau
     inline int   DDA_STRUGGLE_THRESHOLD = 2; // Mat >= 2 mang trong 1 chu ky Boss moi tinh la "vat lon"
 
+    // ==========================================
+    // GRAPHICS/UI OVERHAUL - NGUOI 3 (Audio & UI): hang so cho muzzle flash, hit-flash,
+    // bullet glow, nhac nen procedural (AudioStream realtime) va HUD panel/icon moi.
+    // constexpr (KHONG phai inline) - day la tinh chinh hinh anh/am thanh ky thuat, khong
+    // phai du lieu can bang gameplay ma designer can hot-tune qua balance.json (Assign()
+    // trong config.cpp CHUA co entry cho nhom nay - giu constexpr de tranh phai dong
+    // thoi sua ca config.cpp, ngoai pham vi 3 file so huu cua Nguoi 3).
+    // ==========================================
+
+    // MUZZLE FLASH - 1 particles.Burst() nho tai dau nong moi lan ban (UpdatePlaying(),
+    // canh audio.PlayShoot()).
+    constexpr int MUZZLE_FLASH_PARTICLE_COUNT = 3;
+
+    // HIT-FLASH - cum particle MAU TRANG rieng (particles.Burst mau WHITE) tai vi tri va
+    // cham khi GameEvent::flashOnHit=true (xem ProcessEvents() + physics_system.cpp) -
+    // cong don, KHONG thay the burst mau thuong (particleCount/color) - flash bao "chi
+    // trung", burst mau bao "loai gi/khien hay khong".
+    constexpr int HITFLASH_PARTICLE_COUNT = 4;
+
+    // BULLET GLOW - Bullet::Draw() ve them 1 vach mo (DrawLineEx, dung LAI ky thuat
+    // ParticleShape::Spark ben tren) nguoc huong bay TRUOC khi ve loi dan dac, hoan toan
+    // tu chua (Bullet da co san `vel`).
+    constexpr float BULLET_GLOW_TRAIL_LENGTH = 14.0f;  // px, do dai vach mo phia sau
+    constexpr float BULLET_GLOW_THICKNESS_MUL = 1.8f;  // Nhan voi be rong dan -> do day vach
+    constexpr float BULLET_GLOW_ALPHA = 0.45f;         // 0..1, do trong vach mo (loi dan van 100% dac)
+
+    // NHAC NEN PROCEDURAL - AudioStream sinh PCM REALTIME moi frame (khac han Sound tinh
+    // cua SFX/bassline hien co - xem AudioSystem::UpdateMusic()/FillMusicBuffer() trong
+    // audio_system.cpp), phan ung theo wave/Boss/mang con lai/combo thay vi 1 loop co dinh.
+    constexpr int MUSIC_STREAM_BUFFER_FRAMES = 2048; // Kich thuoc 1 chunk PCM - ky thuat thuan tuy
+    constexpr float MUSIC_ARPEGGIO_INTERVAL_MIN = 0.28f; // Giay/not luc dich nhanh nhat (nhanh gap ~2x bassline)
+    constexpr float MUSIC_ARPEGGIO_INTERVAL_MAX = 0.70f; // Giay/not luc dich cham nhat
+    constexpr int   MUSIC_WAVE_SECTION_LEN = 3;          // Cu moi 3 wave, giai dieu transpose len 1 bac
+    constexpr float MUSIC_TRANSPOSE_SEMITONES_PER_SECTION = 2.0f;
+    constexpr int   MUSIC_MAX_TRANSPOSE_SECTIONS = 4;    // Tran tren - qua muc nay giu nguyen, tranh choi tai qua cao
+    constexpr int   MUSIC_LOW_LIVES_THRESHOLD = 1;       // Mang <= nguong nay -> bat "tension" (tremolo + detune nhe)
+    constexpr float MUSIC_TENSION_TREMOLO_HZ = 6.0f;
+    constexpr float MUSIC_BOSS_INTERVAL_MUL = 0.6f;      // Boss active -> arpeggio nhanh hon (nhan them vao interval)
+    constexpr float MUSIC_MASTER_GAIN = 0.5f;            // 0..1 - nhac nen nho hon SFX/bassline, khong lan at
+    constexpr float MUSIC_PAD_VOLUME_MUL = 0.6f;         // So voi MASTER_GAIN - lop pad/hoa am nen tho hon lead
+    constexpr float MUSIC_LEAD_VOLUME_MUL = 1.0f;
+
+    // HUD PANEL/ICON - RenderSystem::DrawHUD() dung UICanvas::Panel()/Icon() moi
+    // (ui_system.h) thay text-tren-nen-den truoc day.
+    constexpr float HUD_PANEL_ALPHA = 0.55f;         // 0..1 - do phu nen panel (van thay duoc gameplay phia sau)
+    constexpr float HUD_PANEL_BORDER_THICKNESS = 2.0f;
+    constexpr float HUD_ICON_SIZE = 18.0f;           // px - kich thuoc badge icon trong HUD
+
     // Nạp assets/balance.json (hoặc đường dẫn tùy chọn) đè lên MỌI giá trị `inline` ở
     // trên - field nào KHÔNG có trong JSON thì GIỮ NGUYÊN giá trị mặc định phía trên
     // (không phải lỗi, không crash) - cùng triết lý "không bao giờ chết vì thiếu file/

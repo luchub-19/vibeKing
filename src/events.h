@@ -46,4 +46,13 @@ struct GameEvent {
 
     int scoreValue = 0;         // 0 = khong cong diem (diem GOC, ProcessEvents se ap combo)
     bool dropPowerUp = false;   // true = roll ngau nhien roi power-up tai `position`
+
+    // HIT-FLASH (Nguoi 3 - Audio & UI): true = dich "trung nhung chua chet" (con phan
+    // biet voi don ha guc han qua MakeEnemyKilledEvent, khong dung field nay) - ProcessEvents()
+    // se bat 1 cum particle trang sang bung NGAN tai `position`, tach biet voi burst mau
+    // thuong (particleCount/color, neu co) de nguoi choi phan biet duoc "chi trung" vs
+    // "vua ha guc". Dung field rieng thay vi tai dung particleCount+color=WHITE vi 2 loai
+    // burst co the CONG DON (vd Boss: burst mau shield/damage BINH THUONG + flash trang
+    // rieng chong len nhau), khong phai lam 1 trong 2.
+    bool flashOnHit = false;
 };

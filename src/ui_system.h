@@ -39,10 +39,33 @@ struct UIBar {
     Color borderColor;
 };
 
+// PANEL/ICON (Nguoi 3 - Audio & UI, xem TASK_DIVISION.md): 2 widget THEM MOI, dung
+// CHUNG khuon Text/Bar o tren (khai bao qua Panel()/Icon() -> Draw() 1 lan), khong sua
+// UIText/UIBar/API cu nao - hoan toan cong them, an toan tuyet doi voi moi noi dang goi
+// canvas.Text()/Bar() san co.
+struct UIPanel {
+    Rectangle rect;
+    Color fillColor;    // Thuong dat alpha < 255 (vd Config::HUD_PANEL_ALPHA) - van thay duoc gameplay phia sau
+    Color borderColor;
+    float borderThickness; // 0 = khong ve vien
+};
+
+// texture la BAN SAO handle (Texture2D chi la id/width/height/mipmaps/format - vai
+// chuc byte, KHONG so huu GPU resource that su), khong phai con tro - giong het cach
+// UIText/UIBar da luu Color theo gia tri. SpriteSheet (sprites.h) van la noi SO HUU va
+// giai phong texture that su; canvas chi "muon" handle nay trong 1 frame de ve.
+struct UIIcon {
+    Rectangle destRect;
+    Texture2D texture;
+    Color tint;
+};
+
 class UICanvas {
 private:
     std::vector<UIText> texts;
     std::vector<UIBar> bars;
+    std::vector<UIPanel> panels;
+    std::vector<UIIcon> icons;
 
 public:
     // Chu vien ban dau du cho ca man hinh phuc tap nhat (Menu co toi da
@@ -51,6 +74,8 @@ public:
     UICanvas() {
         texts.reserve(24);
         bars.reserve(4);
+        panels.reserve(4); // HUD hien tai can vai panel (score/status/power-up) - it hon Bar, khong can nhieu
+        icons.reserve(8);  // Toi da vai icon power-up + phong hoi sau nay, du du khong phai grow giua frame
     }
 
     void Text(int x, int y, int fontSize, Color color, const std::string& text) {
@@ -71,9 +96,26 @@ public:
         bars.push_back({ rect, ratio, bgColor, fillColor, borderColor });
     }
 
+    // Nen co vien cho 1 khu vuc HUD (vd sau nhom SCORE/WAVE, sau hang icon power-up) -
+    // ve TRUOC moi Bar/Icon/Text khac trong Draw() nen luon nam "duoi cung".
+    void Panel(Rectangle rect, Color fillColor, Color borderColor, float borderThickness = 1.0f) {
+        panels.push_back({ rect, fillColor, borderColor, borderThickness });
+    }
+
+    // Badge icon nho (vd trang thai power-up) - texture thuong lay tu SpriteSheet (vd
+    // gm.sprites.iconShield), keo/dan gon vao destRect bang DrawTexturePro ben trong
+    // Draw(), khong phu thuoc kich thuoc goc cua texture.
+    void Icon(Rectangle destRect, Texture2D texture, Color tint = WHITE) {
+        icons.push_back({ destRect, texture, tint });
+    }
+
     // Phat toan bo lenh ve GPU cho moi widget da khai bao trong frame nay - goi DUY
     // NHAT 1 LAN o cuoi moi Draw*() cua RenderSystem.
     void Draw(const Font& font) const {
+        for (const UIPanel& p : panels) {
+            DrawRectangleRec(p.rect, p.fillColor);
+            if (p.borderThickness > 0.0f) DrawRectangleLinesEx(p.rect, p.borderThickness, p.borderColor);
+        }
         for (const UIBar& b : bars) {
             float ratio = b.ratio;
             if (ratio < 0.0f) ratio = 0.0f;
@@ -84,6 +126,10 @@ public:
             fillRect.width *= ratio;
             DrawRectangleRec(fillRect, b.fillColor);
             DrawRectangleLinesEx(b.rect, 1.0f, b.borderColor);
+        }
+        for (const UIIcon& ic : icons) {
+            Rectangle srcRect = { 0.0f, 0.0f, (float)ic.texture.width, (float)ic.texture.height };
+            DrawTexturePro(ic.texture, srcRect, ic.destRect, { 0.0f, 0.0f }, 0.0f, ic.tint);
         }
         for (const UIText& t : texts) {
             Vector2 pos = t.pos;
