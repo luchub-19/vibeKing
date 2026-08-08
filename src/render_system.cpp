@@ -39,107 +39,121 @@ static void DrawTitleLogo(const Texture2D& alienTex) {
     }
 }
 
-// Icon mui ten nho, nhap nhay nhe (sin theo thoi gian) dat canh dong menu dang duoc
-// "chon"/dieu chinh - HIEN CHI gan cho dong DIFFICULTY (xem ghi chu tai noi goi trong
-// DrawMenu ve viec LOADOUT chua co icon rieng). Tach thanh ham rieng de tai su dung cho
-// cac dong menu dieu huong duoc khac sau nay thay vi copy lai code ve tam giac nay.
-static void DrawMenuSelectorIcon(float x, float y, Color color) {
-    float pulse = 0.5f + 0.5f * sinf((float)GetTime() * 4.0f);
-    Color c = Fade(color, 0.6f + 0.4f * pulse);
-    float half = 4.0f + pulse * 1.0f;
-    DrawTriangle({ x, y - half }, { x, y + half }, { x + half * 2.0f, y }, c);
+// PILL LUA CHON (dung cho DIFFICULTY) - o nho co vien, sang len khi dang la lua chon HIEN
+// TAI. Thay cho kieu "< NORMAL >" cycle an 2 lua chon con lai truoc day: ve ca 3 pill cung
+// luc (goi 3 lan voi rect canh nhau) de nguoi choi thay HET lua chon thay vi phai bam thu
+// tung huong. Khong can icon mui ten rieng nua - chinh vien/nen sang cua pill dang chon da
+// la affordance.
+static void DrawSelectPill(UICanvas& canvas, Rectangle rect, const char* label, bool selected) {
+    Color fill = selected ? Color{ 40, 36, 12, 200 } : Color{ 16, 16, 26, 140 };
+    Color border = selected ? YELLOW : GRAY;
+    canvas.Panel(rect, fill, border, selected ? 2.0f : 1.0f);
+    Color textColor = selected ? WHITE : Fade(WHITE, 0.45f);
+    canvas.CenteredText((int)(rect.x + rect.width / 2.0f), (int)(rect.y + rect.height / 2.0f - 8.0f), 15, textColor, label);
 }
 
-// LOADOUT SELECT - ve dong "LOADOUT: <ten> (...)" ngay duoi dong DIFFICULTY trong Menu.
-// Nhan SAN cac gia tri da doc tu GameManager (khong nhan thang GameManager&) - dung tinh
-// than MakeEnemyKilledEvent trong physics_system.cpp: 1 helper `static` chi thao tac tren
-// gia tri thuan. Bat buoc phai vay: day KHONG phai ham thanh vien RenderSystem nen KHONG
-// duoc huong quyen `friend class RenderSystem` ma GameManager cap (xem game_manager.h) -
-// doc gm.selectedLoadout/gm.metaProgress phai xay ra trong DrawMenu() (ham thanh vien
-// that su) roi truyen gia tri da trich xuat vao day.
-static void DrawLoadoutSelect(UICanvas& canvas, int y, LoadoutType chosen, bool unlockedOrFree, int currency, int cost, float pulse) {
+// CARD LOADOUT - cung khuon DrawSelectPill nhung 2 dong (ten tren, trang thai duoi), dung
+// cho 3 loadout Standard/Vanguard/Overcharge ve canh nhau. Card chua unlock (khong phai
+// Standard) hien GRAY va so currency con thieu thay vi chu "UNLOCKED" - giu dung ngu nghia
+// mau GRAY = khoa da co tu DrawLoadoutSelect() ban cu.
+static void DrawLoadoutCard(UICanvas& canvas, Rectangle rect, LoadoutType type, bool selected, bool available, int currency, int cost) {
+    Color fill = selected ? Color{ 40, 36, 12, 200 } : Color{ 16, 16, 26, 140 };
+    Color border = selected ? YELLOW : GRAY;
+    canvas.Panel(rect, fill, border, selected ? 2.0f : 1.0f);
+
+    Color nameColor = available ? (selected ? WHITE : Fade(WHITE, 0.6f)) : GRAY;
+    canvas.CenteredText((int)(rect.x + rect.width / 2.0f), (int)rect.y + 8, 13, nameColor, GetLoadoutName(type));
+
     std::string status;
-    if (chosen == LoadoutType::Standard) status = "FREE";
-    else if (unlockedOrFree) status = "UNLOCKED";
-    else status = TextFormat(Loc::UnlockCostFmt, currency, cost);
-
-    // BUG FIX (Bug 1): truoc day dong nay dung size 18 va x=200 hardcode, trong khi
-    // dong DIFFICULTY ngay TREN no (xem DrawMenu) dung size 20 va x=260 - 2 con so
-    // lech nhau tu 1 merge, khong phai chu y (khong co ly do thiet ke nao de 2 dong
-    // dieu huong CUNG cap (Q/E vs LEFT/RIGHT) trong CUNG 1 khoi menu lai khac co chu
-    // nhau). Chon lai size 20 cho DONG BO voi DIFFICULTY, va CenteredText (xem A1) de
-    // ca 2 dong luon nam giua man hinh du do dai chuoi (ten loadout, trang thai...)
-    // thay doi the nao.
-    // A6: chi pulse khi dong nay dang "kha dung" (WHITE) - GRAY (dang khoa) giu tinh.
-    Color color = unlockedOrFree ? Fade(WHITE, 0.7f + 0.3f * pulse) : GRAY;
-    canvas.CenteredText(Config::SCREEN_W / 2, y, 20, color,
-                         TextFormat("< LOADOUT: %s (%s) >", GetLoadoutName(chosen), status.c_str()));
+    Color statusColor;
+    if (type == LoadoutType::Standard)   { status = "FREE";  statusColor = Fade(WHITE, 0.6f); }
+    else if (available)                  { status = "READY"; statusColor = LIME; }
+    else                                 { status = TextFormat("%d/%d", currency, cost); statusColor = GRAY; }
+    canvas.CenteredText((int)(rect.x + rect.width / 2.0f), (int)rect.y + 28, 11, statusColor, status.c_str());
 }
 
+// ==========================================
+// BO CUC MENU MOI - 3 TANG thay cho 1 cot doc dai truoc day (thao luan voi Dawg ve UI
+// overhaul, xem chat): Header (logo+ten) / 2 PANEL canh nhau CHIEU CAO CO DINH (TOP 10 +
+// DIFFICULTY-LOADOUT-VOLUME) / nut START dang Panel that o Footer.
+//
+// Ly do panel CO DINH kich thuoc: ban cu tinh bottomY = 195 + entries.size()*20 + 30 roi
+// fallback ve 420 khi rong - chinh phep tinh nay la nguon goc khoang den lon giua man hinh
+// luc chua co ky luc nao (truong hop THUONG GAP NHAT - moi lan xoa save/may moi). Panel co
+// dinh khong con phu thuoc so dong du lieu, nen khong con "co gian" theo noi dung.
+//
+// Dung LAI panelFill/panelBorder GIONG HET DrawHUD() ben duoi file nay (cung HUD_PANEL_ALPHA/
+// HUD_PANEL_BORDER_THICKNESS) - Menu va HUD gio chung 1 "chat lieu" thi giac thay vi 2 the
+// gioi rieng (Menu truoc day khong dung UICanvas::Panel() lan nao).
+// ==========================================
 void RenderSystem::DrawMenu(const GameManager& gm) {
     DrawTitleLogo(gm.sprites.basicAlien);
 
     UICanvas canvas;
-    canvas.Text(250, 100, 40, GREEN, "SPACE INVADERS");
 
-    // LEADERBOARD: hien thi toi da Config::LEADERBOARD_MAX_ENTRIES dong, xep hang tu
-    // 1, kem wave da dat duoc (khong chi mot con so diem tran trui nhu HighScore cu).
+    // TEN THAT cua game (khop InitWindow() trong game_manager.cpp va README), khong con
+    // "SPACE INVADERS" - do la ten THE LOAI, khong phai ten game nay. CenteredText (thay
+    // Text voi x=250 hardcode cu) de luon can giua du sau nay doi chuoi.
+    canvas.CenteredText(Config::SCREEN_W / 2, 92, 40, GREEN, "HARDCORE SPACE INVADERS");
+
+    Color panelFill = { 16, 16, 26, (unsigned char)(255.0f * Config::HUD_PANEL_ALPHA) };
+    Color panelBorder = GRAY;
+    const float leftX = 40.0f, rightX = 415.0f, panelW = 345.0f, panelY = 165.0f, panelH = 290.0f;
+
+    // --- Panel trai: TOP 10 ---
+    canvas.Panel({ leftX, panelY, panelW, panelH }, panelFill, panelBorder, Config::HUD_PANEL_BORDER_THICKNESS);
+    canvas.CenteredText((int)(leftX + panelW / 2.0f), (int)panelY + 12, 20, YELLOW, "TOP 10");
+
     const auto& entries = gm.leaderboard.GetEntries();
-    canvas.Text(350, 165, 22, YELLOW, "TOP 10");
     if (entries.empty()) {
-        canvas.Text(290, 195, 16, GRAY, Loc::NoRecordsYet);
+        // Canh giua CA CHIEU DOC trong panel - khac ban cu (1 dong xam nho lac long ngay
+        // duoi header, phan con lai cua man hinh la khoang den). Panel co dinh kich thuoc
+        // nen luon co du cho de canh giua thay vi phai doan vi tri theo noi dung.
+        canvas.CenteredText((int)(leftX + panelW / 2.0f), (int)(panelY + panelH / 2.0f), 16, GRAY, Loc::NoRecordsYet);
     } else {
-        int y = 195;
+        float y = panelY + 44.0f;
         for (size_t i = 0; i < entries.size(); i++) {
             Color rowColor = (i == 0) ? YELLOW : WHITE;
-            canvas.Text(230, y, 16, rowColor,
-                        TextFormat("%2d.  %6d pts   wave %d", (int)i + 1, entries[i].score, entries[i].wave));
-            y += 20;
+            canvas.Text((int)leftX + 14, (int)y, 15, rowColor,
+                        TextFormat("%2d. %6d pts  wave %d", (int)i + 1, entries[i].score, entries[i].wave));
+            y += 22.0f; // 10 dong toi da (Config::LEADERBOARD_MAX_ENTRIES) * 22 = 220, vua trong panelH=290
         }
     }
 
-    DifficultyStats stats = GetDifficultyStats(gm.difficulty);
-    int bottomY = 195 + (int)entries.size() * 20 + 30;
-    if (bottomY < 420) bottomY = 420; // Danh sach rong/ngan van giu bo cuc on dinh, khong bi troi len qua cao
+    // --- Panel phai: DIFFICULTY / LOADOUT / VOLUME ---
+    canvas.Panel({ rightX, panelY, panelW, panelH }, panelFill, panelBorder, Config::HUD_PANEL_BORDER_THICKNESS);
 
-    // A2/A4: dong DIFFICULTY gio CENTERED (do rong thay doi theo label - "EASY"/"HARD"
-    // (4 ky tu) ngan hon "NORMAL" (6 ky tu)) thay vi hardcode x=260 nhu truoc. Icon mui
-    // ten PHAI do lai canh trai THAT SU cua dong nay (MeasureTextEx, cung font/size se
-    // dung de ve) roi neo theo do, khong con duoc phep hardcode 1 x co dinh (238) nhu
-    // truoc nua - hardcode se lech dan theo label moi lan doi do kho (vd dung tot voi
-    // NORMAL nhung lech ~1 chu voi EASY/HARD do do rong chuoi khac nhau).
-    //
-    // TODO(sau merge Nguoi A + Nguoi B, van con nguyen tu ban truoc A6): icon nay hien
-    // CHI tro vao dong DIFFICULTY. Menu co 2 dong dieu huong duoc (DIFFICULTY + LOADOUT,
-    // xem DrawLoadoutSelect ben duoi) nhung chi 1 co icon - van can ban bac xem co nen
-    // doi icon theo dong dang "active" hay them 1 icon thu 2 cho LOADOUT; A6 (menu
-    // pulse) khong tu quyet dinh thay cau hoi nay, chi lam CA 2 dong cung "tho" nhe.
-    std::string difficultyLine = TextFormat("< DIFFICULTY: %s >", stats.label);
-    Vector2 difficultySize = MeasureTextEx(gm.gameFont, difficultyLine.c_str(), 20.0f, 1.0f);
-    float difficultyLeftX = (float)Config::SCREEN_W / 2.0f - difficultySize.x / 2.0f;
-    DrawMenuSelectorIcon(difficultyLeftX - 22.0f, (float)bottomY + 10.0f, YELLOW); // -22: giu dung khoang cach icon<->chu nhu ban cu (238 vs x=260 hardcode truoc day)
+    canvas.Text((int)rightX + 14, (int)panelY + 12, 15, YELLOW, "DIFFICULTY  (LEFT/RIGHT)");
+    const float pillW = 105.0f, pillGap = 10.0f, pillY = panelY + 36.0f;
+    for (int i = 0; i < 3; i++) {
+        DifficultyStats s = GetDifficultyStats((Difficulty)i);
+        Rectangle pillRect = { rightX + 5.0f + (float)i * (pillW + pillGap), pillY, pillW, 32.0f };
+        DrawSelectPill(canvas, pillRect, s.label, (Difficulty)i == gm.difficulty);
+    }
 
-    // A6 - MENU JUICE: 2 dong dieu huong duoc (DIFFICULTY qua LEFT/RIGHT, LOADOUT qua
-    // Q/E) "tho" nhe theo thoi gian thuc, cung cong thuc pulse ma DrawMenuSelectorIcon()
-    // da dung cho icon tam giac ben tren - dong bo pha giua icon va chu thay vi 2 nhip
-    // rieng biet nhin roi mat. Day la cong viec THUAN VE (chi doi do sang/toi cua mau
-    // moi frame, khong doi state gi), nen khong can dung/cham GameManager - da kiem tra
-    // truoc: TransitionPhase (game_manager.h) DA duoc GameManager::Run() ve lam man
-    // hinh den fade roi (xem `float alpha = GetTransitionAlpha()` trong game_manager.cpp),
-    // nen khong phat sinh viec moi nao can bao Track B ve day.
-    float navPulse = 0.5f + 0.5f * sinf((float)GetTime() * 4.0f);
-    Color difficultyColor = Fade(WHITE, 0.7f + 0.3f * navPulse);
-    canvas.CenteredText(Config::SCREEN_W / 2, bottomY, 20, difficultyColor, difficultyLine);
+    canvas.Text((int)rightX + 14, (int)panelY + 82, 15, YELLOW, TextFormat("LOADOUT  (Q/E) - %d CR", gm.metaProgress.GetCurrency()));
+    const float cardY = panelY + 106.0f;
+    const LoadoutType loadouts[3] = { LoadoutType::Standard, LoadoutType::Vanguard, LoadoutType::Overcharge };
+    for (int i = 0; i < 3; i++) {
+        LoadoutType type = loadouts[i];
+        bool available = (type == LoadoutType::Standard) || gm.metaProgress.IsUnlocked(type);
+        Rectangle cardRect = { rightX + 5.0f + (float)i * (pillW + pillGap), cardY, pillW, 50.0f };
+        DrawLoadoutCard(canvas, cardRect, type, (int)type == gm.selectedLoadout, available,
+                         gm.metaProgress.GetCurrency(), GetLoadoutUnlockCost(type));
+    }
 
-    LoadoutType chosenLoadout = (LoadoutType)gm.selectedLoadout;
-    bool loadoutAvailable = (chosenLoadout == LoadoutType::Standard) || gm.metaProgress.IsUnlocked(chosenLoadout);
-    DrawLoadoutSelect(canvas, bottomY + 24, chosenLoadout,
-                       loadoutAvailable, gm.metaProgress.GetCurrency(), GetLoadoutUnlockCost(chosenLoadout), navPulse);
+    canvas.Text((int)rightX + 14, (int)panelY + 176, 15, YELLOW, "VOLUME  (UP/DOWN)");
+    canvas.Bar({ rightX + 14.0f, panelY + 200.0f, panelW - 28.0f, 16.0f }, gm.audio.GetVolume(), DARKGRAY, SKYBLUE, WHITE);
+    canvas.Text((int)(rightX + panelW - 46.0f), (int)panelY + 218, 13, GRAY, TextFormat("%d%%", (int)(gm.audio.GetVolume() * 100.0f)));
 
-    canvas.CenteredText(Config::SCREEN_W / 2, bottomY + 52, 18, GRAY, TextFormat("VOLUME: %d%%  (UP/DOWN)", (int)(gm.audio.GetVolume() * 100)));
-    canvas.CenteredText(Config::SCREEN_W / 2, bottomY + 90, 20, WHITE, "PRESS ENTER TO START");
-    canvas.CenteredText(Config::SCREEN_W / 2, bottomY + 118, 14, GRAY, "LEFT/RIGHT: DIFFICULTY    Q/E: LOADOUT");
-    canvas.CenteredText(Config::SCREEN_W / 2, bottomY + 138, 16, GRAY, Loc::MenuFullscreenHint);
+    // --- Footer: nut START dang Panel that (border pulse) thay vi 1 dong chu doi alpha ---
+    float startPulse = 0.5f + 0.5f * sinf((float)GetTime() * 3.0f);
+    Rectangle startRect = { Config::SCREEN_W / 2.0f - 140.0f, 480.0f, 280.0f, 52.0f };
+    canvas.Panel(startRect, Color{ 16, 16, 26, 180 }, Fade(YELLOW, 0.6f + 0.4f * startPulse), 2.0f + startPulse);
+    canvas.CenteredText(Config::SCREEN_W / 2, 496, 20, WHITE, "PRESS ENTER TO START");
+
+    canvas.CenteredText(Config::SCREEN_W / 2, 548, 14, GRAY, "ARROWS / Q,E: ADJUST");
+    canvas.CenteredText(Config::SCREEN_W / 2, 568, 14, GRAY, Loc::MenuFullscreenHint);
 
     canvas.Draw(gm.gameFont);
 }
