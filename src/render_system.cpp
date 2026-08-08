@@ -171,6 +171,28 @@ void RenderSystem::DrawEndScreen(const GameManager& gm) {
     canvas.Draw(gm.gameFont);
 }
 
+// IDLE ANIMATION (Phase 1 - Graphics/UI Overhaul, Nguoi 1): transform-THUAN quanh tam 1
+// Rectangle theo sin(GetTime()) - bob truc Y y het ky thuat DrawTitleLogo() o tren, cong
+// them 1 lop pulse ti le RAT nho DONG PHA voi bob (cung 1 sin() - "phinh to nhe dung luc
+// nhap len") de sprite co cam giac "song" thay vi dung yen tuyet doi. CHI tra ve Rectangle
+// MOI danh rieng cho DrawSprite() - KHONG duoc dung ket qua nay lam rect that (hitbox) cua
+// entity, xem tung noi goi trong DrawPlaying() ben duoi (luon giu nguyen `e.rect`/
+// `boss.rect` cho va cham/logic, chi doi bien tam o buoc VE).
+static Rectangle IdleWobble(Rectangle r, float time, float phase, float bobAmp, float bobFreq, float scaleAmp) {
+    float s = sinf(time * bobFreq + phase);
+    float bob = bobAmp * s;
+    float scale = 1.0f + scaleAmp * s;
+
+    float dw = r.width * (scale - 1.0f);
+    float dh = r.height * (scale - 1.0f);
+    r.x -= dw * 0.5f;      // Phong to/nho QUANH TAM thay vi tu goc tren-trai
+    r.y -= dh * 0.5f;
+    r.y += bob;
+    r.width += dw;
+    r.height += dh;
+    return r;
+}
+
 void RenderSystem::DrawPlaying(const GameManager& gm) {
     Camera2D cam{};
     cam.offset = gm.screenShake.GetOffset();
@@ -184,29 +206,56 @@ void RenderSystem::DrawPlaying(const GameManager& gm) {
     // chan boi logic hitEdge trong PhysicsSystem) nen kiem tra o day chi la 1 phep so
     // sanh AABB re, khong danh doi hieu nang de co loi ich; Kamikaze/UFO/Boss moi la
     // nhung thuc the thuc su co the dung ngoai man hinh 1 khoang thoi gian dang ke.
+    // IDLE ANIMATION: 1 lan GetTime() dung chung cho ca frame (xem IdleWobble() o tren) -
+    // tranh goi lai nhieu lan khong can thiet cho tung thuc the rieng le.
+    float animTime = (float)GetTime();
+
     for (size_t i = 0; i < gm.basicEnemies.Size(); i++) {
         const BasicEnemy& e = gm.basicEnemies[i];
-        if (Culling::IsVisible(e.rect)) DrawSprite(gm.sprites.basicAlien, e.rect, e.color);
+        if (!Culling::IsVisible(e.rect)) continue;
+        float phase = (float)e.column * Config::ANIM_IDLE_PHASE_STEP;
+        Rectangle drawRect = IdleWobble(e.rect, animTime, phase, Config::ANIM_IDLE_BOB_AMPLITUDE,
+                                         Config::ANIM_IDLE_BOB_FREQUENCY, Config::ANIM_IDLE_SCALE_AMPLITUDE);
+        DrawSprite(gm.sprites.basicAlien, drawRect, e.color);
     }
     for (size_t i = 0; i < gm.tankyEnemies.Size(); i++) {
         const TankyEnemy& e = gm.tankyEnemies[i];
         if (!Culling::IsVisible(e.rect)) continue;
-        DrawSprite(gm.sprites.tankyAlien, e.rect, e.color);
+        float phase = (float)e.column * Config::ANIM_IDLE_PHASE_STEP;
+        Rectangle drawRect = IdleWobble(e.rect, animTime, phase, Config::ANIM_IDLE_BOB_AMPLITUDE,
+                                         Config::ANIM_IDLE_BOB_FREQUENCY, Config::ANIM_IDLE_SCALE_AMPLITUDE);
+        DrawSprite(gm.sprites.tankyAlien, drawRect, e.color);
         if (e.hp < TankyEnemy::HP) {
             // Dich mau day bi thuong -> vien sang de nguoi choi thay ro da gay sat thuong
+            // - dung e.rect GOC (khong phai drawRect) cho vien nay: day la chi bao gan
+            // voi hitbox that, khong phai trang tri thuan tuy nhu sprite o tren.
             DrawRectangleLinesEx(e.rect, 2.0f, WHITE);
         }
     }
     for (size_t i = 0; i < gm.zigzagEnemies.Size(); i++) {
         const ZigzagEnemy& e = gm.zigzagEnemies[i];
-        if (Culling::IsVisible(e.rect)) DrawSprite(gm.sprites.zigzagAlien, e.rect, e.color);
+        if (!Culling::IsVisible(e.rect)) continue;
+        float phase = (float)e.column * Config::ANIM_IDLE_PHASE_STEP;
+        Rectangle drawRect = IdleWobble(e.rect, animTime, phase, Config::ANIM_IDLE_BOB_AMPLITUDE,
+                                         Config::ANIM_IDLE_BOB_FREQUENCY, Config::ANIM_IDLE_SCALE_AMPLITUDE);
+        DrawSprite(gm.sprites.zigzagAlien, drawRect, e.color);
     }
     for (size_t i = 0; i < gm.kamikazeEnemies.Size(); i++) {
         const KamikazeEnemy& e = gm.kamikazeEnemies[i];
-        if (Culling::IsVisible(e.rect)) DrawSprite(gm.sprites.kamikaze, e.rect, e.color);
+        if (!Culling::IsVisible(e.rect)) continue;
+        // Khong co truong `column` (khong thuoc doi hinh luoi, xem enemy_types.h) - dung
+        // vi tri X hien tai lam "hat giong" pha rieng thay the, du it y nghia hon vi so
+        // luong dong thoi thuong chi 1-2 con (xem GameManager::SpawnKamikaze).
+        float phase = e.rect.x * Config::ANIM_IDLE_PHASE_STEP / 100.0f;
+        Rectangle drawRect = IdleWobble(e.rect, animTime, phase, Config::ANIM_IDLE_BOB_AMPLITUDE,
+                                         Config::ANIM_IDLE_BOB_FREQUENCY, Config::ANIM_IDLE_SCALE_AMPLITUDE);
+        DrawSprite(gm.sprites.kamikaze, drawRect, e.color);
     }
     if (gm.ufoActive && Culling::IsVisible(gm.ufoRect)) {
-        DrawSprite(gm.sprites.ufo, gm.ufoRect, RED);
+        // Chi 1 UFO ton tai cung luc (xem gm.ufoActive) - khong can lech pha rieng (phase=0).
+        Rectangle drawRect = IdleWobble(gm.ufoRect, animTime, 0.0f, Config::ANIM_IDLE_BOB_AMPLITUDE,
+                                         Config::ANIM_IDLE_BOB_FREQUENCY, Config::ANIM_IDLE_SCALE_AMPLITUDE);
+        DrawSprite(gm.sprites.ufo, drawRect, RED);
     }
     // BOSS: cung 1 kieu Pool nhu moi loai dich khac (EnemyPool<Boss,1>) - Size()>0 nghia
     // la con song, khong con co Bool `bossActive` rieng phai giu dong bo thu cong.
@@ -219,11 +268,18 @@ void RenderSystem::DrawPlaying(const GameManager& gm) {
             const Texture2D& tex = (boss.type == BossType::Sentinel) ? gm.sprites.bossSentinel
                                   : (boss.type == BossType::Swarmer) ? gm.sprites.bossSwarmer
                                   : gm.sprites.boss;
-            DrawSprite(tex, boss.rect, tint);
+            // Bo hang so RIENG (ANIM_BOSS_IDLE_*, xem config.h) - than lon hon han dich
+            // thuong nen cung bien do px se de nhan thay hon; chi 1 Boss ton tai cung luc
+            // nen khong can lech pha (phase=0), khac Basic/Tanky/Zigzag o tren.
+            Rectangle drawRect = IdleWobble(boss.rect, animTime, 0.0f, Config::ANIM_BOSS_IDLE_BOB_AMPLITUDE,
+                                             Config::ANIM_BOSS_IDLE_BOB_FREQUENCY, Config::ANIM_BOSS_IDLE_SCALE_AMPLITUDE);
+            DrawSprite(tex, drawRect, tint);
 
             // VONG KHIEN: chi ve khi Sentinel dang bat kha xam pham - vien tron xanh bao
             // quanh toan bo rect, bao hieu ro rang "dan khong an thua luc nay" (khop voi
-            // logic mien sat thuong trong PhysicsSystem::CheckCollisions()).
+            // logic mien sat thuong trong PhysicsSystem::CheckCollisions()). Dung
+            // boss.rect GOC (khong phai drawRect) vi day la chi bao gan voi vung mien sat
+            // thuong THAT, khong phai trang tri.
             if (boss.type == BossType::Sentinel && boss.shieldActive) {
                 Vector2 center = EnemyCenter(boss.rect);
                 float radius = fmaxf(boss.rect.width, boss.rect.height) * 0.62f;

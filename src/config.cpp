@@ -141,6 +141,18 @@ namespace {
         Assign(s, "patrol_speed", Config::BUNKER_PATROL_SPEED);
     }
 
+    void LoadAnim(const json& root) {
+        if (!root.contains("anim")) return;
+        const json& s = root.at("anim");
+        Assign(s, "idle_bob_amplitude", Config::ANIM_IDLE_BOB_AMPLITUDE);
+        Assign(s, "idle_bob_frequency", Config::ANIM_IDLE_BOB_FREQUENCY);
+        Assign(s, "idle_scale_amplitude", Config::ANIM_IDLE_SCALE_AMPLITUDE);
+        Assign(s, "idle_phase_step", Config::ANIM_IDLE_PHASE_STEP);
+        Assign(s, "boss_idle_bob_amplitude", Config::ANIM_BOSS_IDLE_BOB_AMPLITUDE);
+        Assign(s, "boss_idle_bob_frequency", Config::ANIM_BOSS_IDLE_BOB_FREQUENCY);
+        Assign(s, "boss_idle_scale_amplitude", Config::ANIM_BOSS_IDLE_SCALE_AMPLITUDE);
+    }
+
     void LoadDda(const json& root) {
         if (!root.contains("dda")) return;
         const json& s = root.at("dda");
@@ -198,6 +210,7 @@ void Config::LoadBalance(const char* path) {
     safeLoad("powerup", LoadPowerup);
     safeLoad("combo", LoadCombo);
     safeLoad("bunker", LoadBunker);
+    safeLoad("anim", LoadAnim);
     safeLoad("dda", LoadDda);
 
     TraceLog(LOG_INFO, "Balance: da nap du lieu can bang tu '%s'", actualPath);

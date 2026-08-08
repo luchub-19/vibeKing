@@ -1,4 +1,12 @@
 #include "sprites.h"
+#include "config.h"
+#include "text_utils.h"
+#include <fstream>
+#include <charconv>
+#include <unordered_map>
+#include <string>
+
+using TextUtils::Trim;
 
 namespace {
     constexpr int SPRITE_SIZE = 16;
@@ -184,23 +192,124 @@ namespace {
         UnloadImage(img);
         return tex;
     }
+
+    // ==========================================
+    // ATLAS THAT (Phase 1 - Graphics/UI Overhaul, Nguoi 1): SpriteSheet::Load() thu nap
+    // 13 sprite tu 1 file atlas.png + atlas.cfg (mac dinh: Kenney "Space Shooter Redux",
+    // CC0 - xem docs/ASSET_INTEGRATION.md) THAY vi luon ve procedural o tren. Ten nao
+    // KHONG co trong atlas.cfg / dong loi / vung toa do vuot bien anh -> FALLBACK ve dung
+    // BuildXxx() procedural CHI cho rieng ten do, KHONG bao loi/crash toan bo - cung
+    // triet ly "khong bao gio chet vi thieu file/field tuy chon" da dung cho
+    // settings.cfg/level.cfg (xem level_config.cpp).
+    // ==========================================
+    struct AtlasRect { int x, y, w, h; };
+
+    // Dinh dang atlas.cfg: NAME=X,Y,W,H (so nguyen, pixel, goc tren-trai atlas.png) - xem
+    // docs/ASSET_INTEGRATION.md. Cung khuon KEY=VALUE + '#' comment nhu
+    // LevelGridConfig::LoadFromFile (level_config.cpp), chi khac VALUE la 4 so tach boi
+    // dau phay thay vi 1 so don.
+    std::unordered_map<std::string, AtlasRect> ParseAtlasConfig(const char* path) {
+        std::unordered_map<std::string, AtlasRect> regions;
+        std::ifstream file(path);
+        if (!file.is_open()) return regions; // Khong co atlas.cfg - caller tu quyet dinh log gi (xem Load() ben duoi)
+
+        std::string line;
+        while (std::getline(file, line)) {
+            std::string_view trimmed = Trim(line);
+            if (trimmed.empty() || trimmed[0] == '#') continue;
+
+            size_t eq = trimmed.find('=');
+            if (eq == std::string_view::npos) continue;
+            std::string_view key = Trim(trimmed.substr(0, eq));
+            std::string_view val = Trim(trimmed.substr(eq + 1));
+            if (key.empty() || val.empty()) continue;
+
+            // Tach thu cong qua 3 dau phay (X,Y,W,H) - du nhe cho 1 dong 4 so nguyen,
+            // khong can sstream/regex. std::from_chars: khong throw, tra ve error code.
+            int parts[4];
+            bool ok = true;
+            std::string_view rest = val;
+            for (int i = 0; i < 4 && ok; i++) {
+                size_t comma = (i < 3) ? rest.find(',') : rest.size();
+                if (i < 3 && comma == std::string_view::npos) { ok = false; break; }
+                std::string_view field = Trim(rest.substr(0, comma));
+                auto res = std::from_chars(field.data(), field.data() + field.size(), parts[i]);
+                if (res.ec != std::errc{} || res.ptr != field.data() + field.size()) ok = false;
+                if (i < 3) rest = rest.substr(comma + 1);
+            }
+
+            if (!ok) {
+                TraceLog(LOG_WARNING, "SpriteSheet: dong atlas.cfg khong hop le cho ten '%.*s' - dung procedural cho ten nay",
+                          (int)key.size(), key.data());
+                continue;
+            }
+            regions[std::string(key)] = AtlasRect{ parts[0], parts[1], parts[2], parts[3] };
+        }
+        return regions;
+    }
+
+    // Cat 1 vung con tu atlas (da nap san trong RAM) thanh Texture2D rieng. `regions`
+    // rong (khong co atlas.cfg/atlas.png hop le) hoac thieu ten `name` -> goi
+    // buildFallback() ngay, KHONG dung toi atlasImg (an toan ke ca khi atlasImg la Image
+    // rong/chua tung nap). Vung toa do vuot bien anh (vd atlas.png bi thay bang ban nho
+    // hon ma quen sua .cfg) cung fallback tuong tu, kem canh bao rieng.
+    Texture2D LoadAtlasEntry(const Image& atlasImg, const std::unordered_map<std::string, AtlasRect>& regions,
+                              const char* name, Texture2D (*buildFallback)()) {
+        auto it = regions.find(name);
+        if (it == regions.end()) return buildFallback();
+
+        const AtlasRect& r = it->second;
+        bool inBounds = r.x >= 0 && r.y >= 0 && r.w > 0 && r.h > 0 &&
+                        r.x + r.w <= atlasImg.width && r.y + r.h <= atlasImg.height;
+        if (!inBounds) {
+            TraceLog(LOG_WARNING, "SpriteSheet: vung toa do cua '%s' vuot bien atlas.png - dung procedural cho ten nay", name);
+            return buildFallback();
+        }
+
+        Image cropped = ImageFromImage(atlasImg, Rectangle{ (float)r.x, (float)r.y, (float)r.w, (float)r.h });
+        Texture2D tex = LoadTextureFromImage(cropped);
+        UnloadImage(cropped);
+        return tex;
+    }
 }
 
 void SpriteSheet::Load() {
-    player      = BuildShip();
-    basicAlien  = BuildDiamondAlien();
-    tankyAlien  = BuildTankyAlien();
-    zigzagAlien = BuildZigzagAlien();
-    ufo         = BuildUfo();
-    kamikaze    = BuildKamikaze();
-    boss        = BuildBoss();
-    bossSentinel = BuildBossSentinel();
-    bossSwarmer  = BuildBossSwarmer();
+    // Thu nap atlas.png 1 LAN DUY NHAT trong RAM, dung chung de cat ca 13 ten, thay vi mo
+    // lai file cho tung ten rieng le. `regions` CHI khac rong khi atlasImg nap thanh cong
+    // (xem nhanh if ben duoi) nen LoadAtlasEntry() doc atlasImg.width/height luon an toan.
+    Image atlasImg{};
+    std::unordered_map<std::string, AtlasRect> regions;
 
-    iconRapidFire = BuildIconRapidFire();
-    iconShield    = BuildIconShield();
-    iconPiercing  = BuildIconPiercing();
-    iconCleanser  = BuildIconCleanser();
+    if (FileExists(Config::AtlasImagePath())) {
+        atlasImg = LoadImage(Config::AtlasImagePath());
+        if (atlasImg.data != nullptr) {
+            regions = ParseAtlasConfig(Config::AtlasConfigPath());
+            TraceLog(LOG_INFO, "SpriteSheet: da nap '%s' (%dx%d) - %zu/13 ten hop le trong atlas.cfg, con lai dung procedural",
+                      Config::AtlasImagePath(), atlasImg.width, atlasImg.height, regions.size());
+        } else {
+            TraceLog(LOG_WARNING, "SpriteSheet: '%s' ton tai nhung khong doc duoc - dung toan bo sprite procedural",
+                      Config::AtlasImagePath());
+        }
+    } else {
+        TraceLog(LOG_INFO, "SpriteSheet: khong tim thay '%s', dung toan bo sprite procedural", Config::AtlasImagePath());
+    }
+
+    player       = LoadAtlasEntry(atlasImg, regions, "player", BuildShip);
+    basicAlien   = LoadAtlasEntry(atlasImg, regions, "basicAlien", BuildDiamondAlien);
+    tankyAlien   = LoadAtlasEntry(atlasImg, regions, "tankyAlien", BuildTankyAlien);
+    zigzagAlien  = LoadAtlasEntry(atlasImg, regions, "zigzagAlien", BuildZigzagAlien);
+    ufo          = LoadAtlasEntry(atlasImg, regions, "ufo", BuildUfo);
+    kamikaze     = LoadAtlasEntry(atlasImg, regions, "kamikaze", BuildKamikaze);
+    boss         = LoadAtlasEntry(atlasImg, regions, "boss", BuildBoss);
+    bossSentinel = LoadAtlasEntry(atlasImg, regions, "bossSentinel", BuildBossSentinel);
+    bossSwarmer  = LoadAtlasEntry(atlasImg, regions, "bossSwarmer", BuildBossSwarmer);
+
+    iconRapidFire = LoadAtlasEntry(atlasImg, regions, "iconRapidFire", BuildIconRapidFire);
+    iconShield    = LoadAtlasEntry(atlasImg, regions, "iconShield", BuildIconShield);
+    iconPiercing  = LoadAtlasEntry(atlasImg, regions, "iconPiercing", BuildIconPiercing);
+    iconCleanser  = LoadAtlasEntry(atlasImg, regions, "iconCleanser", BuildIconCleanser);
+
+    if (atlasImg.data != nullptr) UnloadImage(atlasImg);
 }
 
 void SpriteSheet::Unload() {

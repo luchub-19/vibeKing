@@ -68,6 +68,8 @@ namespace Config {
     inline const char* SettingsFilePath() { return "settings.cfg"; }
     inline const char* FontFilePath() { return "assets/fonts/DejaVuSansMono.ttf"; }
     inline const char* BalanceFilePath() { return "assets/balance.json"; }
+    inline const char* AtlasImagePath() { return "assets/sprites/atlas.png"; }
+    inline const char* AtlasConfigPath() { return "assets/sprites/atlas.cfg"; }
 
     // ==========================================
     // DỮ LIỆU CÂN BẰNG (DATA-DRIVEN) - inline (KHÔNG const/constexpr): giá trị dưới đây
@@ -168,6 +170,26 @@ namespace Config {
     inline float BOSS_SWARMER_SWAY_FREQUENCY = 1.8f;     // rad/s
     inline float BOSS_SWARMER_SUMMON_INTERVAL = 5.0f;    // Giay giua 2 lan trieu hoi
     inline int   BOSS_SWARMER_SUMMON_COUNT = 2;          // So Kamikaze trieu hoi moi lan
+
+    // ==========================================
+    // IDLE ANIMATION (Phase 1 - Graphics/UI Overhaul, Nguoi 1): transform-THUAN luc VE
+    // cho tung dich trong RenderSystem::DrawPlaying() - CHI doi Rectangle dung de goi
+    // DrawSprite(), KHONG dung vao rect that (hitbox) cua entity, y het ky thuat
+    // sin(GetTime()) ma DrawTitleLogo() da dung (render_system.cpp). PHASE_STEP nhan voi
+    // truong `column` co san cua BasicEnemy/TankyEnemy/ZigzagEnemy (xem enemy_types.h) de
+    // ca doi hinh "gon song" thay vi nhap nhay dong loat; Kamikaze/UFO khong co `column`
+    // nen dung vi tri hien tai (rect.x) lam "hat giong" pha rieng thay the. Boss co bo
+    // hang so RIENG (BOSS_IDLE_*) vi than lon hon han cac dich khac - cung bien do px se
+    // AN NHIEU hon, va chi co 1 con tai 1 thoi diem nen khong can PHASE_STEP.
+    // ==========================================
+    inline float ANIM_IDLE_BOB_AMPLITUDE   = 2.5f;  // px - dich thuong/UFO/kamikaze
+    inline float ANIM_IDLE_BOB_FREQUENCY   = 2.2f;  // rad/s
+    inline float ANIM_IDLE_SCALE_AMPLITUDE = 0.05f; // ti le phong to/nho quanh tam (+/-5%)
+    inline float ANIM_IDLE_PHASE_STEP      = 0.4f;  // rad moi don vi `column` / moi 100px vi tri
+
+    inline float ANIM_BOSS_IDLE_BOB_AMPLITUDE   = 4.0f;  // px
+    inline float ANIM_BOSS_IDLE_BOB_FREQUENCY   = 1.2f;  // rad/s - cham/nang hon dich thuong
+    inline float ANIM_BOSS_IDLE_SCALE_AMPLITUDE = 0.03f; // than lon hon nhieu - can % nho hon de khoi "phinh to" qua ro
 
     // BUNKER LINH HOẠT
     inline float BUNKER_REGEN_INTERVAL = 4.0f;

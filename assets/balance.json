@@ -102,6 +102,16 @@
     "patrol_speed": 0.8
   },
 
+  "anim": {
+    "idle_bob_amplitude": 2.5,
+    "idle_bob_frequency": 2.2,
+    "idle_scale_amplitude": 0.05,
+    "idle_phase_step": 0.4,
+    "boss_idle_bob_amplitude": 4.0,
+    "boss_idle_bob_frequency": 1.2,
+    "boss_idle_scale_amplitude": 0.03
+  },
+
   "dda": {
     "step_up": 0.05,
     "step_down": 0.10,
