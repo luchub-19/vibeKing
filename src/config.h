@@ -305,3 +305,40 @@ inline Difficulty CycleDifficulty(Difficulty d, int dir) {
     if (v > 2) v = 0;
     return (Difficulty)v;
 }
+
+// ==========================================
+// LIGHTING & WORLD (post_process.h/.cpp + parallax.h/.cpp) - hang so TRINH BAY/HINH ANH,
+// KHONG phai du lieu can bang gameplay (HP/toc do/wave pattern/...) nen giu constexpr,
+// khong dua vao balance.json/LoadBalance() - dung tien le TRANSITION_DURATION o tren
+// (constexpr, "UI/engine, khong phai can bang"). Muon tune thi sua truc tiep roi build
+// lai, khong phai runtime qua JSON.
+//
+// BLOOM_ENABLED/CRT_ENABLED: bat/tat TUNG hieu ung DOC LAP, chi can doi true/false roi
+// build lai - khong dung Settings/menu rieng cho viec nay.
+// ==========================================
+namespace Config {
+    // --- Bloom (trich sang + blur 2 chieu + cong don/additive vao anh goc) ---
+    constexpr bool  BLOOM_ENABLED     = true;
+    constexpr float BLOOM_THRESHOLD   = 0.6f;  // Nguong do sang (luma, 0..1) de tinh la vung "bloom". CHU Y: mau XANH LA thuan (chu dao game nay - alien/title) co luma ~0.715 - nguong phai THAP HON gia tri nay thi alien/title moi co bloom (verify bang screenshot thuc te: nguong 0.75 ban dau lam alien/title KHONG bloom gi ca, ha xuong 0.6 moi thay ro)
+    constexpr float BLOOM_INTENSITY   = 1.0f;  // He so nhan mau khi trich xuat vung sang, TRUOC khi blur (shader bloom_extract.fs) - co the >1 de "chay sang" manh hon
+    constexpr int   BLOOM_DOWNSAMPLE  = 2;     // Chia do phan giai renderTarget cho so nay khi lam texture trung gian (2 = nua do phan giai) - blur re hon, upscale lai cung lam blur "mem" hon tu nhien
+    constexpr float BLOOM_BLUR_SPREAD = 1.5f;  // He so nhan them vao buoc lay mau cua Gauss 1 chieu (blur.fs) - lon hon = quang sang loang rong hon
+
+    // --- CRT (scanline + vignette + nhap nhay nhe) ---
+    constexpr bool  CRT_ENABLED           = true;
+    constexpr float CRT_SCANLINE_STRENGTH = 0.15f;  // Do toi cua hang quet toi xen ke (0 = tat, 1 = den hoan toan)
+    constexpr float CRT_VIGNETTE_STRENGTH = 0.6f;   // Do toi dan ra vien man hinh
+    constexpr float CRT_FLICKER_STRENGTH  = 0.015f; // Bien do nhap nhay do sang theo thoi gian - rat nho, chi de "song dong", khong gay kho chiu/loa mat
+
+    // --- Parallax starfield (ve truoc MOI trang thai Menu/Playing/EndScreen...) ---
+    constexpr int   PARALLAX_STAR_COUNT  = 90; // Tong so sao ca 3 lop cong lai - kich thuoc std::array trong Parallax (xem parallax.h)
+    constexpr int   PARALLAX_LAYER_COUNT = 3;  // Lop xa/giua/gan - xem Parallax::Init() (parallax.cpp)
+    constexpr float PARALLAX_SPEED_FAR   = 12.0f; // px/giay, lop xa nhat (nho + mo + cham nhat)
+    constexpr float PARALLAX_SPEED_NEAR  = 45.0f; // px/giay, lop gan nhat (to + sang + nhanh nhat)
+
+    // --- Duong dan shader (tuong doi so voi thu muc lam viec luc chay executable - cung
+    // quy uoc voi FontFilePath()/BalanceFilePath() o tren) ---
+    inline const char* BloomExtractShaderPath() { return "assets/shaders/bloom_extract.fs"; }
+    inline const char* BlurShaderPath()         { return "assets/shaders/blur.fs"; }
+    inline const char* CrtShaderPath()          { return "assets/shaders/crt.fs"; }
+}

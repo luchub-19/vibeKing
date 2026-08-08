@@ -634,6 +634,8 @@ void GameManager::Run() {
     // se bi stretch bien dang).
     renderTarget = LoadRenderTexture(Config::SCREEN_W, Config::SCREEN_H);
     SetTextureFilter(renderTarget.texture, TEXTURE_FILTER_BILINEAR);
+    postProcess.Init(); // Bloom/CRT (Config::BLOOM_ENABLED/CRT_ENABLED) - xem post_process.h
+    background.Init();  // Starfield - xem parallax.h
 
     settings = Settings::LoadFromFile(Config::SettingsFilePath());
     difficulty = settings.difficulty;
@@ -664,6 +666,8 @@ void GameManager::Run() {
         // toi kich thuoc window/monitor that).
         BeginTextureMode(renderTarget);
         ClearBackground(BLACK);
+
+        background.Draw(); // Starfield - duoi cung MOI trang thai (Menu/Playing/EndScreen...), truoc noi dung tung state
 
         switch (state) {
             case GameState::MENU: RenderSystem::DrawMenu(*this); break;
@@ -699,7 +703,7 @@ void GameManager::Run() {
         // thuong (quy uoc OpenGL) - day la buoc lat lai chuan, khong phai 1 hack.
         Rectangle src{ 0.0f, 0.0f, (float)renderTarget.texture.width, -(float)renderTarget.texture.height };
         Rectangle dst{ destX, destY, destW, destH };
-        DrawTexturePro(renderTarget.texture, src, dst, { 0.0f, 0.0f }, 0.0f, WHITE);
+        postProcess.Render(renderTarget, src, dst); // Bloom + CRT (neu bat) - fallback ve dung 1 DrawTexturePro nhu truoc neu ca 2 tat/loi luc Init()
 
         // OVERLAY DO LUONG: ve o TOA DO MAN HINH THAT (ngoai canh render texture noi bo
         // 800x600 vua upscale o tren) - luon sac net va o dung goc man hinh du dang
@@ -710,6 +714,7 @@ void GameManager::Run() {
     }
 
     UnloadRenderTexture(renderTarget);
+    postProcess.Shutdown();
     if (gameFont.texture.id != GetFontDefault().texture.id) UnloadFont(gameFont); // Chi unload neu KHONG phai font fallback mac dinh cua raylib
     sprites.Unload();
     audio.Shutdown();

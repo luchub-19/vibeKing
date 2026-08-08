@@ -42,8 +42,10 @@ set(SOURCES
     src/leaderboard.cpp
     src/level_config.cpp
     src/main.cpp
+    src/parallax.cpp
     src/physics_system.cpp
     src/player.cpp
+    src/post_process.cpp
     src/render_system.cpp
     src/settings.cpp
     src/sprites.cpp
@@ -67,8 +69,9 @@ endif()
 #
 # test_game_manager.cpp/test_physics_system.cpp la ngoai le duy nhat can link CA
 # game_manager.cpp/physics_system.cpp (va theo do la render_system.cpp/audio_system.cpp/
-# sprites.cpp/file_logger.cpp/level_config.cpp - moi file GameManager::Run() dung toi, dai
-# dien ca binary phai bien dich duoc) - nhung BAN THAN cac test do van KHONG goi Run()/
+# sprites.cpp/file_logger.cpp/level_config.cpp/parallax.cpp/post_process.cpp - moi file
+# GameManager::Run() dung toi, dai dien ca binary phai bien dich duoc) - nhung BAN THAN
+# cac test do van KHONG goi Run()/
 # InitWindow() o bat ky dau (goi thang UpdatePlaying()/CheckCollisions() qua
 # GameManagerTestAccess, xem tests/game_manager_test_access.h). Van chay headless duoc vi
 # raylib tu no-op an toan khi chua InitWindow()/InitAudioDevice() (IsKeyDown/
@@ -94,6 +97,7 @@ if(BUILD_TESTS)
         tests/test_wave_generator.cpp
         tests/test_game_manager.cpp
         tests/test_physics_system.cpp
+        tests/test_parallax.cpp
         src/leaderboard.cpp
         src/config.cpp
         src/bunker.cpp
@@ -108,6 +112,8 @@ if(BUILD_TESTS)
         src/sprites.cpp
         src/file_logger.cpp
         src/level_config.cpp
+        src/parallax.cpp
+        src/post_process.cpp
     )
     target_include_directories(unit_tests PRIVATE src tests)
     target_link_libraries(unit_tests raylib)
