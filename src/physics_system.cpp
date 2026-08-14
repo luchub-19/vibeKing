@@ -414,6 +414,70 @@ void PhysicsSystem::UpdateUfo(GameManager& gm, float dt) {
 }
 
 // ==========================================
+// WEAVER (Phase 2 - Enemy & Item Revolution, Nguoi 1): bay ngang xuyen man hinh theo
+// duong hinh sin (khong ban) - moi de doa la KHO BAN TRUNG do duong bay lac, khac han
+// Bomber (di thang, de ban hon, nhung tha bom ap luc tu tren cao). Khong tham gia
+// activeCount/hitEdge cua UpdateEnemies() - dung y Kamikaze/UFO.
+// ==========================================
+void PhysicsSystem::UpdateWeaverEnemies(GameManager& gm, float dt) {
+    gm.weaverSpawnTimer -= dt;
+    if (gm.weaverSpawnTimer <= 0.0f && gm.weaverEnemies.Size() < Config::MAX_WEAVER_ENEMIES) {
+        gm.SpawnWeaver();
+    }
+
+    for (size_t i = 0; i < gm.weaverEnemies.Size(); ) {
+        WeaverEnemy& w = gm.weaverEnemies[i];
+        w.rect.x += (float)w.direction * Config::WEAVER_SPEED_X * dt;
+        w.phase += Config::WEAVER_WEAVE_FREQUENCY * dt;
+        // baseY la TAM co dinh (khong doi) - rect.y duoc TINH LAI moi frame tu baseY +
+        // sin(phase), khong cong don truc tiep vao rect.y, nen khong the "troi" xa dan
+        // khoi bien do mong muon du chay bao lau.
+        w.rect.y = w.baseY + sinf(w.phase) * Config::WEAVER_WEAVE_AMPLITUDE;
+
+        bool exitedRight = (w.direction > 0 && w.rect.x > Config::SCREEN_W);
+        bool exitedLeft  = (w.direction < 0 && w.rect.x + w.rect.width < 0);
+        if (exitedRight || exitedLeft) {
+            gm.weaverEnemies.Destroy(i); // Bay het man hinh ma khong trung ai -> bien mat, khong phat (giong UFO/Kamikaze)
+            continue;
+        }
+        i++;
+    }
+}
+
+// ==========================================
+// BOMBER (Phase 2 - Enemy & Item Revolution, Nguoi 1): bay ngang THANG (khong lac nhu
+// Weaver - de phan biet 2 loai tu xa), dinh ky tha 1 dan xuong thang qua enemyBullets
+// (dung CHUNG pool/toc do voi moi dan dich khac - khong tao rieng khai niem "bom").
+// ==========================================
+void PhysicsSystem::UpdateBomberEnemies(GameManager& gm, float dt) {
+    gm.bomberSpawnTimer -= dt;
+    if (gm.bomberSpawnTimer <= 0.0f && gm.bomberEnemies.Size() < Config::MAX_BOMBER_ENEMIES) {
+        gm.SpawnBomber();
+    }
+
+    for (size_t i = 0; i < gm.bomberEnemies.Size(); ) {
+        BomberEnemy& b = gm.bomberEnemies[i];
+        b.rect.x += (float)b.direction * Config::BOMBER_SPEED_X * dt;
+
+        b.bombTimer -= dt;
+        if (b.bombTimer <= 0.0f) {
+            b.bombTimer = Config::BOMBER_BOMB_INTERVAL;
+            Vector2 vel{ 0.0f, Config::ENEMY_BULLET_SPEED }; // Y duong = roi xuong (Y+ la xuong duoi)
+            gm.enemyBullets.Fire(b.rect.x + b.rect.width / 2.0f - Config::BULLET_WIDTH / 2.0f,
+                                  b.rect.y + b.rect.height, vel);
+        }
+
+        bool exitedRight = (b.direction > 0 && b.rect.x > Config::SCREEN_W);
+        bool exitedLeft  = (b.direction < 0 && b.rect.x + b.rect.width < 0);
+        if (exitedRight || exitedLeft) {
+            gm.bomberEnemies.Destroy(i);
+            continue;
+        }
+        i++;
+    }
+}
+
+// ==========================================
 // BOSS - dung chung EnemyPool<Boss,1> nhu moi loai dich khac (xem game_manager.h);
 // Size()==0 nghia la chua spawn/da bi ha, Size()==1 nghia la con song - khong con `bool
 // bossActive` rieng phai giu dong bo thu cong voi hp.
@@ -537,12 +601,16 @@ void PhysicsSystem::CheckCollisions(GameManager& gm) {
     gm.kamikazeGrid.Clear();
     gm.wardenGrid.Clear();
     gm.medicGrid.Clear();
+    gm.weaverGrid.Clear(); // Phase 2, Nguoi 1
+    gm.bomberGrid.Clear(); // Phase 2, Nguoi 1
     for (size_t i = 0; i < gm.basicEnemies.Size(); i++)    gm.basicGrid.Insert((int)i, gm.basicEnemies[i].rect);
     for (size_t i = 0; i < gm.tankyEnemies.Size(); i++)    gm.tankyGrid.Insert((int)i, gm.tankyEnemies[i].rect);
     for (size_t i = 0; i < gm.zigzagEnemies.Size(); i++)   gm.zigzagGrid.Insert((int)i, gm.zigzagEnemies[i].rect);
     for (size_t i = 0; i < gm.kamikazeEnemies.Size(); i++) gm.kamikazeGrid.Insert((int)i, gm.kamikazeEnemies[i].rect);
     for (size_t i = 0; i < gm.wardenEnemies.Size(); i++)   gm.wardenGrid.Insert((int)i, gm.wardenEnemies[i].rect);
     for (size_t i = 0; i < gm.medicEnemies.Size(); i++)    gm.medicGrid.Insert((int)i, gm.medicEnemies[i].rect);
+    for (size_t i = 0; i < gm.weaverEnemies.Size(); i++)   gm.weaverGrid.Insert((int)i, gm.weaverEnemies[i].rect); // Phase 2, Nguoi 1
+    for (size_t i = 0; i < gm.bomberEnemies.Size(); i++)   gm.bomberGrid.Insert((int)i, gm.bomberEnemies[i].rect); // Phase 2, Nguoi 1
 
     // Boss: chi la 1 pool nua (Capacity=1) - khong co nhanh rieng nao kiem tra
     // "isBossWave"; Size()==0 tu dong khong dang ky gi vao grid, y het cach 1 pool rong
@@ -566,6 +634,8 @@ void PhysicsSystem::CheckCollisions(GameManager& gm) {
     std::array<bool, Config::MAX_KAMIKAZE>       kamikazePendingKill{};
     std::array<bool, Config::MAX_WARDEN_ENEMIES> wardenPendingKill{};
     std::array<bool, Config::MAX_MEDIC_ENEMIES>  medicPendingKill{};
+    std::array<bool, Config::MAX_WEAVER_ENEMIES> weaverPendingKill{}; // Phase 2, Nguoi 1
+    std::array<bool, Config::MAX_BOMBER_ENEMIES> bomberPendingKill{}; // Phase 2, Nguoi 1
 
     std::vector<int> candidates; // Tai dung buffer cho moi query, tranh cap phat lap lai
 
@@ -696,6 +766,20 @@ void PhysicsSystem::CheckCollisions(GameManager& gm) {
                                                    });
         }
 
+        // Weaver/Bomber (Phase 2, Nguoi 1): cung khuon Kamikaze o tren - 1 mau, grid rieng,
+        // khong lien quan gi toi luoi doi hinh, khong customizeEvent gi rieng (dung mac
+        // dinh cua MakeEnemyKilledEvent nhu Basic/Zigzag/Medic).
+        if (!consumed) {
+            consumed = ResolveOneHitKillCollision(gm, bullet, i, gm.weaverEnemies, gm.weaverGrid, bulletRect,
+                                                   weaverPendingKill, candidates, WeaverEnemy::SCORE_VALUE, removed,
+                                                   [](GameEvent&) {});
+        }
+        if (!consumed) {
+            consumed = ResolveOneHitKillCollision(gm, bullet, i, gm.bomberEnemies, gm.bomberGrid, bulletRect,
+                                                   bomberPendingKill, candidates, BomberEnemy::SCORE_VALUE, removed,
+                                                   [](GameEvent&) {});
+        }
+
         // Boss: nhieu mau nhat trong game - tru hp ngay, chi bao "chet" khi hp<=0
         // (UpdatePlaying() se phat hien va xu ly WAVE_CLEAR - xem duoi). Cung KHUON MAU
         // voi khoi Kamikaze o tren: query grid rieng -> for candidates -> tru hp/danh
@@ -786,6 +870,22 @@ void PhysicsSystem::CheckCollisions(GameManager& gm) {
         if (medicPendingKill[i]) {
             medicPendingKill[i] = medicPendingKill[gm.medicEnemies.Size() - 1];
             gm.medicEnemies.Destroy(i);
+        } else {
+            i++;
+        }
+    }
+    for (size_t i = 0; i < gm.weaverEnemies.Size(); ) { // Phase 2, Nguoi 1
+        if (weaverPendingKill[i]) {
+            weaverPendingKill[i] = weaverPendingKill[gm.weaverEnemies.Size() - 1];
+            gm.weaverEnemies.Destroy(i);
+        } else {
+            i++;
+        }
+    }
+    for (size_t i = 0; i < gm.bomberEnemies.Size(); ) { // Phase 2, Nguoi 1
+        if (bomberPendingKill[i]) {
+            bomberPendingKill[i] = bomberPendingKill[gm.bomberEnemies.Size() - 1];
+            gm.bomberEnemies.Destroy(i);
         } else {
             i++;
         }

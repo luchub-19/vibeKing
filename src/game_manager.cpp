@@ -73,6 +73,8 @@ void GameManager::InitLevel(bool newGame) {
     kamikazeEnemies.Clear();
     wardenEnemies.Clear();
     medicEnemies.Clear();
+    weaverEnemies.Clear(); // Phase 2, Nguoi 1
+    bomberEnemies.Clear(); // Phase 2, Nguoi 1
     bunkers.clear();
     playerBullets.Reset();
     enemyBullets.Reset();
@@ -84,6 +86,8 @@ void GameManager::InitLevel(bool newGame) {
     ufoActive = false;
     RollNextUfoTimer();
     RollNextKamikazeTimer();
+    RollNextWeaverTimer(); // Phase 2, Nguoi 1
+    RollNextBomberTimer(); // Phase 2, Nguoi 1
     bossPool.Clear(); // Thay the `bossActive = false` cu - Size()==0 la dinh nghia DUY NHAT cua "boss chua/khong con song"
 
     // BOSS WAVE: cu moi Config::BOSS_WAVE_INTERVAL wave, thay THE HOAN TOAN luoi doi
@@ -300,6 +304,47 @@ void GameManager::SpawnKamikaze() {
 }
 
 // ==========================================
+// WEAVER & BOMBER (Phase 2 - Enemy & Item Revolution, Nguoi 1) - dung khuon UFO o tren
+// (Spawn*/RollNext*Timer() o day, di chuyen+va cham o PhysicsSystem), KHONG dung khuon
+// SpawnKamikaze() ("boc" tu doi hinh) - xem giai thich tren struct WeaverEnemy trong
+// enemy_types.h.
+// ==========================================
+void GameManager::RollNextWeaverTimer() {
+    int minMs = (int)(Config::WEAVER_SPAWN_MIN_INTERVAL * 1000.0f);
+    int maxMs = (int)(Config::WEAVER_SPAWN_MAX_INTERVAL * 1000.0f);
+    weaverSpawnTimer = (float)GetRandomValue(minMs, maxMs) / 1000.0f;
+}
+
+void GameManager::SpawnWeaver() {
+    int direction = (GetRandomValue(0, 1) == 0) ? 1 : -1;
+    float startX = (direction > 0) ? -Config::WEAVER_WIDTH : (float)Config::SCREEN_W;
+    // baseY quay ngau nhien moi lan spawn (khac UFO co UFO_Y co dinh) - nhieu Weaver
+    // cung luc se bay o nhieu do cao khac nhau, dung tinh than "kho doan duong bay".
+    float baseY = (float)GetRandomValue((int)Config::WEAVER_BASE_Y_MIN, (int)Config::WEAVER_BASE_Y_MAX);
+    Rectangle rect{ startX, baseY, Config::WEAVER_WIDTH, Config::WEAVER_HEIGHT };
+    weaverEnemies.Spawn(WeaverEnemy{ rect, YELLOW, direction, baseY, 0.0f });
+    RollNextWeaverTimer();
+}
+
+void GameManager::RollNextBomberTimer() {
+    int minMs = (int)(Config::BOMBER_SPAWN_MIN_INTERVAL * 1000.0f);
+    int maxMs = (int)(Config::BOMBER_SPAWN_MAX_INTERVAL * 1000.0f);
+    bomberSpawnTimer = (float)GetRandomValue(minMs, maxMs) / 1000.0f;
+}
+
+void GameManager::SpawnBomber() {
+    int direction = (GetRandomValue(0, 1) == 0) ? 1 : -1;
+    float startX = (direction > 0) ? -Config::BOMBER_WIDTH : (float)Config::SCREEN_W;
+    Rectangle rect{ startX, Config::BOMBER_Y, Config::BOMBER_WIDTH, Config::BOMBER_HEIGHT };
+    // bombTimer bat dau tu 1 gia tri random trong [0, BOMBER_BOMB_INTERVAL] (khong phai
+    // luon = BOMBER_BOMB_INTERVAL) de nhieu Bomber tren man hinh khong tha bom DONG BO
+    // cung 1 nhip - cam giac hon loan/tu nhien hon.
+    float initialBombTimer = (float)GetRandomValue(0, (int)(Config::BOMBER_BOMB_INTERVAL * 1000.0f)) / 1000.0f;
+    bomberEnemies.Spawn(BomberEnemy{ rect, ORANGE, direction, initialBombTimer });
+    RollNextBomberTimer();
+}
+
+// ==========================================
 // BOSS - Spawn (thiet lap hp/vi tri ban dau) o day; di chuyen+ban+va cham do
 // PhysicsSystem::UpdateBoss()/CheckCollisions() xu ly qua chung 1 EnemyPool<Boss,1>.
 // ==========================================
@@ -472,6 +517,8 @@ void GameManager::UpdatePlaying(float dt) {
     powerUps.Update(dt, Config::POWERUP_FALL_SPEED, (float)Config::SCREEN_H);
     PhysicsSystem::UpdateUfo(*this, dt);
     PhysicsSystem::UpdateKamikaze(*this, dt);
+    PhysicsSystem::UpdateWeaverEnemies(*this, dt); // Phase 2, Nguoi 1 - cung khuon UFO/Kamikaze: chay KHONG DIEU KIEN, ke ca boss wave
+    PhysicsSystem::UpdateBomberEnemies(*this, dt); // Phase 2, Nguoi 1
     for (auto& bunker : bunkers) bunker.Update(dt); // Regen voxel + dao dong ngang
 
     if (comboTimer > 0.0f) {

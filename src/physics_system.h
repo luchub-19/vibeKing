@@ -45,6 +45,11 @@ public:
     static void UpdateMedicEnemies(GameManager& gm, float dt, bool alreadyFlipped);
     static void UpdateKamikaze(GameManager& gm, float dt);
     static void UpdateUfo(GameManager& gm, float dt);
+    // Weaver/Bomber (Phase 2, Nguoi 1): dung khuon UpdateKamikaze/UpdateUfo o tren (khong
+    // nhan alreadyFlipped - 2 loai nay khong thuoc doi hinh nen khong co khai niem "doi
+    // huong doi hinh" de tranh trung lap).
+    static void UpdateWeaverEnemies(GameManager& gm, float dt);
+    static void UpdateBomberEnemies(GameManager& gm, float dt);
     static void UpdateBoss(GameManager& gm, float dt);
 
     static void CheckCollisions(GameManager& gm);

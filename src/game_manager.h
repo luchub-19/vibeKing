@@ -205,8 +205,24 @@ private:
     EnemyPool<MedicEnemy, Config::MAX_MEDIC_ENEMIES> medicEnemies;
     SpatialGrid medicGrid{ (float)Config::SCREEN_W, (float)Config::SCREEN_H, 80.0f,
                            (int)Config::MAX_MEDIC_ENEMIES, (int)Config::MAX_MEDIC_ENEMIES * 4 };
-    // TODO (Phase 2, Nguoi 1): EnemyPool<WeaverEnemy,...>/EnemyPool<BomberEnemy,...> + grid
-    // + spawn timer rieng (cung khuon Kamikaze o tren) se them ngay duoi day.
+    // WEAVER/BOMBER (Phase 2 - Enemy & Item Revolution, Nguoi 1): dung khuon Kamikaze o
+    // tren (pool+grid+timer rieng, khong dinh gi den WaveGenerator/luoi doi hinh - xem
+    // enemy_types.h) - phan spawn (SpawnWeaver/SpawnBomber/RollNext*Timer) dung khuon
+    // SpawnUfo/RollNextUfoTimer thay vi SpawnKamikaze (khong "boc" tu doi hinh, luon bay
+    // vao tu ngoai man hinh).
+    EnemyPool<WeaverEnemy, Config::MAX_WEAVER_ENEMIES> weaverEnemies;
+    SpatialGrid weaverGrid{ (float)Config::SCREEN_W, (float)Config::SCREEN_H, 80.0f,
+                            (int)Config::MAX_WEAVER_ENEMIES, (int)Config::MAX_WEAVER_ENEMIES * 4 };
+    float weaverSpawnTimer = 0.0f;
+    void SpawnWeaver();
+    void RollNextWeaverTimer();
+
+    EnemyPool<BomberEnemy, Config::MAX_BOMBER_ENEMIES> bomberEnemies;
+    SpatialGrid bomberGrid{ (float)Config::SCREEN_W, (float)Config::SCREEN_H, 80.0f,
+                            (int)Config::MAX_BOMBER_ENEMIES, (int)Config::MAX_BOMBER_ENEMIES * 4 };
+    float bomberSpawnTimer = 0.0f;
+    void SpawnBomber();
+    void RollNextBomberTimer();
 
     // BOSS: dung CHUNG khuon EnemyPool<T,Capacity> nhu moi loai dich khac (Capacity=1) -
     // KHONG con bool `bossActive` rieng phai giu dong bo tay voi hp: Size()==0 nghia la

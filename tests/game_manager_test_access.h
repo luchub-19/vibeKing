@@ -82,6 +82,13 @@ public:
     static EnemyPool<KamikazeEnemy, Config::MAX_KAMIKAZE>& KamikazeEnemies(GameManager& gm) { return gm.kamikazeEnemies; }
     static EnemyPool<WardenEnemy, Config::MAX_WARDEN_ENEMIES>& WardenEnemies(GameManager& gm) { return gm.wardenEnemies; }
     static EnemyPool<MedicEnemy, Config::MAX_MEDIC_ENEMIES>& MedicEnemies(GameManager& gm) { return gm.medicEnemies; }
+    // Phase 2 (Enemy & Item Revolution, Nguoi 1)
+    static EnemyPool<WeaverEnemy, Config::MAX_WEAVER_ENEMIES>& WeaverEnemies(GameManager& gm) { return gm.weaverEnemies; }
+    static EnemyPool<BomberEnemy, Config::MAX_BOMBER_ENEMIES>& BomberEnemies(GameManager& gm) { return gm.bomberEnemies; }
+    static float WeaverSpawnTimer(const GameManager& gm) { return gm.weaverSpawnTimer; }
+    static void SetWeaverSpawnTimer(GameManager& gm, float t) { gm.weaverSpawnTimer = t; }
+    static float BomberSpawnTimer(const GameManager& gm) { return gm.bomberSpawnTimer; }
+    static void SetBomberSpawnTimer(GameManager& gm, float t) { gm.bomberSpawnTimer = t; }
     static EnemyPool<Boss, 1>& BossPool(GameManager& gm) { return gm.bossPool; }
 
     // Phase 1a (Enemy & Item Revolution, Nguoi 1): can doc/ghi truc tiep de test guard

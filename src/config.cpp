@@ -82,6 +82,21 @@ namespace {
         Assign(s, "medic_spawn_chance_base", Config::MEDIC_SPAWN_CHANCE_BASE);
         Assign(s, "medic_spawn_chance_max", Config::MEDIC_SPAWN_CHANCE_MAX);
         Assign(s, "medic_spawn_chance_wave_step", Config::MEDIC_SPAWN_CHANCE_WAVE_STEP);
+
+        // Phase 2 (Enemy & Item Revolution, Nguoi 1): Weaver/Bomber KHONG di qua
+        // WaveGenerator (khong co spawn_chance/budget nhu Warden/Medic o tren) - van CUNG
+        // muc "enemy_stats" vi van la du lieu can bang dich, chi khac co che spawn.
+        Assign(s, "weaver_score", WeaverEnemy::SCORE_VALUE);
+        Assign(s, "weaver_spawn_min_interval", Config::WEAVER_SPAWN_MIN_INTERVAL);
+        Assign(s, "weaver_spawn_max_interval", Config::WEAVER_SPAWN_MAX_INTERVAL);
+        Assign(s, "weaver_speed_x", Config::WEAVER_SPEED_X);
+        Assign(s, "weaver_weave_amplitude", Config::WEAVER_WEAVE_AMPLITUDE);
+        Assign(s, "weaver_weave_frequency", Config::WEAVER_WEAVE_FREQUENCY);
+        Assign(s, "bomber_score", BomberEnemy::SCORE_VALUE);
+        Assign(s, "bomber_spawn_min_interval", Config::BOMBER_SPAWN_MIN_INTERVAL);
+        Assign(s, "bomber_spawn_max_interval", Config::BOMBER_SPAWN_MAX_INTERVAL);
+        Assign(s, "bomber_speed_x", Config::BOMBER_SPEED_X);
+        Assign(s, "bomber_bomb_interval", Config::BOMBER_BOMB_INTERVAL);
     }
 
     void LoadUfo(const json& root) {

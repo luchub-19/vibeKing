@@ -122,6 +122,35 @@ struct KamikazeEnemy {
 };
 
 // ==========================================
+// WEAVER & BOMBER (Phase 2 - Enemy & Item Revolution, Nguoi 1): 2 loai "thoat luoi"
+// giong Kamikaze o tren (pool + spawn timer + grid HOAN TOAN rieng, khong dinh gi den
+// doi hinh Basic/Tanky/Zigzag/luoi wave) nhung KHAC co che spawn - khong "boc" tu doi
+// hinh nhu Kamikaze, ma luon bay VAO tu ngoai man hinh (trai hoac phai) roi bay xuyen
+// qua, giong het khuon UFO (xem SpawnUfo()/UpdateUfo() - do la ly do TASK_SPLIT.md ghi
+// "cung khuon ufoSpawnTimer" thay vi khuon Kamikaze cho phan spawn). Ca 2 deu 1-mau
+// (chet ngay khi trung dan, khong co field hp) - do "kho ban trung" da den tu duong bay
+// (Weaver) hoac tu ap luc tha bom (Bomber), khong can them do day HP nhu Warden.
+// ==========================================
+struct WeaverEnemy {
+    Rectangle rect;
+    Color color;
+    int direction = 1;  // 1 = trai->phai, -1 = nguoc lai - co dinh SUOT doi song, khong doi giua chung
+    float baseY = 0.0f;  // Tam Y de dao dong hinh sin quanh - KHONG doi thang vao rect.y de tranh tich luy sai so lam tron qua nhieu frame
+    float phase = 0.0f;  // Pha dao dong hien tai (rad), tang dan theo Config::WEAVER_WEAVE_FREQUENCY*dt moi frame
+
+    static inline int SCORE_VALUE = 60;
+};
+
+struct BomberEnemy {
+    Rectangle rect;
+    Color color;
+    int direction = 1;    // Cung quy uoc voi WeaverEnemy::direction o tren
+    float bombTimer = 0.0f; // Dem nguoc den lan tha bom (enemy bullet ban thang xuong) ke tiep
+
+    static inline int SCORE_VALUE = 55;
+};
+
+// ==========================================
 // BOSS - 1 thực thể duy nhất (không cần EnemyPool), rect lớn hơn hẳn 1 ô SpatialGrid
 // (80px) nên khi Insert() vào bossGrid sẽ tự động đăng ký vào NHIỀU ô cùng lúc (xem
 // SpatialGrid::Insert - đã hỗ trợ sẵn multi-cell từ trước, không cần sửa gì thêm).

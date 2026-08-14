@@ -211,6 +211,37 @@ static Rectangle IdleWobble(Rectangle r, float time, float phase, float bobAmp, 
     return r;
 }
 
+// Phase 2 (Enemy & Item Revolution, Nguoi 1): 2 HAM VE MOI rieng cho Weaver/Bomber -
+// KHONG dong vao vong lap ve Basic/Tanky/Zigzag/Warden/Medic/Kamikaze o trong
+// DrawPlaying() (chi them 2 loi goi MOI o do, xem ben duoi) - cung tinh than "khong sua
+// ham ve enemy hien co" nhu TASK_SPLIT.md yeu cau.
+void RenderSystem::DrawWeaverEnemies(const GameManager& gm, float animTime) {
+    for (size_t i = 0; i < gm.weaverEnemies.Size(); i++) {
+        const WeaverEnemy& e = gm.weaverEnemies[i];
+        if (!Culling::IsVisible(e.rect)) continue;
+        // Dung chinh `phase` dao dong CUA Weaver lam luon "hat giong" cho IdleWobble
+        // (thay vi tinh rieng tu rect.x nhu Kamikaze) - 2 chuyen dong hoa hop voi nhau
+        // thay vi lech pha ngau nhien.
+        Rectangle drawRect = IdleWobble(e.rect, animTime, e.phase, Config::ANIM_IDLE_BOB_AMPLITUDE,
+                                         Config::ANIM_IDLE_BOB_FREQUENCY, Config::ANIM_IDLE_SCALE_AMPLITUDE);
+        DrawSprite(gm.sprites.weaver, drawRect, e.color);
+    }
+}
+
+void RenderSystem::DrawBomberEnemies(const GameManager& gm, float animTime) {
+    for (size_t i = 0; i < gm.bomberEnemies.Size(); i++) {
+        const BomberEnemy& e = gm.bomberEnemies[i];
+        if (!Culling::IsVisible(e.rect)) continue;
+        // Khong co truong column (giong Kamikaze) - dung vi tri X hien tai lam hat giong
+        // pha rieng, cung khuon Kamikaze (khac Weaver o tren dung duoc phase dao dong co
+        // san cua chinh no).
+        float phase = e.rect.x * Config::ANIM_IDLE_PHASE_STEP / 100.0f;
+        Rectangle drawRect = IdleWobble(e.rect, animTime, phase, Config::ANIM_IDLE_BOB_AMPLITUDE,
+                                         Config::ANIM_IDLE_BOB_FREQUENCY, Config::ANIM_IDLE_SCALE_AMPLITUDE);
+        DrawSprite(gm.sprites.bomber, drawRect, e.color);
+    }
+}
+
 void RenderSystem::DrawPlaying(const GameManager& gm) {
     Camera2D cam{};
     cam.offset = gm.screenShake.GetOffset();
@@ -293,6 +324,8 @@ void RenderSystem::DrawPlaying(const GameManager& gm) {
                                          Config::ANIM_IDLE_BOB_FREQUENCY, Config::ANIM_IDLE_SCALE_AMPLITUDE);
         DrawSprite(gm.sprites.kamikaze, drawRect, e.color);
     }
+    DrawWeaverEnemies(gm, animTime); // Phase 2, Nguoi 1
+    DrawBomberEnemies(gm, animTime); // Phase 2, Nguoi 1
     if (gm.ufoActive && Culling::IsVisible(gm.ufoRect)) {
         // Chi 1 UFO ton tai cung luc (xem gm.ufoActive) - khong can lech pha rieng (phase=0).
         Rectangle drawRect = IdleWobble(gm.ufoRect, animTime, 0.0f, Config::ANIM_IDLE_BOB_AMPLITUDE,

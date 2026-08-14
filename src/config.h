@@ -64,6 +64,13 @@ namespace Config {
     constexpr size_t MAX_WARDEN_ENEMIES = 10;
     constexpr size_t MAX_MEDIC_ENEMIES  = 10;
 
+    // WEAVER/BOMBER (Phase 2 - Enemy & Item Revolution, Nguoi 1): KHAC MAX_WARDEN_ENEMIES/
+    // MAX_MEDIC_ENEMIES o tren - day KHONG phai budget cua WaveGenerator (2 loai nay
+    // khong di qua WaveGenerator, xem enemy_types.h), chi don thuan la tran an toan cho
+    // EnemyPool + SpatialGrid, cung khuon MAX_KAMIKAZE o tren.
+    constexpr size_t MAX_WEAVER_ENEMIES = 6;
+    constexpr size_t MAX_BOMBER_ENEMIES = 5;
+
     constexpr float TRANSITION_DURATION = 0.25f; // Thời gian fade giữa các state - UI/engine, không phải cân bằng
     constexpr int FONT_BASE_SIZE = 48;
     constexpr int LEADERBOARD_MAX_ENTRIES = 10;
@@ -171,6 +178,29 @@ namespace Config {
     inline float KAMIKAZE_SPEED = 220.0f;
     inline float KAMIKAZE_WIDTH  = 28.0f;
     inline float KAMIKAZE_HEIGHT = 28.0f;
+
+    // ==========================================
+    // WEAVER & BOMBER (Phase 2 - Enemy & Item Revolution, Nguoi 1) - xem enemy_types.h.
+    // Spawn/toc do dung khuon UFO (KAMIKAZE_SPEED/KAMIKAZE_WIDTH o tren la khuon Kamikaze,
+    // KHONG phai khuon dung cho 2 loai nay - xem comment tren struct WeaverEnemy).
+    // ==========================================
+    inline float WEAVER_SPAWN_MIN_INTERVAL = 10.0f;
+    inline float WEAVER_SPAWN_MAX_INTERVAL = 18.0f;
+    inline float WEAVER_SPEED_X = 140.0f;         // Toc do ngang xuyen man hinh (khong doi trong suot doi song)
+    inline float WEAVER_WEAVE_AMPLITUDE = 60.0f;  // Bien do dao dong doc quanh baseY
+    inline float WEAVER_WEAVE_FREQUENCY = 2.2f;   // Toc do dao dong hinh sin (rad/s)
+    inline float WEAVER_WIDTH  = 32.0f;
+    inline float WEAVER_HEIGHT = 22.0f;
+    inline float WEAVER_BASE_Y_MIN = 60.0f;  // Tam Y dao dong duoc quay ngau nhien trong [MIN,MAX] moi lan spawn - tranh moi Weaver luon bay dung 1 do cao
+    inline float WEAVER_BASE_Y_MAX = 160.0f;
+
+    inline float BOMBER_SPAWN_MIN_INTERVAL = 11.0f;
+    inline float BOMBER_SPAWN_MAX_INTERVAL = 20.0f;
+    inline float BOMBER_SPEED_X = 100.0f;    // Cham hon Weaver - moi de doa cua Bomber la bom roi, khong phai toc do
+    inline float BOMBER_BOMB_INTERVAL = 1.6f; // Nhip tha bom (giay/qua) - dem nguoc rieng tung con, KHONG dung chung 1 timer toan cuc
+    inline float BOMBER_WIDTH  = 34.0f;
+    inline float BOMBER_HEIGHT = 24.0f;
+    inline float BOMBER_Y = 70.0f; // Do cao bay CO DINH (khac Weaver co baseY random moi lan) - de phan biet 2 loai tu xa bang mat thuong
 
     // WARDEN/MEDIC (Phase 1a - Enemy & Item Revolution, Nguoi 1): 2 loai dich LUOI moi -
     // van tham gia doi hinh/di chuyen dung khuon Basic/Tanky (KHONG dao dong rieng nhu

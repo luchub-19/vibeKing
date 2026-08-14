@@ -266,6 +266,150 @@ TEST_CASE("UpdateWardenEnemies/UpdateMedicEnemies: alreadyFlipped=true thi KHONG
 }
 
 // ==========================================
+// PHASE 2 (Enemy & Item Revolution, Nguoi 1): Weaver & Bomber - dung khuon Kamikaze/UFO
+// (grid rieng hoan toan, khong dinh gi den doi hinh/WaveGenerator - xem enemy_types.h).
+// ==========================================
+TEST_CASE("CheckCollisions: Weaver chet sau dung 1 phat (giong Basic/Medic), dan bi tieu thu, event mang dung SCORE_VALUE", "[physics][collision][weaver]") {
+    GameManager gm;
+    WeaverEnemy w{};
+    w.rect = { 220.0f, 160.0f, 32.0f, 22.0f };
+    w.color = YELLOW;
+    GTA::WeaverEnemies(gm).Clear();
+    GTA::WeaverEnemies(gm).Spawn(w);
+
+    FireBulletAt(GTA::PlayerBullets(gm), GTA::WeaverEnemies(gm)[0].rect);
+    PhysicsSystem::CheckCollisions(gm);
+
+    REQUIRE(GTA::WeaverEnemies(gm).Size() == 0);
+    REQUIRE(GTA::PlayerBullets(gm).GetActiveCount() == 0);
+    const auto& events = GTA::PendingEvents(gm);
+    REQUIRE(events.size() == 1);
+    REQUIRE(events[0].scoreValue == WeaverEnemy::SCORE_VALUE);
+}
+
+TEST_CASE("CheckCollisions: Bomber chet sau dung 1 phat, dung grid RIENG - khong anh huong Weaver dung song cung frame", "[physics][collision][bomber]") {
+    GameManager gm;
+    BomberEnemy b{};
+    b.rect = { 300.0f, 100.0f, 34.0f, 24.0f };
+    b.color = ORANGE;
+    GTA::BomberEnemies(gm).Clear();
+    GTA::BomberEnemies(gm).Spawn(b);
+    // Weaver o vi tri KHAC HAN, cung song trong frame nay - xac nhan dan chi trung dung
+    // Bomber (grid rieng), khong vo tinh "lan" qua pool khac o gan do.
+    WeaverEnemy w{};
+    w.rect = { 500.0f, 400.0f, 32.0f, 22.0f };
+    GTA::WeaverEnemies(gm).Clear();
+    GTA::WeaverEnemies(gm).Spawn(w);
+
+    FireBulletAt(GTA::PlayerBullets(gm), GTA::BomberEnemies(gm)[0].rect);
+    PhysicsSystem::CheckCollisions(gm);
+
+    REQUIRE(GTA::BomberEnemies(gm).Size() == 0);
+    REQUIRE(GTA::WeaverEnemies(gm).Size() == 1); // Khong bi anh huong
+    const auto& events = GTA::PendingEvents(gm);
+    REQUIRE(events.size() == 1);
+    REQUIRE(events[0].scoreValue == BomberEnemy::SCORE_VALUE);
+}
+
+TEST_CASE("UpdateWeaverEnemies/UpdateBomberEnemies: het spawn timer thi spawn 1 con MOI, timer quay lai dung khoang MIN/MAX_INTERVAL", "[physics][weaver][bomber]") {
+    GameManager gm;
+    GTA::WeaverEnemies(gm).Clear();
+    GTA::BomberEnemies(gm).Clear();
+    GTA::SetWeaverSpawnTimer(gm, 0.0f);
+    GTA::SetBomberSpawnTimer(gm, 0.0f);
+
+    PhysicsSystem::UpdateWeaverEnemies(gm, 0.016f);
+    PhysicsSystem::UpdateBomberEnemies(gm, 0.016f);
+
+    REQUIRE(GTA::WeaverEnemies(gm).Size() == 1);
+    REQUIRE(GTA::BomberEnemies(gm).Size() == 1);
+    REQUIRE(GTA::WeaverSpawnTimer(gm) >= Config::WEAVER_SPAWN_MIN_INTERVAL);
+    REQUIRE(GTA::WeaverSpawnTimer(gm) <= Config::WEAVER_SPAWN_MAX_INTERVAL);
+    REQUIRE(GTA::BomberSpawnTimer(gm) >= Config::BOMBER_SPAWN_MIN_INTERVAL);
+    REQUIRE(GTA::BomberSpawnTimer(gm) <= Config::BOMBER_SPAWN_MAX_INTERVAL);
+}
+
+TEST_CASE("UpdateWeaverEnemies/UpdateBomberEnemies: pool DA DAY thi het timer cung KHONG spawn them, khong bao gio vuot capacity", "[physics][weaver][bomber]") {
+    GameManager gm;
+    GTA::WeaverEnemies(gm).Clear();
+    GTA::BomberEnemies(gm).Clear();
+    for (size_t i = 0; i < Config::MAX_WEAVER_ENEMIES; i++) {
+        GTA::WeaverEnemies(gm).Spawn(WeaverEnemy{ {100.0f, 100.0f, 32.0f, 22.0f}, YELLOW, 1, 100.0f, 0.0f });
+    }
+    for (size_t i = 0; i < Config::MAX_BOMBER_ENEMIES; i++) {
+        GTA::BomberEnemies(gm).Spawn(BomberEnemy{ {100.0f, 70.0f, 34.0f, 24.0f}, ORANGE, 1, 1.0f });
+    }
+    GTA::SetWeaverSpawnTimer(gm, 0.0f);
+    GTA::SetBomberSpawnTimer(gm, 0.0f);
+
+    PhysicsSystem::UpdateWeaverEnemies(gm, 0.016f);
+    PhysicsSystem::UpdateBomberEnemies(gm, 0.016f);
+
+    REQUIRE(GTA::WeaverEnemies(gm).Size() == Config::MAX_WEAVER_ENEMIES);
+    REQUIRE(GTA::BomberEnemies(gm).Size() == Config::MAX_BOMBER_ENEMIES);
+}
+
+TEST_CASE("UpdateWeaverEnemies: bay het canh phai man hinh thi bien mat, khong con trong pool", "[physics][weaver]") {
+    GameManager gm;
+    GTA::WeaverEnemies(gm).Clear();
+    WeaverEnemy w{};
+    w.rect = { (float)Config::SCREEN_W + 1.0f, 100.0f, 32.0f, 22.0f }; // Da qua canh phai
+    w.direction = 1;
+    w.baseY = 100.0f;
+    GTA::WeaverEnemies(gm).Spawn(w);
+    GTA::SetWeaverSpawnTimer(gm, 999.0f); // Khoa spawn moi - chi kiem tra dung hanh vi thoat man hinh
+
+    PhysicsSystem::UpdateWeaverEnemies(gm, 0.016f);
+
+    REQUIRE(GTA::WeaverEnemies(gm).Size() == 0);
+}
+
+TEST_CASE("UpdateWeaverEnemies: Y dao dong quanh baseY, KHONG bao gio vuot [baseY-amplitude, baseY+amplitude] du chay nhieu frame", "[physics][weaver]") {
+    GameManager gm;
+    GTA::WeaverEnemies(gm).Clear();
+    WeaverEnemy w{};
+    w.rect = { 400.0f, 100.0f, 32.0f, 22.0f }; // Giua man hinh - khong thoat canh trong luc test
+    w.direction = 1;
+    w.baseY = 100.0f;
+    w.phase = 0.0f;
+    GTA::WeaverEnemies(gm).Spawn(w);
+    GTA::SetWeaverSpawnTimer(gm, 999.0f);
+
+    float minY = 1e9f, maxY = -1e9f;
+    for (int i = 0; i < 300; i++) { // ~5s o 60fps - du phu ca 1 chu ky day cua sin
+        PhysicsSystem::UpdateWeaverEnemies(gm, 1.0f / 60.0f);
+        if (GTA::WeaverEnemies(gm).Size() == 0) break; // Lo bay ra canh (khong nen xay ra o giua man hinh, nhung thoat som neu co)
+        float y = GTA::WeaverEnemies(gm)[0].rect.y;
+        minY = fminf(minY, y);
+        maxY = fmaxf(maxY, y);
+    }
+
+    REQUIRE(minY >= 100.0f - Config::WEAVER_WEAVE_AMPLITUDE - 0.01f);
+    REQUIRE(maxY <= 100.0f + Config::WEAVER_WEAVE_AMPLITUDE + 0.01f);
+}
+
+TEST_CASE("UpdateBomberEnemies: het BOMBER_BOMB_INTERVAL thi tha dung 1 dan enemy ban thang xuong", "[physics][bomber]") {
+    GameManager gm;
+    GTA::BomberEnemies(gm).Clear();
+    GTA::EnemyBullets(gm).Reset();
+    BomberEnemy b{};
+    b.rect = { 400.0f, 70.0f, 34.0f, 24.0f };
+    b.direction = 1;
+    b.bombTimer = 0.0f; // Het han ngay frame dau
+    GTA::BomberEnemies(gm).Spawn(b);
+    GTA::SetBomberSpawnTimer(gm, 999.0f); // Khoa spawn moi, chi test hanh vi tha bom
+
+    size_t before = GTA::EnemyBullets(gm).GetActiveCount();
+    PhysicsSystem::UpdateBomberEnemies(gm, 0.016f);
+    size_t after = GTA::EnemyBullets(gm).GetActiveCount();
+
+    REQUIRE(after == before + 1);
+    Vector2 vel = GTA::EnemyBullets(gm).GetBullet(after - 1).GetVel();
+    REQUIRE(vel.x == Approx(0.0f).margin(0.01f));
+    REQUIRE(vel.y > 0.0f); // Roi XUONG (Y+ la xuong duoi)
+}
+
+// ==========================================
 // C3.3 - BOSS: BossStage() phan loai dung 3 giai doan theo % HP con lai
 // ==========================================
 TEST_CASE("BossStage(): phan loai dung 3 giai doan theo % HP con lai, dung tai ca 2 nguong chuyen tiep (66% va 33%)", "[physics][boss]") {

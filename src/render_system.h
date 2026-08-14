@@ -37,4 +37,13 @@ public:
     // dung vi tri du dang Fullscreen tren monitor ty le bat ky, khong bi anh huong boi
     // buoc upscale/letterbox (xem GameManager::Run()).
     static void DrawDebugOverlay(const GameManager& gm);
+
+private:
+    // Phase 2 (Enemy & Item Revolution, Nguoi 1): PHAI la private static MEMBER (khong
+    // phai free function) de thua huong friend access ma GameManager cap cho ca class
+    // RenderSystem (xem `friend class RenderSystem` trong game_manager.h) - da tu kiem
+    // chung dung 1 free function se build loi bien private ngay lan dau thu (cung ly do
+    // da giai thich trong physics_system.h cho ApplyFormationMoveX/DescendRowAndCheckGameOver).
+    static void DrawWeaverEnemies(const GameManager& gm, float animTime);
+    static void DrawBomberEnemies(const GameManager& gm, float animTime);
 };

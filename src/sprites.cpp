@@ -168,6 +168,37 @@ namespace {
         return tex;
     }
 
+    // Phase 2 (Enemy & Item Revolution, Nguoi 1): 2 sprite moi, cung quy uoc "silhouette
+    // WHITE 16x16, nhuom mau luc Draw()" nhu Warden/Medic o tren.
+    Texture2D BuildWeaver() {
+        // Weaver: 2 mui ten chi NGANG long vao nhau kieu zigzag - goi duong bay ngang + lac
+        // hinh sin dac trung cua no (xem PhysicsSystem::UpdateWeaverEnemies). Day la hinh
+        // DUY NHAT nhan truc NGANG lam trong tam thay vi truc doc nhu moi sprite dich
+        // khac - hop ly vi Weaver la loai DUY NHAT bay ngang xuyen man hinh thay vi tu
+        // tren xuong.
+        Image img = GenImageColor(SPRITE_SIZE, SPRITE_SIZE, BLANK);
+        ImageDrawTriangle(&img, {0, 4}, {0, 12}, {8, 8}, WHITE);   // Mui ten trai
+        ImageDrawTriangle(&img, {7, 4}, {7, 12}, {15, 8}, WHITE);  // Mui ten phai, long vao mui ten trai
+        Texture2D tex = LoadTextureFromImage(img);
+        UnloadImage(img);
+        return tex;
+    }
+
+    Texture2D BuildBomber() {
+        // Bomber: than hinh thoi (rectangle vat 2 goc bang tam giac) + 1 hinh tron nho
+        // phia DUOI goi "bom dang mang theo, sap tha" - hinh DUY NHAT co "phu kien" tach
+        // roi khoi than chinh, phan biet ro voi Weaver (chi 2 mui ten don gian) du ca hai
+        // deu la loai "thoat luoi" bay ngang.
+        Image img = GenImageColor(SPRITE_SIZE, SPRITE_SIZE, BLANK);
+        ImageDrawRectangle(&img, 2, 2, 12, 6, WHITE);
+        ImageDrawTriangle(&img, {0, 5}, {2, 2}, {2, 8}, WHITE);
+        ImageDrawTriangle(&img, {15, 5}, {14, 2}, {14, 8}, WHITE);
+        ImageDrawCircle(&img, 8, 12, 2, WHITE); // "Bom" treo duoi than
+        Texture2D tex = LoadTextureFromImage(img);
+        UnloadImage(img);
+        return tex;
+    }
+
     // ==========================================
     // ICON POWER-UP - 4 silhouette 16x16 rieng biet cho tung loai (xem PowerUpType trong
     // powerup.h), thay cho hinh chu nhat mau tron truoc day. Cung triet ly "khong asset
@@ -260,7 +291,7 @@ namespace {
 
     // ==========================================
     // ATLAS THAT (Phase 1 - Graphics/UI Overhaul, Nguoi 1): SpriteSheet::Load() thu nap
-    // 17 sprite tu 1 file atlas.png + atlas.cfg (mac dinh: Kenney "Space Shooter Redux",
+    // 19 sprite tu 1 file atlas.png + atlas.cfg (mac dinh: Kenney "Space Shooter Redux",
     // CC0 - xem docs/ASSET_INTEGRATION.md) THAY vi luon ve procedural o tren. Ten nao
     // KHONG co trong atlas.cfg / dong loi / vung toa do vuot bien anh -> FALLBACK ve dung
     // BuildXxx() procedural CHI cho rieng ten do, KHONG bao loi/crash toan bo - cung
@@ -339,7 +370,7 @@ namespace {
 }
 
 void SpriteSheet::Load() {
-    // Thu nap atlas.png 1 LAN DUY NHAT trong RAM, dung chung de cat ca 17 ten, thay vi mo
+    // Thu nap atlas.png 1 LAN DUY NHAT trong RAM, dung chung de cat ca 19 ten, thay vi mo
     // lai file cho tung ten rieng le. `regions` CHI khac rong khi atlasImg nap thanh cong
     // (xem nhanh if ben duoi) nen LoadAtlasEntry() doc atlasImg.width/height luon an toan.
     Image atlasImg{};
@@ -349,7 +380,7 @@ void SpriteSheet::Load() {
         atlasImg = LoadImage(Config::AtlasImagePath());
         if (atlasImg.data != nullptr) {
             regions = ParseAtlasConfig(Config::AtlasConfigPath());
-            TraceLog(LOG_INFO, "SpriteSheet: da nap '%s' (%dx%d) - %zu/17 ten hop le trong atlas.cfg, con lai dung procedural",
+            TraceLog(LOG_INFO, "SpriteSheet: da nap '%s' (%dx%d) - %zu/19 ten hop le trong atlas.cfg, con lai dung procedural",
                       Config::AtlasImagePath(), atlasImg.width, atlasImg.height, regions.size());
         } else {
             TraceLog(LOG_WARNING, "SpriteSheet: '%s' ton tai nhung khong doc duoc - dung toan bo sprite procedural",
@@ -370,6 +401,8 @@ void SpriteSheet::Load() {
     bossSwarmer  = LoadAtlasEntry(atlasImg, regions, "bossSwarmer", BuildBossSwarmer);
     warden       = LoadAtlasEntry(atlasImg, regions, "warden", BuildWarden);
     medic        = LoadAtlasEntry(atlasImg, regions, "medic", BuildMedic);
+    weaver       = LoadAtlasEntry(atlasImg, regions, "weaver", BuildWeaver); // Phase 2, Nguoi 1
+    bomber       = LoadAtlasEntry(atlasImg, regions, "bomber", BuildBomber); // Phase 2, Nguoi 1
 
     iconRapidFire = LoadAtlasEntry(atlasImg, regions, "iconRapidFire", BuildIconRapidFire);
     iconShield    = LoadAtlasEntry(atlasImg, regions, "iconShield", BuildIconShield);
@@ -393,6 +426,8 @@ void SpriteSheet::Unload() {
     UnloadTexture(bossSwarmer);
     UnloadTexture(warden);
     UnloadTexture(medic);
+    UnloadTexture(weaver); // Phase 2, Nguoi 1
+    UnloadTexture(bomber); // Phase 2, Nguoi 1
 
     UnloadTexture(iconRapidFire);
     UnloadTexture(iconShield);
