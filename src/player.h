@@ -21,6 +21,11 @@ private:
     float shieldTimer = 0.0f;
     float rapidFireTimer = 0.0f;
     float pierceTimer = 0.0f; // Piercing Shot (power-up) - dan ban ra xuyen qua nhieu muc tieu
+    // Phase 1b (Enemy & Item Revolution, Nguoi 1) - cung "ho" timer power-up tam thoi o
+    // tren, dat canh pierceTimer theo dung vi tri da thong nhat o Buoc 0 cua ke hoach
+    // chia viec (TASK_SPLIT.md).
+    float spreadShotTimer = 0.0f; // Spread Shot: ban 3 tia toa nhe thay vi 1, xem Update()
+    float overdriveTimer = 0.0f;  // Overdrive: tang nhip ban, doi lai trung don luc active mat 2 mang thay vi 1, xem TakeDamage()
 
     // A7: mau than tau, mac dinh GREEN (giu DUNG hanh vi hardcode cu trong Draw()).
     // DrawSprite() (sprites.h) da nhan san tham so tint tu truoc - Player chi can giu
@@ -49,6 +54,8 @@ public:
     void GrantShield(float duration) { shieldTimer = duration; }
     void GrantRapidFire(float duration) { rapidFireTimer = duration; }
     void GrantPiercing(float duration) { pierceTimer = duration; }
+    void GrantSpreadShot(float duration) { spreadShotTimer = duration; } // Phase 1b, Nguoi 1
+    void GrantOverdrive(float duration) { overdriveTimer = duration; }   // Phase 1b, Nguoi 1
 
     // Bonus rieng cua tung loadout (xem meta_progress.h), ap dung 1 lan luc bat dau 1 van
     // MOI (goi tu GameManager::ApplyLoadoutBonus, sau khi Reset() da chay). Standard:
@@ -64,6 +71,8 @@ public:
     bool HasShield() const { return shieldTimer > 0.0f; }
     bool HasRapidFire() const { return rapidFireTimer > 0.0f; }
     bool HasPiercing() const { return pierceTimer > 0.0f; }
+    bool HasSpreadShot() const { return spreadShotTimer > 0.0f; } // Phase 1b, Nguoi 1
+    bool HasOverdrive() const { return overdriveTimer > 0.0f; }   // Phase 1b, Nguoi 1
 
     // Tra ve true neu vua duoc +1 mang tu moc diem so (xem Config::EXTRA_LIFE_SCORE_
     // THRESHOLD) trong lan cong diem NAY - de caller (GameManager::ApplyComboAndScore,

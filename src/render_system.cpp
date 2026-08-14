@@ -346,11 +346,13 @@ void RenderSystem::DrawPlaying(const GameManager& gm) {
         Texture2D tex;
         Color tint;
         switch (p.type) {
-            case PowerUpType::RapidFire: tex = gm.sprites.iconRapidFire; tint = ORANGE;  break;
-            case PowerUpType::Shield:    tex = gm.sprites.iconShield;    tint = SKYBLUE; break;
-            case PowerUpType::Piercing:  tex = gm.sprites.iconPiercing;  tint = MAGENTA; break;
-            case PowerUpType::Cleanser:  tex = gm.sprites.iconCleanser;  tint = LIME;    break;
-            default:                     tex = gm.sprites.iconRapidFire; tint = WHITE;   break;
+            case PowerUpType::RapidFire:  tex = gm.sprites.iconRapidFire;  tint = ORANGE;  break;
+            case PowerUpType::Shield:     tex = gm.sprites.iconShield;     tint = SKYBLUE; break;
+            case PowerUpType::Piercing:   tex = gm.sprites.iconPiercing;   tint = MAGENTA; break;
+            case PowerUpType::Cleanser:   tex = gm.sprites.iconCleanser;   tint = LIME;    break;
+            case PowerUpType::SpreadShot: tex = gm.sprites.iconSpreadShot; tint = GOLD;    break; // Phase 1b, Nguoi 1
+            case PowerUpType::Overdrive:  tex = gm.sprites.iconOverdrive;  tint = RED;     break; // Phase 1b, Nguoi 1
+            default:                      tex = gm.sprites.iconRapidFire;  tint = WHITE;   break;
         }
         DrawSprite(tex, p.rect, tint);
     }
@@ -446,13 +448,18 @@ void RenderSystem::DrawHUD(const GameManager& gm) {
 
     // --- Trang thai power-up: icon badge thay chu, CHI ve panel khi co it nhat 1
     // power-up active (giu HUD trong khi khong co gi active, dung tinh than code cu) -
-    // 3 O CO DINH theo THU TU Shield/RapidFire/Piercing (khong dich trai lap khoang
-    // trong) de vi tri tung icon on dinh, khong "nhay" khi cac power-up bat/tat khac nhau.
-    if (gm.player.HasShield() || gm.player.HasRapidFire() || gm.player.HasPiercing()) {
+    // 5 O CO DINH theo THU TU Shield/RapidFire/Piercing/SpreadShot/Overdrive (khong dich
+    // trai lap khoang trong) de vi tri tung icon on dinh, khong "nhay" khi cac power-up
+    // bat/tat khac nhau. Cleanser KHONG co o day vi la hieu ung tuc thi (dung ngay luc
+    // nhat, khong co "thoi gian con hieu luc" de hien thi dang timer nhu 5 loai con lai).
+    // Phase 1b (Nguoi 1) mo rong tu 3 len 5 o - panel rong hon (124 thay vi 104) de du
+    // cho 5 icon + le 2 ben, KHONG con vua panel 104 cu (se tran neu giu nguyen).
+    if (gm.player.HasShield() || gm.player.HasRapidFire() || gm.player.HasPiercing()
+        || gm.player.HasSpreadShot() || gm.player.HasOverdrive()) {
         float iconY = 46.0f;
-        float iconX = (float)Config::SCREEN_W - 102.0f;
+        float iconX = (float)Config::SCREEN_W - 121.0f;
         float slot = Config::HUD_ICON_SIZE + 4.0f;
-        canvas.Panel({ (float)Config::SCREEN_W - 110.0f, 40.0f, 104.0f, Config::HUD_ICON_SIZE + 12.0f },
+        canvas.Panel({ (float)Config::SCREEN_W - 130.0f, 40.0f, 124.0f, Config::HUD_ICON_SIZE + 12.0f },
                      panelFill, panelBorder, Config::HUD_PANEL_BORDER_THICKNESS);
         if (gm.player.HasShield()) {
             canvas.Icon({ iconX, iconY, Config::HUD_ICON_SIZE, Config::HUD_ICON_SIZE }, gm.sprites.iconShield, SKYBLUE);
@@ -462,6 +469,12 @@ void RenderSystem::DrawHUD(const GameManager& gm) {
         }
         if (gm.player.HasPiercing()) {
             canvas.Icon({ iconX + slot * 2.0f, iconY, Config::HUD_ICON_SIZE, Config::HUD_ICON_SIZE }, gm.sprites.iconPiercing, MAGENTA);
+        }
+        if (gm.player.HasSpreadShot()) { // Phase 1b, Nguoi 1
+            canvas.Icon({ iconX + slot * 3.0f, iconY, Config::HUD_ICON_SIZE, Config::HUD_ICON_SIZE }, gm.sprites.iconSpreadShot, GOLD);
+        }
+        if (gm.player.HasOverdrive()) { // Phase 1b, Nguoi 1
+            canvas.Icon({ iconX + slot * 4.0f, iconY, Config::HUD_ICON_SIZE, Config::HUD_ICON_SIZE }, gm.sprites.iconOverdrive, RED);
         }
     }
 

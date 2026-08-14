@@ -135,6 +135,19 @@ namespace {
         Assign(s, "shield_duration", Config::POWERUP_SHIELD_DURATION);
         Assign(s, "pierce_duration", Config::POWERUP_PIERCE_DURATION);
         Assign(s, "pierce_hits", Config::POWERUP_PIERCE_HITS);
+        // Phase 1b (Enemy & Item Revolution, Nguoi 1): SpreadShot/Overdrive + trong so roi
+        // - cung muc "powerup" nhu tren, KHONG tach muc rieng (van la du lieu can bang cho
+        // cung 1 he thong power-up).
+        Assign(s, "spreadshot_duration", Config::POWERUP_SPREADSHOT_DURATION);
+        Assign(s, "spread_shot_angle_deg", Config::SPREAD_SHOT_ANGLE_DEG);
+        Assign(s, "overdrive_duration", Config::POWERUP_OVERDRIVE_DURATION);
+        Assign(s, "overdrive_fire_rate_mul", Config::POWERUP_OVERDRIVE_FIRE_RATE_MUL);
+        Assign(s, "weight_rapidfire", Config::POWERUP_WEIGHT_RAPIDFIRE);
+        Assign(s, "weight_shield", Config::POWERUP_WEIGHT_SHIELD);
+        Assign(s, "weight_piercing", Config::POWERUP_WEIGHT_PIERCING);
+        Assign(s, "weight_cleanser", Config::POWERUP_WEIGHT_CLEANSER);
+        Assign(s, "weight_spreadshot", Config::POWERUP_WEIGHT_SPREADSHOT);
+        Assign(s, "weight_overdrive", Config::POWERUP_WEIGHT_OVERDRIVE);
     }
 
     void LoadCombo(const json& root) {

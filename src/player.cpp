@@ -1,5 +1,6 @@
 #include "player.h"
 #include "sprites.h"
+#include <cmath> // sinf/cosf - Spread Shot (Phase 1b, Nguoi 1)
 
 Player::Player() { Reset(); }
 
@@ -13,6 +14,8 @@ void Player::Reset() {
     shieldTimer = 0.0f;
     rapidFireTimer = 0.0f;
     pierceTimer = 0.0f;
+    spreadShotTimer = 0.0f; // Phase 1b, Nguoi 1
+    overdriveTimer = 0.0f;  // Phase 1b, Nguoi 1
     fireTimer = Config::PLAYER_FIRE_RATE; // Chan spam dan dau game
 }
 
@@ -25,6 +28,8 @@ void Player::ResetForNewWave() {
     shieldTimer = 0.0f;
     rapidFireTimer = 0.0f;
     pierceTimer = 0.0f;
+    spreadShotTimer = 0.0f; // Phase 1b, Nguoi 1
+    overdriveTimer = 0.0f;  // Phase 1b, Nguoi 1
     fireTimer = Config::PLAYER_FIRE_RATE;
 }
 
@@ -41,19 +46,41 @@ bool Player::Update(float dt, const InputState& input, BulletPool<Config::MAX_PL
     if (shieldTimer > 0.0f) shieldTimer -= dt;
     if (rapidFireTimer > 0.0f) rapidFireTimer -= dt;
     if (pierceTimer > 0.0f) pierceTimer -= dt;
+    if (spreadShotTimer > 0.0f) spreadShotTimer -= dt; // Phase 1b, Nguoi 1
+    if (overdriveTimer > 0.0f) overdriveTimer -= dt;   // Phase 1b, Nguoi 1
     fireTimer += dt;
 
     // Rapid Fire (power-up) rut ngan khoang cach giua 2 phat ban - khong doi toc do
-    // dan (Config::BULLET_SPEED), chi doi nhip ban ra.
-    float effectiveFireRate = (rapidFireTimer > 0.0f)
-        ? Config::PLAYER_FIRE_RATE * Config::POWERUP_RAPIDFIRE_FIRE_RATE_MUL
-        : Config::PLAYER_FIRE_RATE;
+    // dan (Config::BULLET_SPEED), chi doi nhip ban ra. Overdrive (Phase 1b, Nguoi 1)
+    // lam DUNG VIEC giong RapidFire (nhan them 1 he so vao PLAYER_FIRE_RATE) nhung la
+    // power-up doc lap, co the active CUNG LUC voi RapidFire - nhan don ca 2 he so thay
+    // vi chon 1 trong 2, de moi power-up anh huong fire rate deu "cong dong" duoc voi
+    // nhau thay vi phai phan uu tien.
+    float effectiveFireRate = Config::PLAYER_FIRE_RATE;
+    if (rapidFireTimer > 0.0f) effectiveFireRate *= Config::POWERUP_RAPIDFIRE_FIRE_RATE_MUL;
+    if (overdriveTimer > 0.0f) effectiveFireRate *= Config::POWERUP_OVERDRIVE_FIRE_RATE_MUL;
 
     if (input.Action_Shoot && fireTimer >= effectiveFireRate) {
         fireTimer = 0.0f;
         int pierceHits = HasPiercing() ? Config::POWERUP_PIERCE_HITS : 0;
-        Vector2 vel = { 0.0f, -Config::BULLET_SPEED }; // Y am = bay len (Y+ la xuong duoi)
-        bullets.Fire(rect.x + rect.width / 2 - Config::BULLET_WIDTH / 2.0f, rect.y, vel, pierceHits);
+        float spawnX = rect.x + rect.width / 2 - Config::BULLET_WIDTH / 2.0f;
+
+        if (HasSpreadShot()) {
+            // Spread Shot (Phase 1b, Nguoi 1): 3 tia tu CUNG 1 diem xuat phat (khong
+            // lech ngang) - tia giua giu nguyen huong thang len nhu ban thuong, 2 tia
+            // ben lech +-SPREAD_SHOT_ANGLE_DEG do. Ca 3 tia deu ke thua pierceHits nhu
+            // nhau - Spread Shot khong "tranh chap" voi Piercing, ca 2 cong dong binh
+            // thuong giong moi cap power-up khac trong he thong nay.
+            float angleRad = Config::SPREAD_SHOT_ANGLE_DEG * DEG2RAD;
+            float sideX = sinf(angleRad) * Config::BULLET_SPEED;
+            float sideY = -cosf(angleRad) * Config::BULLET_SPEED;
+            bullets.Fire(spawnX, rect.y, { 0.0f, -Config::BULLET_SPEED }, pierceHits);
+            bullets.Fire(spawnX, rect.y, { -sideX, sideY }, pierceHits);
+            bullets.Fire(spawnX, rect.y, { sideX, sideY }, pierceHits);
+        } else {
+            Vector2 vel = { 0.0f, -Config::BULLET_SPEED }; // Y am = bay len (Y+ la xuong duoi)
+            bullets.Fire(spawnX, rect.y, vel, pierceHits);
+        }
         return true;
     }
     return false;
@@ -70,7 +97,13 @@ bool Player::TakeDamage() {
         return false;
     }
 
-    lives--;
+    // Overdrive (power-up, Phase 1b - Nguoi 1): doi lai fire rate cao hon (xem Update()),
+    // trung don luc dang active mat 2 mang thay vi 1. Nhanh Shield/bat tu o tren van chan
+    // damage HOAN TOAN nhu cu (Overdrive khong lam gi neu Shield da do don) - chi anh
+    // huong so mang tru O DAY, khi damage THAT SU duoc ap dung. Clamp ve 0 (khong am) -
+    // GAME_OVER se duoc UpdatePlaying() yeu cau ngay sau do dua tren GetLives()<=0.
+    lives -= HasOverdrive() ? 2 : 1;
+    if (lives < 0) lives = 0;
     invincibleTimer = Config::INVINCIBLE_TIME;
     rect.x = Config::PLAYER_SPAWN_X;
     return true;
@@ -132,9 +165,11 @@ void Player::Draw(const Texture2D& sprite) const {
 
     struct PipStatus { bool active; Color color; };
     PipStatus pips[] = {
-        { HasShield(),    SKYBLUE },
-        { HasPiercing(),  MAGENTA },
-        { HasRapidFire(), ORANGE  },
+        { HasShield(),     SKYBLUE },
+        { HasPiercing(),   MAGENTA },
+        { HasRapidFire(),  ORANGE  },
+        { HasSpreadShot(), GOLD    }, // Phase 1b, Nguoi 1
+        { HasOverdrive(),  RED     }, // Phase 1b, Nguoi 1 - do = nhac nho rui ro "mat 2 mang" dang active
     };
     int activeCount = 0;
     for (const auto& status : pips) if (status.active) activeCount++;

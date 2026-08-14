@@ -862,6 +862,12 @@ void PhysicsSystem::CheckCollisions(GameManager& gm) {
                 case PowerUpType::Piercing:
                     gm.player.GrantPiercing(Config::POWERUP_PIERCE_DURATION);
                     break;
+                case PowerUpType::SpreadShot: // Phase 1b, Nguoi 1
+                    gm.player.GrantSpreadShot(Config::POWERUP_SPREADSHOT_DURATION);
+                    break;
+                case PowerUpType::Overdrive: // Phase 1b, Nguoi 1
+                    gm.player.GrantOverdrive(Config::POWERUP_OVERDRIVE_DURATION);
+                    break;
                 case PowerUpType::Cleanser:
                     // Hieu ung TUC THI: xoa sach toan bo dan dich dang bay tren man
                     // hinh ngay luc nhat - "bom cuu nan" giua tinh huong nguy cap.

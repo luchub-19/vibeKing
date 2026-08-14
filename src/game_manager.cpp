@@ -166,10 +166,37 @@ void GameManager::SpawnBunkers() {
     }
 }
 
+// Phase 1b (Enemy & Item Revolution, Nguoi 1): chon PowerUpType theo trong so doc tu
+// Config::POWERUP_WEIGHT_* (KHONG con GetRandomValue(0,3) deu tuyet doi nhu 4 loai goc)
+// - "quay so" 1 gia tri trong [0, tongTrongSo), di qua tung loai cong don trong so cho
+// den khi vuot gia tri do. Weight <= 0 cho 1 loai nao do se loai han loai đo khoi vong
+// quay (khong bao gio roi) ma khong can sua code, chi can sua balance.json.
+static PowerUpType RollWeightedPowerUpType() {
+    struct Entry { PowerUpType type; float weight; };
+    const Entry table[] = {
+        { PowerUpType::RapidFire,  Config::POWERUP_WEIGHT_RAPIDFIRE },
+        { PowerUpType::Shield,     Config::POWERUP_WEIGHT_SHIELD },
+        { PowerUpType::Piercing,   Config::POWERUP_WEIGHT_PIERCING },
+        { PowerUpType::Cleanser,   Config::POWERUP_WEIGHT_CLEANSER },
+        { PowerUpType::SpreadShot, Config::POWERUP_WEIGHT_SPREADSHOT },
+        { PowerUpType::Overdrive,  Config::POWERUP_WEIGHT_OVERDRIVE },
+    };
+    float total = 0.0f;
+    for (const auto& e : table) total += e.weight;
+    if (total <= 0.0f) return PowerUpType::RapidFire; // Toan bo weight <=0 (cau hinh loi) - fallback an toan, khong chia cho 0
+
+    float roll = (float)GetRandomValue(0, 999) / 1000.0f * total;
+    float cumulative = 0.0f;
+    for (const auto& e : table) {
+        cumulative += e.weight;
+        if (roll < cumulative) return e.type;
+    }
+    return table[(sizeof(table) / sizeof(table[0])) - 1].type; // Bo cho sai so lam tron float hiem gap - roi dung ve loai cuoi thay vi UB
+}
+
 void GameManager::MaybeDropPowerUp(Vector2 at) {
     if ((float)GetRandomValue(0, 999) / 1000.0f >= Config::POWERUP_DROP_CHANCE) return;
-    // 4 loai deu nhau: RapidFire, Shield, Piercing, Cleanser
-    PowerUpType type = (PowerUpType)GetRandomValue(0, 3);
+    PowerUpType type = RollWeightedPowerUpType();
     Rectangle rect{ at.x - Config::POWERUP_SIZE / 2.0f, at.y, Config::POWERUP_SIZE, Config::POWERUP_SIZE };
     powerUps.Spawn(PowerUp{ rect, type });
 }

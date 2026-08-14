@@ -70,6 +70,7 @@ public:
     bool IsActive() const { return active; }
     Rectangle GetRect() const { return rect; }
     uint32_t GetSpawnSeq() const { return spawnSeq; }
+    Vector2 GetVel() const { return vel; } // Phase 1b (Nguoi 1): can cong khai de test xac minh goc ban Spread Shot - truoc day chua co getter nao cho vel
 
     // Goi khi dan vua trung 1 muc tieu. Tra ve true neu dan CON XUYEN TIEP DUOC (con
     // pierceRemaining > 0, da tru di 1) - trong truong hop nay KHONG duoc huy dan, no

@@ -126,6 +126,30 @@ namespace Config {
     inline float POWERUP_PIERCE_DURATION = 6.0f;
     inline int   POWERUP_PIERCE_HITS = 3;
 
+    // ==========================================
+    // SPREAD SHOT & OVERDRIVE (Phase 1b - Enemy & Item Revolution, Nguoi 1) - xem
+    // Player::Update()/TakeDamage() (player.cpp). SPREAD_SHOT_ANGLE_DEG la goc TUYET DOI
+    // (do) cua 2 tia ben so voi tia giua (thang len) - dat trong khoi POWER-UP chung o
+    // tren (khong tach rieng) vi cung ho gia tri tam thoi nhat duoc qua nhat/roi tu dich,
+    // dung 1 quy uoc voi RAPIDFIRE/PIERCE o tren.
+    // ==========================================
+    inline float POWERUP_SPREADSHOT_DURATION = 6.0f;
+    inline float SPREAD_SHOT_ANGLE_DEG = 15.0f; // Goc moi tia ben lech khoi phuong thang dung
+    inline float POWERUP_OVERDRIVE_DURATION = 6.0f;
+    inline float POWERUP_OVERDRIVE_FIRE_RATE_MUL = 0.5f; // Nhu RAPIDFIRE_FIRE_RATE_MUL: nhan vao PLAYER_FIRE_RATE, nho hon = ban nhanh hon
+
+    // TRONG SO ROI POWER-UP (Phase 1b, Nguoi 1) - GameManager::MaybeDropPowerUp() dung
+    // random co trong so (khong con GetRandomValue(0,3) deu tuyet doi nhu 4 loai goc) de
+    // co the "chia lai trong so" qua balance.json ma khong doi code - xem TASK_SPLIT.md.
+    // SpreadShot/Overdrive mac dinh THAP hon 4 loai goc (Overdrive thap nhat vi la lua
+    // chon rui-ro-cao-loi-ich-cao, khong nen roi qua thuong xuyen).
+    inline float POWERUP_WEIGHT_RAPIDFIRE  = 1.0f;
+    inline float POWERUP_WEIGHT_SHIELD     = 1.0f;
+    inline float POWERUP_WEIGHT_PIERCING   = 1.0f;
+    inline float POWERUP_WEIGHT_CLEANSER   = 1.0f;
+    inline float POWERUP_WEIGHT_SPREADSHOT = 0.75f;
+    inline float POWERUP_WEIGHT_OVERDRIVE  = 0.5f;
+
     // COMBO SCORE
     inline float COMBO_WINDOW = 1.5f;
     inline float COMBO_BONUS_PER_STEP = 0.1f;

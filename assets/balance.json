@@ -99,7 +99,17 @@
     "rapidfire_fire_rate_mul": 0.4,
     "shield_duration": 8.0,
     "pierce_duration": 6.0,
-    "pierce_hits": 3
+    "pierce_hits": 3,
+    "spreadshot_duration": 6.0,
+    "spread_shot_angle_deg": 15.0,
+    "overdrive_duration": 6.0,
+    "overdrive_fire_rate_mul": 0.5,
+    "weight_rapidfire": 1.0,
+    "weight_shield": 1.0,
+    "weight_piercing": 1.0,
+    "weight_cleanser": 1.0,
+    "weight_spreadshot": 0.75,
+    "weight_overdrive": 0.5
   },
 
   "combo": {

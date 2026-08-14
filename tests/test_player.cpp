@@ -1,12 +1,14 @@
 #include "thirdparty/catch.hpp"
 #include "player.h"
 #include "config.h"
+#include <cmath> // std::fabs - kiem tra goc ban Spread Shot (Phase 1b, Nguoi 1)
 
 // ==========================================
 // PLAYER - truoc ban sua nay chua co test nao. Tap trung vao AddScore() (logic +1
 // mang theo moc diem vua them) va TakeDamage() (Shield/invincible) - ca 2 deu la logic
-// THUAN, khong dung InitWindow/GPU nen chay duoc trong unit_tests binh thuong. KHONG
-// test Update()/Draw() vi 2 ham do can InputState/BulletPool/Texture2D that.
+// THUAN, khong dung InitWindow/GPU nen chay duoc trong unit_tests binh thuong. Phase 1b
+// (Nguoi 1) them 1 test cho Update() (goc ban Spread Shot) - InputState/BulletPool
+// KHONG can GPU (chi Draw() moi can Texture2D that, van KHONG test o day).
 // ==========================================
 
 TEST_CASE("Player::Reset() dat dung trang thai ban dau", "[player]") {
@@ -86,4 +88,56 @@ TEST_CASE("TakeDamage: dang bat tu (vua trung don truoc do) thi khong mat mang t
     bool tookDamageAgain = p.TakeDamage(); // Lan 2 ngay sau: dang bat tu
     REQUIRE_FALSE(tookDamageAgain);
     REQUIRE(p.GetLives() == 2); // Khong mat them
+}
+
+// Phase 1b (Enemy & Item Revolution, Nguoi 1)
+TEST_CASE("TakeDamage: co Overdrive dang active thi mat 2 mang thay vi 1", "[player]") {
+    Player p;
+    p.GrantOverdrive(5.0f);
+    REQUIRE(p.HasOverdrive());
+
+    bool tookDamage = p.TakeDamage();
+    REQUIRE(tookDamage);
+    REQUIRE(p.GetLives() == 1); // 3 - 2 = 1, khong phai 3 - 1 = 2 nhu binh thuong
+}
+
+TEST_CASE("TakeDamage: Shield van chan damage HOAN TOAN du Overdrive dang active (Shield uu tien truoc)", "[player]") {
+    Player p;
+    p.GrantShield(5.0f);
+    p.GrantOverdrive(5.0f); // Ca 2 cung active - Shield van phai thang, khong mat mang nao
+    bool tookDamage = p.TakeDamage();
+    REQUIRE_FALSE(tookDamage);
+    REQUIRE(p.GetLives() == 3); // Khong doi - Overdrive chi anh huong nhanh THAT SU mat mang, khong "vuot mat" Shield
+}
+
+TEST_CASE("Update: co Spread Shot active thi ban 3 dan cung luc thay vi 1, dung goc doi xung", "[player]") {
+    Player p;
+    p.GrantSpreadShot(5.0f);
+    REQUIRE(p.HasSpreadShot());
+
+    BulletPool<Config::MAX_PLAYER_BULLETS> bullets;
+    InputState input{};
+    input.Action_Shoot = true;
+
+    // dt=0: fireTimer da duoc Reset() dat dung bang PLAYER_FIRE_RATE (cho phep 1 phat
+    // ngay tu dau, xem comment "Chan spam dan dau game" trong player.cpp) nen khong can
+    // dt>0 de du dieu kien ban - giu test don gian, chi kiem tra dung SO LUONG/HUONG dan.
+    bool fired = p.Update(0.0f, input, bullets);
+    REQUIRE(fired);
+    REQUIRE(bullets.GetActiveCount() == 3); // 1 tia giua + 2 tia lech, thay vi 1 vien nhu binh thuong
+
+    // Ca 3 tia phai CUNG do lon toc do (BULLET_SPEED) - chi khac HUONG. Dung 1 tia
+    // thang len (vel.x ~ 0) va 2 tia lech trai/phai DOI XUNG (tong vel.x ~ 0).
+    int centerCount = 0;
+    float sumVelX = 0.0f;
+    for (size_t i = 0; i < bullets.GetActiveCount(); i++) {
+        Vector2 v = bullets.GetBullet(i).GetVel();
+        float speedSq = v.x * v.x + v.y * v.y;
+        REQUIRE(speedSq == Approx(Config::BULLET_SPEED * Config::BULLET_SPEED).epsilon(0.001));
+        REQUIRE(v.y < 0.0f); // Ca 3 deu bay LEN (Y am), khong tia nao bay nguoc xuong
+        sumVelX += v.x;
+        if (std::fabs(v.x) < 0.01f) centerCount++;
+    }
+    REQUIRE(centerCount == 1);
+    REQUIRE(sumVelX == Approx(0.0f).margin(0.01f));
 }

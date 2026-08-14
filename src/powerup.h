@@ -5,14 +5,19 @@
 
 // ==========================================
 // POWER-UP
-// Rơi thẳng xuống từ vị trí địch vừa chết, người chơi bay ngang qua để nhặt. 4 loại
-// đều nhau (xem PhysicsSystem::UpdatePowerUps): RapidFire (bắn nhanh tạm thời), Shield
-// (đỡ đúng 1 đòn), Piercing (đạn xuyên nhiều địch) và Cleanser (xoá sạch đạn địch đang
-// bay trên màn hình ngay lập tức - "bom cứu nạn").
+// Rơi thẳng xuống từ vị trí địch vừa chết, người chơi bay ngang qua để nhặt. 4 loại gốc:
+// RapidFire (bắn nhanh tạm thời), Shield (đỡ đúng 1 đòn), Piercing (đạn xuyên nhiều
+// địch) và Cleanser (xoá sạch đạn địch đang bay trên màn hình ngay lập tức - "bom cứu
+// nạn"). Phase 1b (Enemy & Item Revolution, Nguoi 1) thêm 2 loại: SpreadShot (bắn 3 tia
+// toả nhẹ thay vì 1, xem Player::Update()) và Overdrive (tăng nhịp bắn, đổi lại trúng
+// đạn lúc đang active mất 2 mạng thay vì 1 - xem Player::TakeDamage()). Trọng số rơi
+// (KHONG con deu tuyet doi nhu 4 loai goc) doc tu Config::POWERUP_WEIGHT_* - xem
+// GameManager::MaybeDropPowerUp() (game_manager.cpp).
 // Dùng lại đúng thuật toán swap-and-pop với các pool khác trong project (BulletPool,
 // ParticlePool, EnemyPool) - không phát minh thêm cách quản lý mới.
 // ==========================================
-enum class PowerUpType : uint8_t { RapidFire, Shield, Piercing, Cleanser };
+enum class PowerUpType : uint8_t { RapidFire, Shield, Piercing, Cleanser, SpreadShot, Overdrive };
+constexpr int POWERUP_TYPE_COUNT = 6;
 
 struct PowerUp {
     Rectangle rect;

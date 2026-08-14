@@ -229,9 +229,38 @@ namespace {
         return tex;
     }
 
+    // Phase 1b (Enemy & Item Revolution, Nguoi 1): 2 icon moi, cung triet ly "silhouette
+    // WHITE 16x16, nhuom mau luc Draw()" nhu 4 icon tren - khong doi quy uoc.
+    Texture2D BuildIconSpreadShot() {
+        // SPREAD SHOT: 3 mui ten TOA RA tu 1 vung goc chung o day (giua thang len, 2 ben
+        // lech trai/phai) - khac han RapidFire (3 tam giac XEP CHONG doc, CUNG 1 huong):
+        // o day moi mui ten 1 huong khac nhau, goi dung "1 phat toa thanh 3 tia" thay vi
+        // "ban lien tiep cung huong".
+        Image img = GenImageColor(SPRITE_SIZE, SPRITE_SIZE, BLANK);
+        ImageDrawTriangle(&img, {8, 1}, {6, 9}, {10, 9}, WHITE);    // Tia giua - thang len
+        ImageDrawTriangle(&img, {2, 5}, {5, 11}, {8, 10}, WHITE);   // Tia trai - lech
+        ImageDrawTriangle(&img, {14, 5}, {8, 10}, {11, 11}, WHITE); // Tia phai - doi xung tia trai
+        Texture2D tex = LoadTextureFromImage(img);
+        UnloadImage(img);
+        return tex;
+    }
+
+    Texture2D BuildIconOverdrive() {
+        // OVERDRIVE: tia set (lightning bolt) gap khuc hinh chu Z - bieu tuong pho quat
+        // cho "tang toc/qua tai", dong thoi goi canh bao rui ro (di kem mat 2 mang neu
+        // trung don khi active) - icon DUY NHAT gap khuc bat doi xung, khac han 5 icon
+        // con lai deu doi xung qua truc doc.
+        Image img = GenImageColor(SPRITE_SIZE, SPRITE_SIZE, BLANK);
+        ImageDrawTriangle(&img, {11, 0}, {3, 9}, {9, 9}, WHITE);   // Doan tren cua tia set
+        ImageDrawTriangle(&img, {9, 6}, {13, 6}, {5, 15}, WHITE);  // Doan duoi, lech nguoc lai
+        Texture2D tex = LoadTextureFromImage(img);
+        UnloadImage(img);
+        return tex;
+    }
+
     // ==========================================
     // ATLAS THAT (Phase 1 - Graphics/UI Overhaul, Nguoi 1): SpriteSheet::Load() thu nap
-    // 13 sprite tu 1 file atlas.png + atlas.cfg (mac dinh: Kenney "Space Shooter Redux",
+    // 17 sprite tu 1 file atlas.png + atlas.cfg (mac dinh: Kenney "Space Shooter Redux",
     // CC0 - xem docs/ASSET_INTEGRATION.md) THAY vi luon ve procedural o tren. Ten nao
     // KHONG co trong atlas.cfg / dong loi / vung toa do vuot bien anh -> FALLBACK ve dung
     // BuildXxx() procedural CHI cho rieng ten do, KHONG bao loi/crash toan bo - cung
@@ -310,7 +339,7 @@ namespace {
 }
 
 void SpriteSheet::Load() {
-    // Thu nap atlas.png 1 LAN DUY NHAT trong RAM, dung chung de cat ca 13 ten, thay vi mo
+    // Thu nap atlas.png 1 LAN DUY NHAT trong RAM, dung chung de cat ca 17 ten, thay vi mo
     // lai file cho tung ten rieng le. `regions` CHI khac rong khi atlasImg nap thanh cong
     // (xem nhanh if ben duoi) nen LoadAtlasEntry() doc atlasImg.width/height luon an toan.
     Image atlasImg{};
@@ -320,7 +349,7 @@ void SpriteSheet::Load() {
         atlasImg = LoadImage(Config::AtlasImagePath());
         if (atlasImg.data != nullptr) {
             regions = ParseAtlasConfig(Config::AtlasConfigPath());
-            TraceLog(LOG_INFO, "SpriteSheet: da nap '%s' (%dx%d) - %zu/13 ten hop le trong atlas.cfg, con lai dung procedural",
+            TraceLog(LOG_INFO, "SpriteSheet: da nap '%s' (%dx%d) - %zu/17 ten hop le trong atlas.cfg, con lai dung procedural",
                       Config::AtlasImagePath(), atlasImg.width, atlasImg.height, regions.size());
         } else {
             TraceLog(LOG_WARNING, "SpriteSheet: '%s' ton tai nhung khong doc duoc - dung toan bo sprite procedural",
@@ -346,6 +375,8 @@ void SpriteSheet::Load() {
     iconShield    = LoadAtlasEntry(atlasImg, regions, "iconShield", BuildIconShield);
     iconPiercing  = LoadAtlasEntry(atlasImg, regions, "iconPiercing", BuildIconPiercing);
     iconCleanser  = LoadAtlasEntry(atlasImg, regions, "iconCleanser", BuildIconCleanser);
+    iconSpreadShot = LoadAtlasEntry(atlasImg, regions, "iconSpreadShot", BuildIconSpreadShot); // Phase 1b, Nguoi 1
+    iconOverdrive  = LoadAtlasEntry(atlasImg, regions, "iconOverdrive", BuildIconOverdrive);   // Phase 1b, Nguoi 1
 
     if (atlasImg.data != nullptr) UnloadImage(atlasImg);
 }
@@ -367,4 +398,6 @@ void SpriteSheet::Unload() {
     UnloadTexture(iconShield);
     UnloadTexture(iconPiercing);
     UnloadTexture(iconCleanser);
+    UnloadTexture(iconSpreadShot); // Phase 1b, Nguoi 1
+    UnloadTexture(iconOverdrive);  // Phase 1b, Nguoi 1
 }

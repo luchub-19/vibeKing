@@ -26,6 +26,8 @@ public:
     Texture2D bossSwarmer{};
     Texture2D warden{};  // Phase 1a (Enemy & Item Revolution, Nguoi 1) - xem BuildWarden() trong sprites.cpp
     Texture2D medic{};   // Phase 1a (Enemy & Item Revolution, Nguoi 1) - xem BuildMedic() trong sprites.cpp
+    Texture2D iconSpreadShot{}; // Phase 1b (Enemy & Item Revolution, Nguoi 1) - xem BuildIconSpreadShot()
+    Texture2D iconOverdrive{};  // Phase 1b (Enemy & Item Revolution, Nguoi 1) - xem BuildIconOverdrive()
 
     // ICON POWER-UP (16x16, silhouette hinh hoc thuan - cung triet ly voi cac sprite
     // dich/Boss o tren) - thay cho DrawRectangle mau tron truoc day (xem PowerUpType
