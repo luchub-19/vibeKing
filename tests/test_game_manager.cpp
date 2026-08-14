@@ -1,6 +1,7 @@
 #include "thirdparty/catch.hpp"
 #include "game_manager_test_access.h"
 #include "input_system.h"
+#include "upgrade_types.h"
 #include <cstdio>
 
 // ==========================================
@@ -80,6 +81,51 @@ TEST_CASE("MENU -> PLAYING: dung dung chuoi UpdateMenu() thuc hien khi nguoi cho
 
     GTA::CallUpdateTransition(gm, Config::TRANSITION_DURATION);
     REQUIRE(GTA::State(gm) == GameState::PLAYING);
+}
+
+// ==========================================
+// NANG CAP SAU WAVE (Track C - Nguoi 2, Phase 3) - 2 test duoi day dung CHINH XAC cung
+// khuon voi "MENU -> PLAYING" o tren: KHONG goi UpdateEndScreen() truc tiep (PollMenu()
+// doc phan cung that, luon false luc test headless), ma goi thang chuoi ma nhanh
+// Confirm==true trong UpdateEndScreen() thuc hien (xem game_manager.cpp) - test nham vao
+// CO CHE ap dung nang cap + chuyen trang thai, khong phai lop doc phim.
+// ==========================================
+TEST_CASE("WAVE_CLEAR -> PLAYING (khong phai boss): ap dung nang cap dung 1 lan, wave khong bi reset ve 1", "[game_manager][state_machine][upgrade]") {
+    GameManager gm;
+    QuarantinePersistence(gm);
+    GTA::SetState(gm, GameState::WAVE_CLEAR);
+    GTA::SetWave(gm, 3); // gm.wave DA la wave SAP choi (xem comment dau nhanh WAVE_CLEAR trong UpdateEndScreen()) - 3 khong chia het BOSS_WAVE_INTERVAL(5)
+    GTA::SetSelectedUpgrade(gm, 1); // ExtraLife (index 1 - xem enum UpgradeType, upgrade_types.h)
+
+    int livesBefore = GTA::PlayerRef(gm).GetLives();
+    UpgradeType chosen = (UpgradeType)GTA::SelectedUpgrade(gm);
+    GTA::PlayerRef(gm).ApplyRunUpgrade(chosen);
+    if (GTA::Wave(gm) % Config::BOSS_WAVE_INTERVAL == 0) GTA::PlayerRef(gm).ApplyRunUpgrade(chosen);
+    GTA::CallInitLevel(gm, false);
+    GTA::CallRequestTransition(gm, GameState::PLAYING);
+
+    REQUIRE(GTA::PlayerRef(gm).GetLives() == livesBefore + 1); // dung 1 lan, khong phai 2
+    REQUIRE(GTA::PlayerRef(gm).GetUpgradeStacks(chosen) == 1);
+    REQUIRE(GTA::Wave(gm) == 3); // InitLevel(false) KHONG reset wave ve 1 (khac newGame=true)
+    REQUIRE(GTA::PendingState(gm) == GameState::PLAYING);
+}
+
+TEST_CASE("WAVE_CLEAR -> PLAYING, wave sap toi LA boss: nang cap duoc ap dung 2 LAN thay vi 1", "[game_manager][state_machine][upgrade]") {
+    GameManager gm;
+    QuarantinePersistence(gm);
+    GTA::SetState(gm, GameState::WAVE_CLEAR);
+    GTA::SetWave(gm, Config::BOSS_WAVE_INTERVAL); // gm.wave DA la wave SAP choi - chia het BOSS_WAVE_INTERVAL (vd 5)
+    GTA::SetSelectedUpgrade(gm, 2); // BonusScore (index 2)
+
+    int scoreBefore = GTA::PlayerRef(gm).GetScore();
+    UpgradeType chosen = (UpgradeType)GTA::SelectedUpgrade(gm);
+    GTA::PlayerRef(gm).ApplyRunUpgrade(chosen);
+    if (GTA::Wave(gm) % Config::BOSS_WAVE_INTERVAL == 0) GTA::PlayerRef(gm).ApplyRunUpgrade(chosen);
+    GTA::CallInitLevel(gm, false);
+    GTA::CallRequestTransition(gm, GameState::PLAYING);
+
+    REQUIRE(GTA::PlayerRef(gm).GetUpgradeStacks(chosen) == 2); // wave boss -> ap dung 2 lan
+    REQUIRE(GTA::PlayerRef(gm).GetScore() == scoreBefore + 2 * (int)Config::UPGRADE_BONUS_SCORE);
 }
 
 TEST_CASE("PLAYING, khong phai boss wave, doi hinh da don sach (0 dich con lai): UpdateEnemies yeu cau chuyen WAVE_CLEAR, wave tang dung 1, KHONG cong currency", "[game_manager][state_machine][currency]") {

@@ -118,6 +118,7 @@ private:
     Leaderboard leaderboard;
     MetaProgress metaProgress;
     int selectedLoadout = 0; // Index dang duoc cycle trong Menu (Q/E) - xem UpdateMenu/DrawLoadoutSelect
+    int selectedUpgrade = 0; // Index dang duoc cycle trong man hinh WAVE_CLEAR (Trai/Phai) - xem UpdateEndScreen/DrawUpgradeSelect (Track C Nguoi 2, Phase 3)
     Settings settings;
     SpriteSheet sprites;
     Font gameFont{}; // Tai qua LoadFontEx() trong Run() - Texture Atlas rieng thay the font mac dinh mo cua raylib

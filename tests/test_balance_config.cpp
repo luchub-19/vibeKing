@@ -115,3 +115,23 @@ TEST_CASE("Config::LoadBalance: ghi de dung muc 'dda' (B2), khong dung toi g_dif
     Config::DDA_STEP_UP = originalStepUp;
     Config::DDA_STRUGGLE_THRESHOLD = originalThreshold;
 }
+
+TEST_CASE("Config::LoadBalance: ghi de dung muc 'upgrades', khong dung toi muc khac", "[balance][upgrade]") {
+    CleanupGuard guard;
+    float originalMoveSpeedMul = Config::UPGRADE_MOVE_SPEED_MUL;
+    float originalBonusScore = Config::UPGRADE_BONUS_SCORE;
+    float originalDdaStepUp = Config::DDA_STEP_UP;
+
+    WriteFile(R"({
+        "upgrades": { "move_speed_mul": 1.5, "bonus_score": 2500 }
+    })");
+    Config::LoadBalance(TestJsonPath());
+
+    REQUIRE(Config::UPGRADE_MOVE_SPEED_MUL == Approx(1.5f));
+    REQUIRE(Config::UPGRADE_BONUS_SCORE == Approx(2500.0f));
+    // Muc khac (dda) khong bi dung toi.
+    REQUIRE(Config::DDA_STEP_UP == Approx(originalDdaStepUp));
+
+    Config::UPGRADE_MOVE_SPEED_MUL = originalMoveSpeedMul;
+    Config::UPGRADE_BONUS_SCORE = originalBonusScore;
+}

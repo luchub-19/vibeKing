@@ -153,5 +153,10 @@
     "min_mul": 0.7,
     "max_mul": 1.3,
     "struggle_threshold": 2
+  },
+
+  "upgrades": {
+    "move_speed_mul": 1.08,
+    "bonus_score": 1000
   }
 }

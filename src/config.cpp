@@ -203,6 +203,15 @@ namespace {
         Assign(s, "max_mul", Config::DDA_MAX_MUL);
         Assign(s, "struggle_threshold", Config::DDA_STRUGGLE_THRESHOLD);
     }
+
+    // Track C - Nguoi 2, Phase 3 (xem upgrade_types.h). Khoi RIENG, khong dung toi
+    // g_difficultyTable/g_bossTypeDescriptors - cung tinh than voi LoadDda() o tren.
+    void LoadUpgrades(const json& root) {
+        if (!root.contains("upgrades")) return;
+        const json& s = root.at("upgrades");
+        Assign(s, "move_speed_mul", Config::UPGRADE_MOVE_SPEED_MUL);
+        Assign(s, "bonus_score", Config::UPGRADE_BONUS_SCORE);
+    }
 }
 
 void Config::LoadBalance(const char* path) {
@@ -253,6 +262,7 @@ void Config::LoadBalance(const char* path) {
     safeLoad("bunker", LoadBunker);
     safeLoad("anim", LoadAnim);
     safeLoad("dda", LoadDda);
+    safeLoad("upgrades", LoadUpgrades);
 
     TraceLog(LOG_INFO, "Balance: da nap du lieu can bang tu '%s'", actualPath);
 }

@@ -45,6 +45,11 @@ public:
     static bool IsBossWave(const GameManager& gm) { return gm.isBossWave; }
     static void SetIsBossWave(GameManager& gm, bool v) { gm.isBossWave = v; }
 
+    // Track C - Nguoi 2 (Phase 3): cursor cycle Trai/Phai trong man hinh WAVE_CLEAR - xem
+    // GameManager::UpdateEndScreen()/selectedUpgrade (game_manager.h).
+    static int SelectedUpgrade(const GameManager& gm) { return gm.selectedUpgrade; }
+    static void SetSelectedUpgrade(GameManager& gm, int v) { gm.selectedUpgrade = v; }
+
     // ----- DDA (Dynamic Difficulty Adjustment) - xem ddaSpeedMul/ddaLivesLostSinceCheck
     // trong game_manager.h. Them sau khi phat hien checkpoint DDA (chay ben trong nhanh
     // BOSS DEFEAT cua UpdatePlaying()) chua co test nao dung toi - chi Config::DDA_* (nap

@@ -35,6 +35,19 @@ namespace Loc {
     constexpr const char* NewRecordBanner = "NEW RECORD! (#1)";
     constexpr const char* MadeTop10Banner = "TOP 10!";
 
+    // --- Upgrade select (RenderSystem::DrawEndScreen, state WAVE_CLEAR - Track C Nguoi 2
+    // Phase 3). So lieu trong *Desc la khoi diem hien tai (dong bo tay voi Config::UPGRADE_*
+    // trong config.h/balance.json - xem upgrade_types.h) - can chinh can bang thi sua CA 2
+    // cho, day chi la nhan hien thi, khong parse nguoc tu chuoi. ---
+    constexpr const char* UpgradeMoveSpeedName = "MOVE SPEED";
+    constexpr const char* UpgradeMoveSpeedDesc = "+8% speed per pick";
+    constexpr const char* UpgradeExtraLifeName = "EXTRA LIFE";
+    constexpr const char* UpgradeExtraLifeDesc = "+1 life (max 5)";
+    constexpr const char* UpgradeBonusScoreName = "BONUS SCORE";
+    constexpr const char* UpgradeBonusScoreDesc = "+1000 points";
+    constexpr const char* UpgradeSelectHint = "LEFT/RIGHT: SELECT   ENTER: CONFIRM   R: RESTART";
+    constexpr const char* BossWaveUpgradeBanner = "BOSS WAVE NEXT - PICK APPLIES x2!";
+
     // --- Paused overlay (RenderSystem::DrawPlaying) ---
     constexpr const char* PausedControlsHint = "P / ESC: RESUME   F11: FULLSCREEN   K: REBIND KEYS";
 

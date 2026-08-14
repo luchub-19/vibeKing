@@ -97,6 +97,7 @@ if(BUILD_TESTS)
         tests/test_wave_generator.cpp
         tests/test_game_manager.cpp
         tests/test_physics_system.cpp
+        tests/test_upgrades.cpp
         tests/test_parallax.cpp
         src/leaderboard.cpp
         src/config.cpp

@@ -312,6 +312,16 @@ namespace Config {
     inline int   DDA_STRUGGLE_THRESHOLD = 2; // Mat >= 2 mang trong 1 chu ky Boss moi tinh la "vat lon"
 
     // ==========================================
+    // RUN UPGRADE (Track C - Nguoi 2, Phase 3: he thong chon nang cap sau wave) - xem
+    // upgrade_types.h cho enum UpgradeType/UpgradeTypeDescriptor. Chi 2 hang so o day vi
+    // ExtraLife khong can he so rieng (luon +1 mang/lan, cap san o Config::MAX_LIVES da co
+    // - xem Player::ApplyRunUpgrade trong player.cpp). Doi so o day nho sua lai nhan hien
+    // thi tuong ung trong Loc::Upgrade*Desc (localization.h) - 2 cho KHONG tu dong dong bo.
+    // ==========================================
+    inline float UPGRADE_MOVE_SPEED_MUL = 1.08f; // Nhan truc tiep vao Player::speed moi lan chon (khong doi Update(), field da duoc doc san moi frame)
+    inline float UPGRADE_BONUS_SCORE    = 1000.0f; // Cong thang qua Player::AddScore() co san moi lan chon
+
+    // ==========================================
     // GRAPHICS/UI OVERHAUL - NGUOI 3 (Audio & UI): hang so cho muzzle flash, hit-flash,
     // bullet glow, nhac nen procedural (AudioStream realtime) va HUD panel/icon moi.
     // constexpr (KHONG phai inline) - day la tinh chinh hinh anh/am thanh ky thuat, khong

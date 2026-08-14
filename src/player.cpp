@@ -17,6 +17,7 @@ void Player::Reset() {
     spreadShotTimer = 0.0f; // Phase 1b, Nguoi 1
     overdriveTimer = 0.0f;  // Phase 1b, Nguoi 1
     fireTimer = Config::PLAYER_FIRE_RATE; // Chan spam dan dau game
+    runUpgradeStacks.fill(0); // Track C Nguoi 2 (Phase 3): van MOI -> xoa sach nang cap van truoc (speed/lives/score da duoc 3 dong tren tu reset ve mac dinh roi)
 }
 
 void Player::ResetForNewWave() {
@@ -138,6 +139,40 @@ void Player::ApplyStartBonus(LoadoutType type) {
         case LoadoutType::Standard:
         default:
             break; // Giu dung hanh vi hien tai, khong doi gi ca
+    }
+}
+
+// RUN UPGRADE (Track C - Nguoi 2, Phase 3) - xem khai bao trong player.h va
+// UpgradeTypeDescriptor trong upgrade_types.h. Moi nhanh mutate DUNG 1 field, khong dung
+// toi Update() (field lien quan deu da duoc Update() doc "as-is" moi frame o dang hien
+// co - speed truc tiep, lives/score qua AddScore() co san). Goi ham nay NHIEU LAN cung 1
+// UpgradeType (tu GameManager::UpdateEndScreen()) la cach DUY NHAT nang stack - khong co
+// tham so "so luong" rieng, giu dung 1 chu ky ham nhu da chot.
+void Player::ApplyRunUpgrade(UpgradeType type) {
+    int idx = (int)type;
+    if (idx < 0 || idx >= UPGRADE_TYPE_COUNT) return;
+    runUpgradeStacks[idx]++;
+
+    const UpgradeTypeDescriptor& desc = GetUpgradeTypeDescriptor(type);
+    switch (type) {
+        case UpgradeType::MoveSpeed:
+            // He so NHAN (khong phai cong them) - moi lan chon nhan them 1 lop len speed
+            // HIEN TAI (dung y "cong don" - 3 lan lien tiep = nhan lien 3 lan, khong phai
+            // +3*step). Update() da doc `speed` nhu 1 field binh thuong tu truoc, khong
+            // can sua gi o do.
+            speed *= *desc.coefficient;
+            break;
+        case UpgradeType::ExtraLife:
+            // Dung LAI cap Config::MAX_LIVES co san (giong het nhanh Vanguard trong
+            // ApplyStartBonus o tren) - khong hardcode 1 tran rieng cho upgrade nay.
+            if (lives < Config::MAX_LIVES) lives++;
+            break;
+        case UpgradeType::BonusScore:
+            // Tai dung AddScore() cong khai - vua tranh nhan doi logic, vua tu dong huong
+            // luon co che +1 mang tai moc diem (Config::EXTRA_LIFE_SCORE_THRESHOLD) neu
+            // diem thuong vua du day qua 1 moc, khong can code gi them.
+            AddScore((int)*desc.coefficient);
+            break;
     }
 }
 

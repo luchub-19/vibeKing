@@ -5,6 +5,7 @@
 #include "render_system.h"
 #include "file_logger.h"
 #include "wave_generator.h"
+#include "upgrade_types.h"
 
 // ==========================================
 // TRANSITION (fade giua cac state)
@@ -416,7 +417,24 @@ void GameManager::UpdateEndScreen() {
     MenuInput input = InputSystem::PollMenu(settings);
 
     if (state == GameState::WAVE_CLEAR) {
+        // NANG CAP SAU WAVE (Track C - Nguoi 2, Phase 3): cycle 3 lua chon bang Trai/Phai -
+        // tai dung CycleDifficultyLeft/Right cua MenuInput (RANH trong man hinh nay, chi
+        // dung o UpdateMenu() cho DIFFICULTY - xem input_system.h), KHONG them phim moi.
+        if (input.CycleDifficultyLeft || input.CycleDifficultyRight) {
+            int dir = input.CycleDifficultyRight ? 1 : -1;
+            selectedUpgrade = (selectedUpgrade + dir + UPGRADE_TYPE_COUNT) % UPGRADE_TYPE_COUNT;
+        }
+
         if (input.Confirm) {
+            // Ap dung nang cap dang chon TRUOC KHI sang wave ke. gm.wave o day DA duoc ++
+            // TU TRUOC (xem PhysicsSystem::UpdateEnemies()/UpdatePlaying() nhanh BOSS
+            // DEFEAT) - tuc DA LA wave SAP choi, nen check "wave boss sap toi" dung thang
+            // duoc, khong can suy nguoc. Wave boss: goi ApplyRunUpgrade() THEM 1 lan cho
+            // CUNG 1 luot chon (2 lan tong) thay vi them pool/loai rieng - xem upgrade_types.h.
+            UpgradeType chosen = (UpgradeType)selectedUpgrade;
+            player.ApplyRunUpgrade(chosen);
+            if (wave % Config::BOSS_WAVE_INTERVAL == 0) player.ApplyRunUpgrade(chosen);
+
             InitLevel(false); // Giu diem/mang, sang wave ke tiep voi do kho cao hon
             RequestTransition(GameState::PLAYING);
         }

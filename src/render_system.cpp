@@ -6,6 +6,7 @@
 #include "input_system.h"
 #include "meta_progress.h"
 #include "localization.h"
+#include "upgrade_types.h"
 
 // Logo tieu de MENU: hang basicAlien THAT (SpriteSheet, dung atlas Kenney neu co - xem
 // docs/ASSET_INTEGRATION.md, fallback procedural neu khong - xem sprites.cpp) nhap nhoi
@@ -158,6 +159,17 @@ void RenderSystem::DrawMenu(const GameManager& gm) {
     canvas.Draw(gm.gameFont);
 }
 
+// UPGRADE SELECT (Track C - Nguoi 2, Phase 3) - dong "< UPGRADE: TEN - mo ta (xN owned) >"
+// trong man hinh WAVE_CLEAR, dung KHUON DrawLoadoutSelect() o tren (cycle Trai/Phai, hien
+// 1 lua chon tai 1 thoi diem - xem GameManager::UpdateEndScreen() cho logic cycle/ap dung
+// that su). Nhan gia tri DA trich xuat san (khong nhan GameManager&) - cung ly do voi
+// DrawLoadoutSelect: ham static nay khong co `friend class RenderSystem`.
+static void DrawUpgradeSelect(UICanvas& canvas, int y, UpgradeType chosen, int ownedStacks) {
+    const UpgradeTypeDescriptor& desc = GetUpgradeTypeDescriptor(chosen);
+    canvas.CenteredText(Config::SCREEN_W / 2, y, 18, WHITE,
+                         TextFormat("< UPGRADE: %s - %s (x%d owned) >", desc.name, desc.description, ownedStacks));
+}
+
 void RenderSystem::DrawEndScreen(const GameManager& gm) {
     UICanvas canvas;
     // A4: toan bo man hinh nay la banner/thong bao mang tinh "trung tam" (khong phai
@@ -169,7 +181,17 @@ void RenderSystem::DrawEndScreen(const GameManager& gm) {
     if (waveClear) {
         canvas.CenteredText(centerX, 180, 36, YELLOW, TextFormat("WAVE %d CLEARED!", gm.wave - 1));
         canvas.CenteredText(centerX, 240, 20, WHITE, TextFormat("SCORE: %d", gm.player.GetScore()));
-        canvas.CenteredText(centerX, 300, 20, GRAY, "ENTER: NEXT WAVE   R: RESTART");
+
+        // NANG CAP SAU WAVE (Track C - Nguoi 2, Phase 3): gm.wave DA duoc ++ TU TRUOC (xem
+        // comment trong GameManager::UpdateEndScreen()) - tuc DA LA wave SAP choi, dung
+        // thang de bao "wave boss sap toi" ma khong can suy nguoc gi them.
+        bool rareWave = (gm.wave % Config::BOSS_WAVE_INTERVAL == 0);
+        if (rareWave) canvas.CenteredText(centerX, 272, 16, ORANGE, Loc::BossWaveUpgradeBanner);
+
+        UpgradeType chosenUpgrade = (UpgradeType)gm.selectedUpgrade;
+        DrawUpgradeSelect(canvas, 300, chosenUpgrade, gm.player.GetUpgradeStacks(chosenUpgrade));
+
+        canvas.CenteredText(centerX, 335, 16, GRAY, Loc::UpgradeSelectHint);
     } else {
         canvas.CenteredText(centerX, 180, 40, RED, "GAME OVER");
         canvas.CenteredText(centerX, 240, 20, WHITE, TextFormat("FINAL SCORE: %d   WAVE REACHED: %d", gm.player.GetScore(), gm.wave));
