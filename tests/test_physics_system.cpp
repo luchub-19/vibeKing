@@ -109,6 +109,163 @@ TEST_CASE("CheckCollisions: Tanky enemy can dung TankyEnemy::HP phat moi chet - 
 }
 
 // ==========================================
+// PHASE 1A (Enemy & Item Revolution, Nguoi 1) - WARDEN & MEDIC
+// ==========================================
+TEST_CASE("CheckCollisions: Warden can dung WardenEnemy::HP phat moi chet - chi phat CUOI CUNG moi gan wardenReinforcementCount vao event", "[physics][collision][warden]") {
+    // Dung KHUON MAU voi test Tanky o tren (nhieu-phat-moi-chet) - CHI khac o cho luc chet
+    // that su phai mang them wardenReinforcementCount (GameManager::ProcessEvents() doc
+    // field nay de sinh quan tang vien - xem events.h).
+    GameManager gm;
+    WardenEnemy w{};
+    w.rect = { 200.0f, 150.0f, 42.0f, 30.0f };
+    w.color = DARKBLUE;
+    GTA::WardenEnemies(gm).Clear();
+    GTA::WardenEnemies(gm).Spawn(w);
+
+    const int totalHp = WardenEnemy::HP;
+    REQUIRE(totalHp >= 2); // kich ban "nhieu phat" chi co y nghia neu HP > 1
+
+    for (int hitNum = 1; hitNum < totalHp; hitNum++) {
+        FireBulletAt(GTA::PlayerBullets(gm), GTA::WardenEnemies(gm)[0].rect);
+        PhysicsSystem::CheckCollisions(gm);
+
+        INFO("hitNum=" << hitNum << " / totalHp=" << totalHp);
+        REQUIRE(GTA::WardenEnemies(gm).Size() == 1);
+        REQUIRE(GTA::WardenEnemies(gm)[0].hp == totalHp - hitNum);
+
+        const auto& events = GTA::PendingEvents(gm);
+        REQUIRE(events.size() == 1);
+        REQUIRE(events[0].scoreValue == 0);
+        REQUIRE(events[0].wardenReinforcementCount == 0); // Chua chet han -> CHUA sinh quan tang vien
+        REQUIRE(events[0].flashOnHit == true);
+    }
+
+    FireBulletAt(GTA::PlayerBullets(gm), GTA::WardenEnemies(gm)[0].rect);
+    PhysicsSystem::CheckCollisions(gm);
+
+    REQUIRE(GTA::WardenEnemies(gm).Size() == 0);
+    const auto& finalEvents = GTA::PendingEvents(gm);
+    REQUIRE(finalEvents.size() == 1);
+    REQUIRE(finalEvents[0].scoreValue == WardenEnemy::SCORE_VALUE);
+    REQUIRE(finalEvents[0].wardenReinforcementCount == Config::WARDEN_REINFORCEMENT_COUNT); // Chet han -> CO sinh quan
+}
+
+TEST_CASE("GameManager::ProcessEvents: Warden chet sinh dung Config::WARDEN_REINFORCEMENT_COUNT BasicEnemy tai vi tri cu, column=-1", "[physics][collision][warden][integration]") {
+    // Tich hop CheckCollisions() + ProcessEvents() (dung tinh than test POWERUP_DROP_CHANCE
+    // o tren) - xac nhan hieu ung THAT SU xuat hien trong basicEnemies, khong chi dung o
+    // muc GameEvent.
+    GameManager gm;
+    WardenEnemy w{};
+    w.rect = { 300.0f, 180.0f, 42.0f, 30.0f };
+    w.color = DARKBLUE;
+    w.hp = 1; // 1 phat la chet - khong can lap qua nhieu phat trong test nay
+    GTA::WardenEnemies(gm).Clear();
+    GTA::WardenEnemies(gm).Spawn(w);
+    GTA::BasicEnemies(gm).Clear();
+
+    FireBulletAt(GTA::PlayerBullets(gm), GTA::WardenEnemies(gm)[0].rect);
+    PhysicsSystem::CheckCollisions(gm);
+    GTA::CallProcessEvents(gm);
+
+    REQUIRE(GTA::BasicEnemies(gm).Size() == (size_t)Config::WARDEN_REINFORCEMENT_COUNT);
+    for (size_t i = 0; i < GTA::BasicEnemies(gm).Size(); i++) {
+        REQUIRE(GTA::BasicEnemies(gm)[i].column == -1); // Khong thuoc cot nao trong luoi that - xem GameManager::ProcessEvents()
+    }
+}
+
+TEST_CASE("CheckCollisions: Medic chet sau dung 1 phat (giong Basic), dan bi tieu thu, event mang dung SCORE_VALUE", "[physics][collision][medic]") {
+    GameManager gm;
+    MedicEnemy m{};
+    m.rect = { 220.0f, 160.0f, 34.0f, 24.0f };
+    m.color = LIME;
+    GTA::MedicEnemies(gm).Clear();
+    GTA::MedicEnemies(gm).Spawn(m);
+
+    FireBulletAt(GTA::PlayerBullets(gm), GTA::MedicEnemies(gm)[0].rect);
+    PhysicsSystem::CheckCollisions(gm);
+
+    REQUIRE(GTA::MedicEnemies(gm).Size() == 0);
+    REQUIRE(GTA::PlayerBullets(gm).GetActiveCount() == 0);
+    const auto& events = GTA::PendingEvents(gm);
+    REQUIRE(events.size() == 1);
+    REQUIRE(events[0].scoreValue == MedicEnemy::SCORE_VALUE);
+    REQUIRE(events[0].dropPowerUp == true);
+}
+
+TEST_CASE("UpdateMedicEnemies: het Config::MEDIC_HEAL_INTERVAL, hoi dung Config::MEDIC_HEAL_AMOUNT cho TankyEnemy GAN NHAT con thieu mau, KHONG vuot TankyEnemy::HP", "[physics][medic]") {
+    GameManager gm;
+    GTA::MedicEnemies(gm).Clear();
+    GTA::TankyEnemies(gm).Clear();
+
+    MedicEnemy m{};
+    m.rect = { 100.0f, 100.0f, 34.0f, 24.0f };
+    m.color = LIME;
+    m.healTimer = 0.0f;
+    GTA::MedicEnemies(gm).Spawn(m);
+
+    // 2 Tanky: 1 GAN Medic nhung DA DAY mau (khong duoc hoi vi khong can), 1 XA hon nhung
+    // con thieu mau (phai la muc tieu duoc chon, du xa hon).
+    TankyEnemy full{};
+    full.rect = { 110.0f, 100.0f, 32.0f, 32.0f }; // Rat gan Medic
+    full.hp = TankyEnemy::HP;
+    GTA::TankyEnemies(gm).Spawn(full);
+
+    TankyEnemy hurt{};
+    hurt.rect = { 400.0f, 100.0f, 32.0f, 32.0f }; // Xa Medic hon nhieu
+    hurt.hp = TankyEnemy::HP - 1;
+    GTA::TankyEnemies(gm).Spawn(hurt);
+
+    REQUIRE(Config::MEDIC_HEAL_INTERVAL > 0.0f);
+    PhysicsSystem::UpdateMedicEnemies(gm, Config::MEDIC_HEAL_INTERVAL, false); // 1 buoc du het dung 1 chu ky
+
+    REQUIRE(GTA::TankyEnemies(gm)[0].hp == TankyEnemy::HP);                 // "full" khong doi
+    REQUIRE(GTA::TankyEnemies(gm)[1].hp == TankyEnemy::HP - 1 + Config::MEDIC_HEAL_AMOUNT); // "hurt" duoc hoi
+
+    // Hoi lien tuc nhieu chu ky nua: khong bao gio vuot HP goc du con lai thieu it hon
+    // MEDIC_HEAL_AMOUNT.
+    for (int i = 0; i < 10; i++) {
+        PhysicsSystem::UpdateMedicEnemies(gm, Config::MEDIC_HEAL_INTERVAL, false);
+    }
+    REQUIRE(GTA::TankyEnemies(gm)[1].hp == TankyEnemy::HP);
+    REQUIRE(GTA::TankyEnemies(gm)[0].hp == TankyEnemy::HP);
+}
+
+TEST_CASE("UpdateWardenEnemies/UpdateMedicEnemies: alreadyFlipped=true thi KHONG tu doi enemyDirection/tang enemySpeed lan nua", "[physics][warden][medic]") {
+    // Khoa lai co che guard chong "doi huong 2 lan cung 1 frame" giua UpdateEnemies() (co
+    // the da tu doi huong roi) va Warden/Medic - xem GameManager::UpdatePlaying().
+    GameManager gm;
+    GTA::WardenEnemies(gm).Clear();
+    GTA::MedicEnemies(gm).Clear();
+    GTA::SetEnemyDirection(gm, 1);
+    GTA::SetEnemySpeed(gm, 50.0f);
+
+    // Dat 1 Warden sat canh phai man hinh - chac chan hitEdge=true ngay buoc dau.
+    WardenEnemy w{};
+    w.rect = { (float)Config::SCREEN_W - 5.0f, 100.0f, 42.0f, 30.0f };
+    w.hp = WardenEnemy::HP;
+    GTA::WardenEnemies(gm).Spawn(w);
+
+    PhysicsSystem::UpdateWardenEnemies(gm, 0.5f, /*alreadyFlipped=*/true);
+
+    REQUIRE(GTA::EnemyDirection(gm) == 1);      // KHONG doi - alreadyFlipped=true nghia la UpdateEnemies() da lo roi
+    REQUIRE(GTA::EnemySpeed(gm) == 50.0f);      // KHONG tang them
+
+    // Doi xung: alreadyFlipped=false thi PHAI tu doi/tang toc (khong ai khac lam thay).
+    GTA::SetEnemyDirection(gm, 1);
+    GTA::SetEnemySpeed(gm, 50.0f);
+    GTA::WardenEnemies(gm).Clear();
+    WardenEnemy w2{};
+    w2.rect = { (float)Config::SCREEN_W - 5.0f, 100.0f, 42.0f, 30.0f };
+    w2.hp = WardenEnemy::HP;
+    GTA::WardenEnemies(gm).Spawn(w2);
+
+    PhysicsSystem::UpdateWardenEnemies(gm, 0.5f, /*alreadyFlipped=*/false);
+
+    REQUIRE(GTA::EnemyDirection(gm) == -1);     // CO doi - khong ai khac lo viec nay
+    REQUIRE(GTA::EnemySpeed(gm) > 50.0f);       // CO tang
+}
+
+// ==========================================
 // C3.3 - BOSS: BossStage() phan loai dung 3 giai doan theo % HP con lai
 // ==========================================
 TEST_CASE("BossStage(): phan loai dung 3 giai doan theo % HP con lai, dung tai ca 2 nguong chuyen tiep (66% va 33%)", "[physics][boss]") {

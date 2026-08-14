@@ -64,6 +64,41 @@ struct ZigzagEnemy {
 };
 
 // ==========================================
+// WARDEN & MEDIC (Phase 1a - Enemy & Item Revolution, Nguoi 1): 2 loai dich LUOI moi -
+// KHAC KamikazeEnemy o duoi o cho VAN tham gia doi hinh/di chuyen dung khuon Basic/Tanky
+// (ApplyFormationMoveX() + DescendRowAndCheckGameOver() trong PhysicsSystem::
+// UpdateWardenEnemies()/UpdateMedicEnemies() - ham RIENG, KHONG chung UpdateEnemies(),
+// nhung cung cong thuc/khuon mau, khong dao dong rieng nhu Zigzag).
+//
+// CA HAI deu KHONG tham gia he thong chon "tien tuyen ban" dung chung trong
+// UpdateEnemies() (bien EnemyKind/considerColumn) - giu tinh than Kamikaze/Boss/UFO: moi
+// loai tu co nhip tan cong RIENG neu co, khong chen vao co che chi danh cho Basic/Tanky/
+// Zigzag. Medic dung yeu cau khong tu ban; Warden cung khong tu ban - de doa den tu viec
+// sinh quan luc chet (xem GameEvent::wardenReinforcementCount trong events.h +
+// GameManager::ProcessEvents()), khong phai hoa luc truc tiep.
+// ==========================================
+struct WardenEnemy {
+    static inline int HP = 2;
+    static inline int SCORE_VALUE = 40;
+
+    Rectangle rect;
+    Color color;
+    int column = 0;
+    int hp = HP;
+};
+
+struct MedicEnemy {
+    static inline int SCORE_VALUE = 25;
+
+    Rectangle rect;
+    Color color;
+    int column = 0;
+    float healTimer = 0.0f; // Dem LEN moi frame, so sanh voi Config::MEDIC_HEAL_INTERVAL - xem PhysicsSystem::UpdateMedicEnemies()
+    // Khong can hp: Medic luon chet sau dung 1 don (don vi ho tro mong manh - "diet
+    // healer truoc" la lua chon chien thuat co y nghia, khong phai bo sung do kho).
+};
+
+// ==========================================
 // KAMIKAZE - Pool + SpatialGrid rieng (xem GameManager::kamikazeEnemies/kamikazeGrid),
 // KHONG tham gia UpdateEnemies() (hitEdge, enemyDirection...) nen viec them loai dich
 // nay khong dung gi den logic kiem tra bien cua luoi doi hinh.

@@ -69,6 +69,19 @@ namespace {
         Assign(s, "kamikaze_speed", Config::KAMIKAZE_SPEED);
         Assign(s, "kamikaze_spawn_min_interval", Config::KAMIKAZE_SPAWN_MIN_INTERVAL);
         Assign(s, "kamikaze_spawn_max_interval", Config::KAMIKAZE_SPAWN_MAX_INTERVAL);
+
+        Assign(s, "warden_hp", WardenEnemy::HP);
+        Assign(s, "warden_score", WardenEnemy::SCORE_VALUE);
+        Assign(s, "warden_reinforcement_count", Config::WARDEN_REINFORCEMENT_COUNT);
+        Assign(s, "warden_spawn_chance_base", Config::WARDEN_SPAWN_CHANCE_BASE);
+        Assign(s, "warden_spawn_chance_max", Config::WARDEN_SPAWN_CHANCE_MAX);
+        Assign(s, "warden_spawn_chance_wave_step", Config::WARDEN_SPAWN_CHANCE_WAVE_STEP);
+        Assign(s, "medic_score", MedicEnemy::SCORE_VALUE);
+        Assign(s, "medic_heal_interval", Config::MEDIC_HEAL_INTERVAL);
+        Assign(s, "medic_heal_amount", Config::MEDIC_HEAL_AMOUNT);
+        Assign(s, "medic_spawn_chance_base", Config::MEDIC_SPAWN_CHANCE_BASE);
+        Assign(s, "medic_spawn_chance_max", Config::MEDIC_SPAWN_CHANCE_MAX);
+        Assign(s, "medic_spawn_chance_wave_step", Config::MEDIC_SPAWN_CHANCE_WAVE_STEP);
     }
 
     void LoadUfo(const json& root) {

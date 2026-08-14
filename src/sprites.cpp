@@ -133,6 +133,42 @@ namespace {
     }
 
     // ==========================================
+    // WARDEN/MEDIC (Phase 1a - Enemy & Item Revolution, Nguoi 1): atlas.png (Kenney) hien
+    // da kin cho (xem docs/ASSET_INTEGRATION.md) - khong con vung phu hop de map them 2
+    // hinh moi ma khong tai su dung coordinate cua loai khac (se lam giam kha nang phan
+    // biet Warden/Medic voi Basic/Tanky/Zigzag bang mat, phan tac dung voi vai tro AI moi
+    // cua chung). Dung PROCEDURAL lam nguon CHINH (khong phai fallback tam bo) - van wire
+    // qua LoadAtlasEntry() nhu moi ten khac nen chi can them 1 dong "warden=..."/"medic=..."
+    // hop le vao atlas.cfg trong tuong lai (neu tim duoc vung Kenney phu hop) la tu dong
+    // chuyen sang dung anh that, khong can sua code.
+    // ==========================================
+    Texture2D BuildWarden() {
+        // Warden: khien/thanh chan hinh NGU GIAC (canh phang tren, nhon duoi) - goi cam
+        // giac "phong thu/gac cong" - PHAN BIET voi khung VUONG deu 4 canh cua Tanky bang
+        // dinh nhon o day. Khoet giua -> van la 1 "khung" kien co, dung tinh than voi Tanky/
+        // BossSentinel nhung dang ngu giac rieng, khong nham lan duoc.
+        Image img = GenImageColor(SPRITE_SIZE, SPRITE_SIZE, BLANK);
+        ImageDrawRectangle(&img, 1, 1, 14, 8, WHITE);
+        ImageDrawTriangle(&img, {1, 9}, {15, 9}, {8, 15}, WHITE);
+        ImageDrawRectangle(&img, 4, 4, 8, 5, BLANK);
+        Texture2D tex = LoadTextureFromImage(img);
+        UnloadImage(img);
+        return tex;
+    }
+
+    Texture2D BuildMedic() {
+        // Medic: hinh CHU THAP (+) kinh dien cho vai tro ho tro/hoi phuc - bieu tuong pho
+        // quat, de nhan ra NGAY la "khong phai muc tieu tan cong truc tiep" khac han moi
+        // hinh khoi/nhon/tron con lai trong game (tat ca deu goi cam giac "tan cong").
+        Image img = GenImageColor(SPRITE_SIZE, SPRITE_SIZE, BLANK);
+        ImageDrawRectangle(&img, 6, 1, 4, 14, WHITE);
+        ImageDrawRectangle(&img, 1, 6, 14, 4, WHITE);
+        Texture2D tex = LoadTextureFromImage(img);
+        UnloadImage(img);
+        return tex;
+    }
+
+    // ==========================================
     // ICON POWER-UP - 4 silhouette 16x16 rieng biet cho tung loai (xem PowerUpType trong
     // powerup.h), thay cho hinh chu nhat mau tron truoc day. Cung triet ly "khong asset
     // ngoai" voi moi sprite dich/Boss o tren: chi hinh hoc nguyen ban (rectangle/
@@ -303,6 +339,8 @@ void SpriteSheet::Load() {
     boss         = LoadAtlasEntry(atlasImg, regions, "boss", BuildBoss);
     bossSentinel = LoadAtlasEntry(atlasImg, regions, "bossSentinel", BuildBossSentinel);
     bossSwarmer  = LoadAtlasEntry(atlasImg, regions, "bossSwarmer", BuildBossSwarmer);
+    warden       = LoadAtlasEntry(atlasImg, regions, "warden", BuildWarden);
+    medic        = LoadAtlasEntry(atlasImg, regions, "medic", BuildMedic);
 
     iconRapidFire = LoadAtlasEntry(atlasImg, regions, "iconRapidFire", BuildIconRapidFire);
     iconShield    = LoadAtlasEntry(atlasImg, regions, "iconShield", BuildIconShield);
@@ -322,6 +360,8 @@ void SpriteSheet::Unload() {
     UnloadTexture(boss);
     UnloadTexture(bossSentinel);
     UnloadTexture(bossSwarmer);
+    UnloadTexture(warden);
+    UnloadTexture(medic);
 
     UnloadTexture(iconRapidFire);
     UnloadTexture(iconShield);

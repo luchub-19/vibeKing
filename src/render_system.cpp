@@ -258,6 +258,30 @@ void RenderSystem::DrawPlaying(const GameManager& gm) {
                                          Config::ANIM_IDLE_BOB_FREQUENCY, Config::ANIM_IDLE_SCALE_AMPLITUDE);
         DrawSprite(gm.sprites.zigzagAlien, drawRect, e.color);
     }
+    // WARDEN/MEDIC (Phase 1a - Enemy & Item Revolution, Nguoi 1): van dung `column` cho
+    // phase idle-wobble giong Basic/Tanky/Zigzag (van thuoc doi hinh luoi, khac Kamikaze
+    // ben duoi) - xem PhysicsSystem::UpdateWardenEnemies()/UpdateMedicEnemies().
+    for (size_t i = 0; i < gm.wardenEnemies.Size(); i++) {
+        const WardenEnemy& e = gm.wardenEnemies[i];
+        if (!Culling::IsVisible(e.rect)) continue;
+        float phase = (float)e.column * Config::ANIM_IDLE_PHASE_STEP;
+        Rectangle drawRect = IdleWobble(e.rect, animTime, phase, Config::ANIM_IDLE_BOB_AMPLITUDE,
+                                         Config::ANIM_IDLE_BOB_FREQUENCY, Config::ANIM_IDLE_SCALE_AMPLITUDE);
+        DrawSprite(gm.sprites.warden, drawRect, e.color);
+        if (e.hp < WardenEnemy::HP) {
+            // Dung khuon Tanky: vien sang khi da an don nhung chua chet han - chi bao gan
+            // voi hitbox that (e.rect goc), khong phai drawRect co wobble.
+            DrawRectangleLinesEx(e.rect, 2.0f, WHITE);
+        }
+    }
+    for (size_t i = 0; i < gm.medicEnemies.Size(); i++) {
+        const MedicEnemy& e = gm.medicEnemies[i];
+        if (!Culling::IsVisible(e.rect)) continue;
+        float phase = (float)e.column * Config::ANIM_IDLE_PHASE_STEP;
+        Rectangle drawRect = IdleWobble(e.rect, animTime, phase, Config::ANIM_IDLE_BOB_AMPLITUDE,
+                                         Config::ANIM_IDLE_BOB_FREQUENCY, Config::ANIM_IDLE_SCALE_AMPLITUDE);
+        DrawSprite(gm.sprites.medic, drawRect, e.color);
+    }
     for (size_t i = 0; i < gm.kamikazeEnemies.Size(); i++) {
         const KamikazeEnemy& e = gm.kamikazeEnemies[i];
         if (!Culling::IsVisible(e.rect)) continue;

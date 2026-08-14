@@ -71,6 +71,7 @@ public:
     static Player& PlayerRef(GameManager& gm) { return gm.player; }
     static MetaProgress& MetaProgressRef(GameManager& gm) { return gm.metaProgress; }
     static Leaderboard& LeaderboardRef(GameManager& gm) { return gm.leaderboard; }
+    static HitStop& HitStopRef(GameManager& gm) { return gm.hitStop; }
 
     static BulletPool<Config::MAX_PLAYER_BULLETS>& PlayerBullets(GameManager& gm) { return gm.playerBullets; }
     static BulletPool<Config::MAX_ENEMY_BULLETS>& EnemyBullets(GameManager& gm) { return gm.enemyBullets; }
@@ -79,7 +80,17 @@ public:
     static EnemyPool<TankyEnemy, Config::MAX_TANKY_ENEMIES>& TankyEnemies(GameManager& gm) { return gm.tankyEnemies; }
     static EnemyPool<ZigzagEnemy, Config::MAX_ZIGZAG_ENEMIES>& ZigzagEnemies(GameManager& gm) { return gm.zigzagEnemies; }
     static EnemyPool<KamikazeEnemy, Config::MAX_KAMIKAZE>& KamikazeEnemies(GameManager& gm) { return gm.kamikazeEnemies; }
+    static EnemyPool<WardenEnemy, Config::MAX_WARDEN_ENEMIES>& WardenEnemies(GameManager& gm) { return gm.wardenEnemies; }
+    static EnemyPool<MedicEnemy, Config::MAX_MEDIC_ENEMIES>& MedicEnemies(GameManager& gm) { return gm.medicEnemies; }
     static EnemyPool<Boss, 1>& BossPool(GameManager& gm) { return gm.bossPool; }
+
+    // Phase 1a (Enemy & Item Revolution, Nguoi 1): can doc/ghi truc tiep de test guard
+    // "khong doi huong 2 lan trong cung 1 frame" giua UpdateEnemies() va UpdateWardenEnemies()/
+    // UpdateMedicEnemies() (xem GameManager::UpdatePlaying()).
+    static int EnemyDirection(const GameManager& gm) { return gm.enemyDirection; }
+    static void SetEnemyDirection(GameManager& gm, int d) { gm.enemyDirection = d; }
+    static float EnemySpeed(const GameManager& gm) { return gm.enemySpeed; }
+    static void SetEnemySpeed(GameManager& gm, float s) { gm.enemySpeed = s; }
 
     static PowerUpPool<Config::MAX_POWERUPS>& PowerUps(GameManager& gm) { return gm.powerUps; }
     static std::vector<GameEvent>& PendingEvents(GameManager& gm) { return gm.pendingEvents; }

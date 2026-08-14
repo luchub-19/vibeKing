@@ -39,20 +39,31 @@ TEST_CASE("WaveGenerator::Generate: so hang tang dung cong thuc WAVE_EXTRA_ROW_E
     }
 }
 
-TEST_CASE("WaveGenerator::Generate: khong bao gio vuot capacity pool cua bat ky loai nao, du wave lon toi dau", "[wave_generator]") {
+TEST_CASE("WaveGenerator::Generate: khong bao gio vuot capacity pool cua bat ky loai nao trong 5 loai, du wave lon toi dau", "[wave_generator]") {
+    // Phase 1a (Enemy & Item Revolution, Nguoi 1): mo rong tu 3 len 5 loai (them Warden/
+    // Medic) - SUA LAI ca nhanh dem cho TUNG loai mot thay vi gom Warden/Medic vao chung
+    // nhanh "else basic++" cu (se dem SAI - basic bi tinh du/lam an di kha nang Warden
+    // hoac Medic tu no vuot capacity RIENG trong khi tong "basic" gom lan van con duoi
+    // MAX_BASIC_ENEMIES).
     LevelGridConfig grid = DefaultGrid();
 
     for (int wave = 1; wave <= 60; wave++) {
         auto spawns = WaveGenerator::Generate(wave, grid);
-        size_t zigzag = 0, tanky = 0, basic = 0;
+        size_t zigzag = 0, tanky = 0, basic = 0, warden = 0, medic = 0;
         for (const auto& s : spawns) {
-            if (s.kind == FormationEnemyKind::Zigzag) zigzag++;
-            else if (s.kind == FormationEnemyKind::Tanky) tanky++;
-            else basic++;
+            switch (s.kind) {
+                case FormationEnemyKind::Zigzag: zigzag++; break;
+                case FormationEnemyKind::Tanky:  tanky++;  break;
+                case FormationEnemyKind::Warden: warden++; break;
+                case FormationEnemyKind::Medic:  medic++;  break;
+                case FormationEnemyKind::Basic:  basic++;  break;
+            }
         }
         REQUIRE(zigzag <= Config::MAX_ZIGZAG_ENEMIES);
         REQUIRE(tanky <= Config::MAX_TANKY_ENEMIES);
         REQUIRE(basic <= Config::MAX_BASIC_ENEMIES);
+        REQUIRE(warden <= Config::MAX_WARDEN_ENEMIES);
+        REQUIRE(medic <= Config::MAX_MEDIC_ENEMIES);
     }
 }
 

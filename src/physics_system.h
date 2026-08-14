@@ -34,6 +34,15 @@ class GameManager; // Forward declare - PhysicsSystem thao tac truc tiep tren du
 class PhysicsSystem {
 public:
     static void UpdateEnemies(GameManager& gm, float dt);   // Doi hinh Basic/Tanky/Zigzag + chon dich ban
+    // Warden/Medic (Phase 1a, Nguoi 1): HAM RIENG (khong chung UpdateEnemies() o tren) -
+    // van dung khuon doi hinh Basic/Tanky (ApplyFormationMoveX/DescendRowAndCheckGameOver)
+    // nhung KHONG tham gia activeCount/frontline-shooting cua UpdateEnemies(). `alreadyFlipped`:
+    // true neu UpdateEnemies() da tu doi huong doi hinh trong CHINH frame nay roi (xem
+    // GameManager::UpdatePlaying()) - khi do ham nay CHI di chuyen + tut hang (neu can),
+    // KHONG doi huong/tang toc THEM lan nua (tranh doi huong 2 lan = coi nhu khong doi,
+    // tang toc gap doi ngoai y muon).
+    static void UpdateWardenEnemies(GameManager& gm, float dt, bool alreadyFlipped);
+    static void UpdateMedicEnemies(GameManager& gm, float dt, bool alreadyFlipped);
     static void UpdateKamikaze(GameManager& gm, float dt);
     static void UpdateUfo(GameManager& gm, float dt);
     static void UpdateBoss(GameManager& gm, float dt);

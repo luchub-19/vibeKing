@@ -71,6 +71,8 @@ void GameManager::InitLevel(bool newGame) {
     tankyEnemies.Clear();
     zigzagEnemies.Clear();
     kamikazeEnemies.Clear();
+    wardenEnemies.Clear();
+    medicEnemies.Clear();
     bunkers.clear();
     playerBullets.Reset();
     enemyBullets.Reset();
@@ -112,6 +114,12 @@ void GameManager::InitLevel(bool newGame) {
                     basicEnemies.Spawn(BasicEnemy{ {spawn.x, spawn.y, 40.0f, 25.0f}, col, spawn.column });
                     break;
                 }
+                case FormationEnemyKind::Warden:
+                    wardenEnemies.Spawn(WardenEnemy{ {spawn.x, spawn.y, 42.0f, 30.0f}, DARKBLUE, spawn.column, WardenEnemy::HP });
+                    break;
+                case FormationEnemyKind::Medic:
+                    medicEnemies.Spawn(MedicEnemy{ {spawn.x, spawn.y, 34.0f, 24.0f}, LIME, spawn.column, 0.0f });
+                    break;
             }
         }
     }
@@ -455,9 +463,34 @@ void GameManager::UpdatePlaying(float dt) {
         particles.Burst({ pr.x + pr.width / 2.0f, pr.y }, Config::MUZZLE_FLASH_PARTICLE_COUNT, YELLOW);
     }
 
+    // WARDEN/MEDIC (Phase 1a - Enemy & Item Revolution, Nguoi 1): ghi lai huong/pha
+    // chuyen canh TRUOC khi goi UpdateEnemies() - dung de phat hien SAU do UpdateEnemies()
+    // co vua tu doi huong doi hinh (Basic/Tanky/Zigzag cham bien) hoac vua kich hoat 1
+    // transition (WAVE_CLEAR/GAME_OVER) trong CHINH frame nay hay khong, ma KHONG can sua
+    // 1 dong nao trong UpdateEnemies() (dung tinh than "khong sua ham Update cua Basic/
+    // Tanky/Zigzag") - xem 2 cho dung ben duoi.
+    int enemyDirectionBeforeUpdate = enemyDirection;
+    TransitionPhase phaseBeforeUpdate = transitionPhase;
+
     if (isBossWave) PhysicsSystem::UpdateBoss(*this, dt);
     else PhysicsSystem::UpdateEnemies(*this, dt);
     if (state != GameState::PLAYING) return; // UpdateEnemies/danh boss co the trigger WAVE_CLEAR/GAME_OVER
+
+    // Warden/Medic van tham gia doi hinh (di chuyen dung khuon Basic/Tanky, xem
+    // enemy_types.h) nhung nam trong 2 ham RIENG (khong the goi tu ben trong UpdateEnemies()
+    // ma khong sua no) - CHI goi khi KHONG phai boss wave (boss wave khong co luoi doi
+    // hinh nao ca) VA UpdateEnemies() o tren CHUA vua kich hoat transition frame nay (neu
+    // co, RequestTransition() da doi transitionPhase NGAY LAP TUC dong bo - xem
+    // GameManager::RequestTransition() - tranh Warden/Medic CUNG cham nguong hitEdge/day
+    // man hinh o DUNG frame do va goi lai PlayGameOver()/TrySubmit()/RequestTransition()
+    // lan 2 cho cung 1 su kien; cai gia phai tra chi la Warden/Medic dung hinh THEM dung 1
+    // frame - khong nhan duoc trong luc man hinh da bat dau fade sang WAVE_CLEAR/GAME_OVER).
+    if (!isBossWave && transitionPhase == phaseBeforeUpdate) {
+        bool formationAlreadyFlipped = (enemyDirection != enemyDirectionBeforeUpdate);
+        PhysicsSystem::UpdateWardenEnemies(*this, dt, formationAlreadyFlipped);
+        PhysicsSystem::UpdateMedicEnemies(*this, dt, enemyDirection != enemyDirectionBeforeUpdate);
+        if (state != GameState::PLAYING) return; // Warden/Medic cham day man hinh cung co the kich hoat GAME_OVER
+    }
 
     playerBullets.Update(dt);
     enemyBullets.Update(dt);
@@ -559,6 +592,23 @@ void GameManager::ProcessEvents() {
         if (ev.shakeDuration > 0.0f) screenShake.Trigger(ev.shakeDuration, ev.shakeIntensity);
         if (ev.scoreValue > 0) ApplyComboAndScore(ev.scoreValue);
         if (ev.dropPowerUp) MaybeDropPowerUp(ev.position);
+
+        // WARDEN (Phase 1a - Enemy & Item Revolution, Nguoi 1): "yeu hon" nghia la spawn
+        // BasicEnemy BINH THUONG (loai yeu nhat co san - 1 mau, khong ky nang) tai vi tri
+        // Warden vua chet, KHONG phai 1 bien the rieng yeu hon nua - Warden da la 1 khoan
+        // "dau tu" (WardenEnemy::HP=2, ban nhieu phat hon Basic/Zigzag) nen ban than viec
+        // no chi de lai 2 Basic (thay vi tu no) da la phan thuong/hinh phat can bang du,
+        // khong can them field/co che rieng cho BasicEnemy chi vi 1 nguon spawn nay.
+        // column=-1: KHONG thuoc cot nao trong luoi doi hinh that (spawn ngoai cong thuc
+        // luoi, tai toa do pixel tuy y) - considerColumn() trong UpdateEnemies() tu dong
+        // bo qua moi column<0, nen 2 con nay se KHONG canh tranh vao trang thai "tien
+        // tuyen ban" cua cot nao ca, dung tinh than "linh sinh ra hon loan, khong co doi
+        // hinh to chuc" hon la 1 gia dinh column suy doan tu toa do pixel co the sai.
+        for (int k = 0; k < ev.wardenReinforcementCount; k++) {
+            float offsetX = ((float)k - (float)(ev.wardenReinforcementCount - 1) / 2.0f) * 18.0f;
+            Rectangle rect{ ev.position.x + offsetX - 20.0f, ev.position.y - 12.5f, 40.0f, 25.0f };
+            basicEnemies.Spawn(BasicEnemy{ rect, PURPLE, -1 });
+        }
     }
     pendingEvents.clear();
 }

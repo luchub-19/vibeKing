@@ -55,4 +55,10 @@ struct GameEvent {
     // burst co the CONG DON (vd Boss: burst mau shield/damage BINH THUONG + flash trang
     // rieng chong len nhau), khong phai lam 1 trong 2.
     bool flashOnHit = false;
+
+    // WARDEN (Phase 1a - Enemy & Item Revolution, Nguoi 1): >0 khi day la don HA GUC 1
+    // WardenEnemy - bao ProcessEvents() sinh them tung nay BasicEnemy yeu hon tai `position`
+    // (xem GameManager::ProcessEvents(), Config::WARDEN_REINFORCEMENT_COUNT). 0 (mac dinh)
+    // = khong sinh gi ca, dung cho MOI don ha guc khac trong game.
+    int wardenReinforcementCount = 0;
 };

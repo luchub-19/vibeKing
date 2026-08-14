@@ -62,6 +62,18 @@ std::vector<FormationSpawn> WaveGenerator::Generate(int wave, const LevelGridCon
     size_t tankyBudget = Config::MAX_TANKY_ENEMIES;
     size_t basicBudget = Config::MAX_BASIC_ENEMIES;
 
+    // WARDEN/MEDIC (Phase 1a - Enemy & Item Revolution, Nguoi 1): giu NGUYEN thuat toan
+    // "trừ budget dần" hien co - chi la 2 nhanh roll THEM vao chuoi, xet SAU Tanky (uu
+    // tien Tanky truoc, dung ty le hien tai cua no) va TRUOC fallback Basic. Dung Config::
+    // (khong hardcode truc tiep nhu tankyChance o tren) - DoD Phase 1a yeu cau ro "khong
+    // co so ma thuat ngoai Config/balance.json", chat hon muc Tanky da co tu truoc.
+    float wardenChance = Config::WARDEN_SPAWN_CHANCE_BASE + Config::WARDEN_SPAWN_CHANCE_WAVE_STEP * (float)(wave - 1);
+    if (wardenChance > Config::WARDEN_SPAWN_CHANCE_MAX) wardenChance = Config::WARDEN_SPAWN_CHANCE_MAX;
+    float medicChance = Config::MEDIC_SPAWN_CHANCE_BASE + Config::MEDIC_SPAWN_CHANCE_WAVE_STEP * (float)(wave - 1);
+    if (medicChance > Config::MEDIC_SPAWN_CHANCE_MAX) medicChance = Config::MEDIC_SPAWN_CHANCE_MAX;
+    size_t wardenBudget = Config::MAX_WARDEN_ENEMIES;
+    size_t medicBudget = Config::MAX_MEDIC_ENEMIES;
+
     for (int r = 0; r < rows; r++) {
         bool zigzagRow = isZigzagRow[(size_t)r];
         for (int c = 0; c < cols; c++) {
@@ -74,17 +86,33 @@ std::vector<FormationSpawn> WaveGenerator::Generate(int wave, const LevelGridCon
             }
 
             bool rollTanky = tankyBudget > 0 && (float)GetRandomValue(0, 999) / 1000.0f < tankyChance;
+            // `&&` short-circuit: chi thuc su GetRandomValue() (tieu thu 1 lan random) khi
+            // nhanh truoc da "nhuong" (chua trung) - giu dung tinh than "1 roll cho nhanh
+            // nao con dang xet" cua thuat toan goc, khong lang phi so ngau nhien khi Tanky
+            // da thang truoc do.
+            bool rollWarden = !rollTanky && wardenBudget > 0 && (float)GetRandomValue(0, 999) / 1000.0f < wardenChance;
+            bool rollMedic = !rollTanky && !rollWarden && medicBudget > 0 && (float)GetRandomValue(0, 999) / 1000.0f < medicChance;
+
             if (rollTanky) {
                 tankyBudget--;
                 result.push_back({ FormationEnemyKind::Tanky, c, r, x, y });
+            } else if (rollWarden) {
+                wardenBudget--;
+                result.push_back({ FormationEnemyKind::Warden, c, r, x, y });
+            } else if (rollMedic) {
+                medicBudget--;
+                result.push_back({ FormationEnemyKind::Medic, c, r, x, y });
             } else if (basicBudget > 0) {
                 basicBudget--;
                 result.push_back({ FormationEnemyKind::Basic, c, r, x, y });
             }
-            // Het budget CA HAI loai cho 1 o (truong hop cuc hiem, xem PickZigzagRowCount
+            // Het budget CA 4 loai cho 1 o (truong hop cuc hiem, xem PickZigzagRowCount
             // + comment dau file): bo trong o do (gap trong doi hinh) thay vi vuot capacity
             // EnemyPool tuong ung - Frontline AI (physics_system.cpp) da xu ly gap an toan
-            // tu truoc (index=-1 nghia la "khong ai o cot nay").
+            // tu truoc (index=-1 nghia la "khong ai o cot nay"). Basic VAN la nhanh du
+            // phong CUOI CUNG voi budget rieng (MAX_BASIC_ENEMIES) khong doi - viec them 2
+            // loai canh tranh moi TRUOC no trong chuoi chi khien Basic ĐƯỢC chọn ÍT hơn,
+            // khong bao gio khien no vuot tran (budget cua rieng no van tu tru dan doc lap).
         }
     }
 

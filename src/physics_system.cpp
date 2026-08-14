@@ -116,7 +116,18 @@ void PhysicsSystem::UpdateEnemies(GameManager& gm, float dt) {
     // Kamikaze KHONG tham gia vong lap tren (pool + spawn logic hoan toan rieng, xem
     // UpdateKamikaze) - dung nhu thiet ke "khong pha hong logic kiem tra bien luoi doi hinh".
 
-    size_t activeCount = gm.basicEnemies.Size() + gm.tankyEnemies.Size() + gm.zigzagEnemies.Size();
+    // Phase 1a (Enemy & Item Revolution, Nguoi 1): cong them Warden/Medic vao dieu kien
+    // "da don sach wave" - day la 1 NGOAI LE co chu dich duy nhat toi cho phep minh sua
+    // trong ham nay (khong dong den bat ky dong nao khac o tren/duoi lien quan toi doi
+    // hinh/hitEdge/frontline-shooting cua Basic/Tanky/Zigzag). Ly do bat buoc phai sua:
+    // Warden/Medic co ham Update RIENG (UpdateWardenEnemies/UpdateMedicEnemies, xem
+    // physics_system.h), nen neu KHONG cong vao day, wave se bi bao "WAVE_CLEAR" (wave++,
+    // nop leaderboard) ngay khi Basic/Tanky/Zigzag het, du Warden/Medic van con song tren
+    // man hinh luc do - day la bug that (khong phai ly thuyet), da lan theo toan bo duong
+    // goi RequestTransition()/UpdatePlaying() de xac nhan truoc khi sua (xem test moi
+    // trong test_game_manager.cpp).
+    size_t activeCount = gm.basicEnemies.Size() + gm.tankyEnemies.Size() + gm.zigzagEnemies.Size()
+                        + gm.wardenEnemies.Size() + gm.medicEnemies.Size();
     if (activeCount == 0) {
         // WAVE PROGRESSION: khong con la man hinh "WIN" cuoi cung - don sach 1 wave thi
         // sang wave ke tiep, kho hon, giu nguyen diem/mang (xem InitLevel(false)).
@@ -197,6 +208,82 @@ void PhysicsSystem::UpdateEnemies(GameManager& gm, float dt) {
             }
             EnemyShoot(gm, EnemyCenterX(rect), EnemyBottomY(rect));
         }
+    }
+}
+
+// ==========================================
+// WARDEN/MEDIC (Phase 1a - Enemy & Item Revolution, Nguoi 1): 2 ham RIENG, KHONG goi tu
+// ben trong UpdateEnemies() o tren (xem physics_system.h + GameManager::UpdatePlaying() de
+// biet ly do/cach tranh doi huong-2-lan). Van dung lai NGUYEN VEN ApplyFormationMoveX()/
+// DescendRowAndCheckGameOver() (2 helper thuan, khong rieng cho Basic/Tanky) nen hanh vi
+// di chuyen/tut hang giong het, chi khac o cho KHONG tu quyet dinh doi huong khi
+// `alreadyFlipped` da la true.
+// ==========================================
+void PhysicsSystem::UpdateWardenEnemies(GameManager& gm, float dt, bool alreadyFlipped) {
+    bool hitEdge = false;
+    for (size_t i = 0; i < gm.wardenEnemies.Size(); i++) {
+        if (ApplyFormationMoveX(gm.wardenEnemies[i].rect, gm.enemyDirection, gm.enemySpeed, dt)) hitEdge = true;
+    }
+    if (!hitEdge) return;
+
+    if (!alreadyFlipped) {
+        DifficultyStats stats = GetDifficultyStats(gm.difficulty);
+        stats.enemySpeedMax *= gm.ddaSpeedMul;
+        gm.enemyDirection *= -1;
+        gm.enemySpeed = fminf(gm.enemySpeed + Config::ENEMY_SPEED_INC, stats.enemySpeedMax);
+    }
+    for (size_t i = 0; i < gm.wardenEnemies.Size(); i++) {
+        if (DescendRowAndCheckGameOver(gm, gm.wardenEnemies[i].rect)) return;
+    }
+}
+
+void PhysicsSystem::UpdateMedicEnemies(GameManager& gm, float dt, bool alreadyFlipped) {
+    bool hitEdge = false;
+    for (size_t i = 0; i < gm.medicEnemies.Size(); i++) {
+        MedicEnemy& e = gm.medicEnemies[i];
+        if (ApplyFormationMoveX(e.rect, gm.enemyDirection, gm.enemySpeed, dt)) hitEdge = true;
+
+        // HOI MAU: dem LEN moi frame (Config::MEDIC_HEAL_INTERVAL giay/lan, tru dan -
+        // khong gan thang ve 0 - de khong bi troi pha neu dt khong chia het interval).
+        // Muc tieu la TankyEnemy GAN NHAT (khoang cach Euclid tu tam Medic) trong so
+        // NHUNG CON CHUA DAY MAU - bo qua Tanky da full de khong "hoi suong" mai 1 con da
+        // day trong khi 1 con khac dang thuong o xa hon van khong duoc hoi (doc "gan
+        // nhat con song" theo tinh than co ich cho AI, khong phai nghia den bat ke hp).
+        e.healTimer += dt;
+        if (e.healTimer >= Config::MEDIC_HEAL_INTERVAL) {
+            e.healTimer -= Config::MEDIC_HEAL_INTERVAL;
+
+            int nearestIdx = -1;
+            float nearestDistSq = 0.0f;
+            Vector2 medicCenter = EnemyCenter(e.rect);
+            for (size_t j = 0; j < gm.tankyEnemies.Size(); j++) {
+                if (gm.tankyEnemies[j].hp >= TankyEnemy::HP) continue;
+                Vector2 c = EnemyCenter(gm.tankyEnemies[j].rect);
+                float dx = c.x - medicCenter.x;
+                float dy = c.y - medicCenter.y;
+                float distSq = dx * dx + dy * dy;
+                if (nearestIdx == -1 || distSq < nearestDistSq) {
+                    nearestIdx = (int)j;
+                    nearestDistSq = distSq;
+                }
+            }
+            if (nearestIdx != -1) {
+                TankyEnemy& target = gm.tankyEnemies[(size_t)nearestIdx];
+                target.hp += Config::MEDIC_HEAL_AMOUNT;
+                if (target.hp > TankyEnemy::HP) target.hp = TankyEnemy::HP; // Khong "sieu hoi" vuot HP goc
+            }
+        }
+    }
+    if (!hitEdge) return;
+
+    if (!alreadyFlipped) {
+        DifficultyStats stats = GetDifficultyStats(gm.difficulty);
+        stats.enemySpeedMax *= gm.ddaSpeedMul;
+        gm.enemyDirection *= -1;
+        gm.enemySpeed = fminf(gm.enemySpeed + Config::ENEMY_SPEED_INC, stats.enemySpeedMax);
+    }
+    for (size_t i = 0; i < gm.medicEnemies.Size(); i++) {
+        if (DescendRowAndCheckGameOver(gm, gm.medicEnemies[i].rect)) return;
     }
 }
 
@@ -448,10 +535,14 @@ void PhysicsSystem::CheckCollisions(GameManager& gm) {
     gm.tankyGrid.Clear();
     gm.zigzagGrid.Clear();
     gm.kamikazeGrid.Clear();
+    gm.wardenGrid.Clear();
+    gm.medicGrid.Clear();
     for (size_t i = 0; i < gm.basicEnemies.Size(); i++)    gm.basicGrid.Insert((int)i, gm.basicEnemies[i].rect);
     for (size_t i = 0; i < gm.tankyEnemies.Size(); i++)    gm.tankyGrid.Insert((int)i, gm.tankyEnemies[i].rect);
     for (size_t i = 0; i < gm.zigzagEnemies.Size(); i++)   gm.zigzagGrid.Insert((int)i, gm.zigzagEnemies[i].rect);
     for (size_t i = 0; i < gm.kamikazeEnemies.Size(); i++) gm.kamikazeGrid.Insert((int)i, gm.kamikazeEnemies[i].rect);
+    for (size_t i = 0; i < gm.wardenEnemies.Size(); i++)   gm.wardenGrid.Insert((int)i, gm.wardenEnemies[i].rect);
+    for (size_t i = 0; i < gm.medicEnemies.Size(); i++)    gm.medicGrid.Insert((int)i, gm.medicEnemies[i].rect);
 
     // Boss: chi la 1 pool nua (Capacity=1) - khong co nhanh rieng nao kiem tra
     // "isBossWave"; Size()==0 tu dong khong dang ky gi vao grid, y het cach 1 pool rong
@@ -473,6 +564,8 @@ void PhysicsSystem::CheckCollisions(GameManager& gm) {
     std::array<bool, Config::MAX_TANKY_ENEMIES>  tankyPendingKill{};
     std::array<bool, Config::MAX_ZIGZAG_ENEMIES> zigzagPendingKill{};
     std::array<bool, Config::MAX_KAMIKAZE>       kamikazePendingKill{};
+    std::array<bool, Config::MAX_WARDEN_ENEMIES> wardenPendingKill{};
+    std::array<bool, Config::MAX_MEDIC_ENEMIES>  medicPendingKill{};
 
     std::vector<int> candidates; // Tai dung buffer cho moi query, tranh cap phat lap lai
 
@@ -508,6 +601,15 @@ void PhysicsSystem::CheckCollisions(GameManager& gm) {
                                                    removed, [](GameEvent&) {});
         }
 
+        // Medic: 1 mau, ha guc ngay - khong tu ban nen khong the "phan cong lai", chi la 1
+        // muc tieu uu tien chien thuat (xem enemy_types.h) - dung chung
+        // ResolveOneHitKillCollision nhu Basic/Zigzag, khong can customizeEvent gi rieng.
+        if (!consumed) {
+            consumed = ResolveOneHitKillCollision(gm, bullet, i, gm.medicEnemies, gm.medicGrid, bulletRect,
+                                                   medicPendingKill, candidates, MedicEnemy::SCORE_VALUE,
+                                                   removed, [](GameEvent&) {});
+        }
+
         // Tanky: nhieu mau hon - tru hp ngay (an toan, khong dung toi index), chi danh
         // dau pendingKill khi hp that su ve 0.
         if (!consumed) {
@@ -529,6 +631,42 @@ void PhysicsSystem::CheckCollisions(GameManager& gm) {
                     // trung Tanky ma chua chet hoan toan khong co phan hoi hinh anh nao (chi
                     // sfx+rung). flashOnHit dua vao dung vi tri va cham that (EnemyCenter,
                     // khong phai {0,0} mac dinh) de ProcessEvents() bat 1 flash tai do.
+                    GameEvent ev;
+                    ev.position = EnemyCenter(e.rect);
+                    ev.sfx = SfxType::Hit;
+                    ev.shakeDuration = 0.05f;
+                    ev.shakeIntensity = 2.0f;
+                    ev.flashOnHit = true;
+                    gm.pendingEvents.push_back(ev);
+                }
+
+                removed = !bullet.ConsumePierce();
+                if (removed) gm.playerBullets.Destroy(i);
+                consumed = true;
+                break;
+            }
+        }
+
+        // Warden: nhieu mau hon (dung KHUON MAU voi Tanky o tren) - tru hp ngay, chi danh
+        // dau pendingKill khi hp that su ve 0. Khac Tanky DUY NHAT o cho: luc CHET THAT (hp
+        // <=0), gan them wardenReinforcementCount vao event - GameManager::ProcessEvents()
+        // doc field nay de sinh BasicEnemy tang vien tai dung vi tri Warden vua chet (xem
+        // events.h).
+        if (!consumed) {
+            gm.wardenGrid.QueryIndices(bulletRect, candidates);
+            for (int idx : candidates) {
+                if (wardenPendingKill[idx]) continue;
+                WardenEnemy& e = gm.wardenEnemies[idx];
+                if (!CheckCollisionRecs(bulletRect, e.rect)) continue;
+
+                if (e.hp > 0) e.hp--;
+                if (e.hp <= 0) {
+                    wardenPendingKill[idx] = true;
+                    gm.hitStop.Trigger(0.04f);
+                    GameEvent ev = MakeEnemyKilledEvent(EnemyCenter(e.rect), e.color, WardenEnemy::SCORE_VALUE);
+                    ev.wardenReinforcementCount = Config::WARDEN_REINFORCEMENT_COUNT;
+                    gm.pendingEvents.push_back(ev);
+                } else {
                     GameEvent ev;
                     ev.position = EnemyCenter(e.rect);
                     ev.sfx = SfxType::Hit;
@@ -632,6 +770,22 @@ void PhysicsSystem::CheckCollisions(GameManager& gm) {
         if (kamikazePendingKill[i]) {
             kamikazePendingKill[i] = kamikazePendingKill[gm.kamikazeEnemies.Size() - 1];
             gm.kamikazeEnemies.Destroy(i);
+        } else {
+            i++;
+        }
+    }
+    for (size_t i = 0; i < gm.wardenEnemies.Size(); ) {
+        if (wardenPendingKill[i]) {
+            wardenPendingKill[i] = wardenPendingKill[gm.wardenEnemies.Size() - 1];
+            gm.wardenEnemies.Destroy(i);
+        } else {
+            i++;
+        }
+    }
+    for (size_t i = 0; i < gm.medicEnemies.Size(); ) {
+        if (medicPendingKill[i]) {
+            medicPendingKill[i] = medicPendingKill[gm.medicEnemies.Size() - 1];
+            gm.medicEnemies.Destroy(i);
         } else {
             i++;
         }

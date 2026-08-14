@@ -52,6 +52,18 @@ namespace Config {
     constexpr size_t MAX_POWERUPS = 8;
     constexpr size_t MAX_KAMIKAZE = 6;
 
+    // WARDEN/MEDIC (Phase 1a - Enemy & Item Revolution, Nguoi 1): tran AN TOAN bo nho
+    // tinh, DONG THOI cung la ngan sach spawn toi da/wave cua WaveGenerator::Generate()
+    // (xem wardenBudget/medicBudget trong wave_generator.cpp - dung KHUON voi cach
+    // MAX_TANKY_ENEMIES vua la capacity vua la budget khoi tao moi wave). Co tinh de NHO
+    // hon nhieu MAX_TANKY_ENEMIES (44) - day la 2 loai "dac biet/hiem", khong phai quan
+    // so luong nhu Basic/Tanky. KHONG anh huong MAX_BASIC_ENEMIES ben tren: Basic van
+    // luon la nhanh du phong CUOI CUNG voi ngan sach rieng (basicBudget), tu no da dam
+    // bao khong bao gio vuot MAX_BASIC_ENEMIES du them bao nhieu loai canh tranh moi truoc
+    // no trong chuoi roll (xem wave_generator.cpp).
+    constexpr size_t MAX_WARDEN_ENEMIES = 10;
+    constexpr size_t MAX_MEDIC_ENEMIES  = 10;
+
     constexpr float TRANSITION_DURATION = 0.25f; // Thời gian fade giữa các state - UI/engine, không phải cân bằng
     constexpr int FONT_BASE_SIZE = 48;
     constexpr int LEADERBOARD_MAX_ENTRIES = 10;
@@ -135,6 +147,30 @@ namespace Config {
     inline float KAMIKAZE_SPEED = 220.0f;
     inline float KAMIKAZE_WIDTH  = 28.0f;
     inline float KAMIKAZE_HEIGHT = 28.0f;
+
+    // WARDEN/MEDIC (Phase 1a - Enemy & Item Revolution, Nguoi 1): 2 loai dich LUOI moi -
+    // van tham gia doi hinh/di chuyen dung khuon Basic/Tanky (KHONG dao dong rieng nhu
+    // Zigzag), nhung KHONG tham gia he thong chon "tien tuyen ban" dung chung trong
+    // UpdateEnemies() (giu tinh than Kamikaze/Boss/UFO: tu bat/khong bat rieng, khong chen
+    // vao co che chi vi Basic/Tanky/Zigzag) - xem PhysicsSystem::UpdateWardenEnemies()/
+    // UpdateMedicEnemies() trong physics_system.cpp. Xac suat spawn (theo % moi wave, dung
+    // khuon tankyChance trong WaveGenerator::Generate) o day thay vi hardcode truc tiep
+    // trong wave_generator.cpp nhu Tanky - DoD Phase 1a yeu cau "khong co so ma thuat
+    // ngoai Config/balance.json" ro rang hon muc Tanky (da co tu truoc) dat ra.
+    // (HP/SCORE_VALUE cua rieng Warden/Medic nam TREN struct - xem WardenEnemy::HP/
+    // SCORE_VALUE, MedicEnemy::SCORE_VALUE trong enemy_types.h - dung khuon TankyEnemy::HP/
+    // KamikazeEnemy::SCORE_VALUE. O day chi con hang so "he thong" dung boi code NGOAI
+    // struct: WaveGenerator can xac suat spawn, GameManager::ProcessEvents() can so luong
+    // sinh quan, PhysicsSystem::UpdateMedicEnemies() can chu ky hoi mau.)
+    inline int   WARDEN_REINFORCEMENT_COUNT = 2; // So BasicEnemy sinh ra tai vi tri cu luc Warden chet - xem GameManager::ProcessEvents()
+    inline float WARDEN_SPAWN_CHANCE_BASE = 0.06f;
+    inline float WARDEN_SPAWN_CHANCE_MAX = 0.14f;
+    inline float WARDEN_SPAWN_CHANCE_WAVE_STEP = 0.008f;
+    inline float MEDIC_HEAL_INTERVAL = 3.0f; // Giay giua 2 lan Medic hoi mau cho Tanky gan nhat con song
+    inline int   MEDIC_HEAL_AMOUNT = 1;
+    inline float MEDIC_SPAWN_CHANCE_BASE = 0.05f;
+    inline float MEDIC_SPAWN_CHANCE_MAX = 0.12f;
+    inline float MEDIC_SPAWN_CHANCE_WAVE_STEP = 0.007f;
 
     // BOSS BEHAVIOR - toàn bộ hành vi Boss (tốc độ/nhịp bắn theo giai đoạn, HP, điểm)
     // đều data-driven như yêu cầu.

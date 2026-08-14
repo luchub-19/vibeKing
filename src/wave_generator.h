@@ -21,7 +21,7 @@
 // (xem wave_generator.cpp) - tranh EnemyPool::Spawn() lang le tra ve false (an toan,
 // khong crash - xem enemy_types.h) roi lam wave "thieu dich" ngoai y muon.
 // ==========================================
-enum class FormationEnemyKind : uint8_t { Basic, Tanky, Zigzag };
+enum class FormationEnemyKind : uint8_t { Basic, Tanky, Zigzag, Warden, Medic };
 
 struct FormationSpawn {
     FormationEnemyKind kind;

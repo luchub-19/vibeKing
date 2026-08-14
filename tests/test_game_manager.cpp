@@ -101,6 +101,65 @@ TEST_CASE("PLAYING, khong phai boss wave, doi hinh da don sach (0 dich con lai):
     REQUIRE(GTA::MetaProgressRef(gm).GetCurrency() == currencyBefore);
 }
 
+TEST_CASE("PLAYING, Basic/Tanky/Zigzag da het nhung Warden/Medic CON SONG: UpdateEnemies KHONG duoc yeu cau chuyen WAVE_CLEAR", "[game_manager][state_machine][warden][medic]") {
+    // Phase 1a (Enemy & Item Revolution, Nguoi 1) - REGRESSION TEST cho fix activeCount
+    // trong PhysicsSystem::UpdateEnemies() (physics_system.cpp): truoc fix, dong nay CHI
+    // dem Basic+Tanky+Zigzag nen se bao "het dich" (sai) ngay ca khi Warden/Medic (co ham
+    // Update RIENG, khong nam trong UpdateEnemies()) van con song tren man hinh. 2 test
+    // duoi day (Warden song, roi Medic song) khoa lai dung ca 2 nhanh cua dieu kien
+    // activeCount moi.
+    GameManager gm;
+    QuarantinePersistence(gm);
+    GTA::SetState(gm, GameState::PLAYING);
+    GTA::SetIsBossWave(gm, false);
+    GTA::SetWave(gm, 3);
+    GTA::WardenEnemies(gm).Spawn(WardenEnemy{ {100.0f, 100.0f, 42.0f, 30.0f}, DARKBLUE, 0, WardenEnemy::HP });
+    // KHONG spawn basic/tanky/zigzag - activeCount cua 3 pool CU = 0, nhung Warden con song.
+    GameState pendingBefore = GTA::PendingState(gm); // Ghi lai TRUOC - dung "khong doi" thay vi doan gia tri mac dinh cu the (MENU) de test khong vo tinh sai neu default doi sau nay
+
+    PhysicsSystem::UpdateEnemies(gm, 0.016f);
+
+    REQUIRE(GTA::Wave(gm) == 3);                              // KHONG tang
+    REQUIRE(GTA::PendingState(gm) == pendingBefore);            // KHONG co transition nao duoc yeu cau (RequestTransition la noi DUY NHAT ghi pendingState)
+    REQUIRE(GTA::Phase(gm) == TransitionPhase::NONE);
+    REQUIRE(GTA::WardenEnemies(gm).Size() == 1);                // Warden khong bi dong cham gi (UpdateEnemies khong biet den pool nay)
+}
+
+TEST_CASE("PLAYING, Basic/Tanky/Zigzag/Warden da het nhung Medic CON SONG: UpdateEnemies KHONG duoc yeu cau chuyen WAVE_CLEAR", "[game_manager][state_machine][medic]") {
+    GameManager gm;
+    QuarantinePersistence(gm);
+    GTA::SetState(gm, GameState::PLAYING);
+    GTA::SetIsBossWave(gm, false);
+    GTA::SetWave(gm, 7);
+    GTA::MedicEnemies(gm).Spawn(MedicEnemy{ {200.0f, 100.0f, 34.0f, 24.0f}, LIME, 0, 0.0f });
+    GameState pendingBefore = GTA::PendingState(gm);
+
+    PhysicsSystem::UpdateEnemies(gm, 0.016f);
+
+    REQUIRE(GTA::Wave(gm) == 7);
+    REQUIRE(GTA::PendingState(gm) == pendingBefore);
+    REQUIRE(GTA::Phase(gm) == TransitionPhase::NONE);
+}
+
+TEST_CASE("PLAYING, CA 5 pool doi hinh (Basic/Tanky/Zigzag/Warden/Medic) deu rong: UpdateEnemies VAN yeu cau chuyen WAVE_CLEAR nhu truoc", "[game_manager][state_machine][warden][medic]") {
+    // Doi xung voi 2 test tren: xac nhan fix KHONG lam mat kha nang phat hien wave-clear
+    // that su khi Warden/Medic CUNG da het (khong chi Basic/Tanky/Zigzag) - phong truong
+    // hop sua activeCount theo huong nguoc (vd quen mot so hang, hoac dieu kien luon false).
+    GameManager gm;
+    QuarantinePersistence(gm);
+    GTA::SetState(gm, GameState::PLAYING);
+    GTA::SetIsBossWave(gm, false);
+    GTA::SetWave(gm, 3);
+    // Khong spawn gi ca o CA 5 pool.
+
+    PhysicsSystem::UpdateEnemies(gm, 0.016f);
+
+    REQUIRE(GTA::Wave(gm) == 4);
+    REQUIRE(GTA::PendingState(gm) == GameState::WAVE_CLEAR);
+    REQUIRE(GTA::Phase(gm) == TransitionPhase::FADE_OUT);
+}
+
+
 TEST_CASE("PLAYING, boss wave, boss HP da ve 0: UpdatePlaying yeu cau chuyen WAVE_CLEAR, wave tang dung 1, KHONG cong currency", "[game_manager][state_machine][currency]") {
     GameManager gm;
     QuarantinePersistence(gm);
@@ -329,4 +388,60 @@ TEST_CASE("DDA checkpoint: mat mang nhung DUOI nguong DDA_STRUGGLE_THRESHOLD -> 
 
     REQUIRE(GTA::DdaSpeedMul(gm) == Approx(1.0f)); // khong doi, khong tang cung khong giam
     REQUIRE(GTA::DdaLivesLostSinceCheck(gm) == 0); // van reset du khong dieu chinh gi
+}
+
+TEST_CASE("Mo phong 25 wave lien tiep (ca boss wave xen ke): khong crash, khong pool nao vuot capacity, InitLevel Clear dung moi vong", "[game_manager][warden][medic][stability]") {
+    // Phase 1a (Enemy & Item Revolution, Nguoi 1) - DoD "choi thu lien tuc 20 wave,
+    // Warden/Medic xuat hien dong cung luc, khong crash, khong leak pool". Headless nen
+    // khong the "choi that", nhung co the mo phong DUNG chu ky UpdatePlaying() ->
+    // WAVE_CLEAR -> fade -> InitLevel() ma game that di qua: moi vong "don sach" wave
+    // hien tai bang cach xoa toan bo pool doi hinh/Boss (thay vi gia lap tung vien dan -
+    // da co rieng nhieu test o muc va cham/hp ben tren cho tung loai), roi goi
+    // CallUpdatePlaying() DUNG NHU game that (khong goi thang UpdateEnemies()/UpdateBoss())
+    // de ca 2 nhanh phat hien wave-clear (activeCount==0 cho non-boss, bossPool[0].hp<=0
+    // cho boss wave - xem GameManager::UpdatePlaying()) deu duoc kiem tra dung duong that.
+    GameManager gm;
+    QuarantinePersistence(gm);
+    GTA::CallInitLevel(gm, true); // newGame=true -> wave=1
+
+    constexpr int kWavesToSimulate = 25; // > BOSS_WAVE_INTERVAL*4 -> chac chan trai qua nhieu boss wave
+    for (int w = 1; w <= kWavesToSimulate; w++) {
+        GTA::SetState(gm, GameState::PLAYING);
+
+        // HIT-STOP (hit_stop.h - co san TRUOC Phase 1a, khong lien quan Warden/Medic):
+        // chi duoc Update()/giam dan bo trong UpdatePlaying(), ma UpdatePlaying() lai
+        // KHONG chay trong luc `frozen` (dang fade - xem Run()). Sau khi ha Boss (wave chia
+        // het BOSS_WAVE_INTERVAL), hitStop.Trigger(0.1f) duoc goi NGAY TRUOC
+        // RequestTransition(WAVE_CLEAR) - trong game that, ~0.084s con lai do se tu tieu
+        // bien vo hinh qua vai frame dau cua wave ke tiep (nguoi choi khong nhan ra). O day
+        // vi goi CallUpdateTransition() THANG (bo qua UpdatePlaying(), tuc bo qua ca
+        // hitStop.Update()) de tua nhanh fade, hitStop khong duoc tick - reset thu cong
+        // truoc moi wave de mo phong dung "du thoi gian da troi qua" thay vi that su di
+        // qua tung frame dem nguoc.
+        GTA::HitStopRef(gm).timer = 0.0f;
+
+        REQUIRE(GTA::WardenEnemies(gm).Size() <= Config::MAX_WARDEN_ENEMIES);
+        REQUIRE(GTA::MedicEnemies(gm).Size() <= Config::MAX_MEDIC_ENEMIES);
+
+        GTA::BasicEnemies(gm).Clear();
+        GTA::TankyEnemies(gm).Clear();
+        GTA::ZigzagEnemies(gm).Clear();
+        GTA::WardenEnemies(gm).Clear();
+        GTA::MedicEnemies(gm).Clear();
+        if (GTA::BossPool(gm).Size() > 0) GTA::BossPool(gm)[0].hp = 0;
+
+        GTA::CallUpdatePlaying(gm, 0.016f);
+        REQUIRE(GTA::PendingState(gm) == GameState::WAVE_CLEAR);
+
+        // Vuot qua ca 2 pha FADE_OUT/FADE_IN de state THAT SU doi (200 frame ~3.2s @60fps
+        // - du dai hon nhieu Config::TRANSITION_DURATION*2 bat ke gia tri hien tai la bao nhieu).
+        for (int f = 0; f < 200; f++) GTA::CallUpdateTransition(gm, 0.016f);
+        REQUIRE(GTA::State(gm) == GameState::WAVE_CLEAR);
+
+        GTA::CallInitLevel(gm, false); // false: dung gm.wave HIEN TAI (da tu tang trong nhanh wave-clear), khong reset ve 1
+    }
+
+    REQUIRE(GTA::Wave(gm) == 1 + kWavesToSimulate);
+    REQUIRE(GTA::WardenEnemies(gm).Size() <= Config::MAX_WARDEN_ENEMIES);
+    REQUIRE(GTA::MedicEnemies(gm).Size() <= Config::MAX_MEDIC_ENEMIES);
 }

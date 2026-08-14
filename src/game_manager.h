@@ -193,6 +193,21 @@ private:
     void SpawnKamikaze();
     void RollNextKamikazeTimer();
 
+    // WARDEN/MEDIC (Phase 1a - Enemy & Item Revolution, Nguoi 1): KHAC Kamikaze o tren -
+    // 2 loai nay VAN thuoc luoi doi hinh (spawn qua WaveGenerator/InitLevel() nhu Basic/
+    // Tanky/Zigzag, xem ben duoi), chi dat pool/grid o day (canh Kamikaze/truoc Boss) thay
+    // vi canh basicEnemies/tankyEnemies/zigzagEnemies o tren, theo dung vi tri da thong
+    // nhat o Buoc 0 cua ke hoach chia viec (TASK_SPLIT.md) - de gom chung 1 cho voi
+    // Weaver/Bomber (Phase 2, cung "thoat luoi" nhu Kamikaze, se them ngay duoi day).
+    EnemyPool<WardenEnemy, Config::MAX_WARDEN_ENEMIES> wardenEnemies;
+    SpatialGrid wardenGrid{ (float)Config::SCREEN_W, (float)Config::SCREEN_H, 80.0f,
+                            (int)Config::MAX_WARDEN_ENEMIES, (int)Config::MAX_WARDEN_ENEMIES * 4 };
+    EnemyPool<MedicEnemy, Config::MAX_MEDIC_ENEMIES> medicEnemies;
+    SpatialGrid medicGrid{ (float)Config::SCREEN_W, (float)Config::SCREEN_H, 80.0f,
+                           (int)Config::MAX_MEDIC_ENEMIES, (int)Config::MAX_MEDIC_ENEMIES * 4 };
+    // TODO (Phase 2, Nguoi 1): EnemyPool<WeaverEnemy,...>/EnemyPool<BomberEnemy,...> + grid
+    // + spawn timer rieng (cung khuon Kamikaze o tren) se them ngay duoi day.
+
     // BOSS: dung CHUNG khuon EnemyPool<T,Capacity> nhu moi loai dich khac (Capacity=1) -
     // KHONG con bool `bossActive` rieng phai giu dong bo tay voi hp: Size()==0 nghia la
     // chua spawn/da bi ha, Size()==1 nghia la con song, dung y het quy uoc "con trong

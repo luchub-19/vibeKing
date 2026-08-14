@@ -2,11 +2,13 @@
 #include "raylib.h"
 
 // ==========================================
-// SPRITE SHEET - texture sinh bằng Image thao tác trong RAM lúc Load(), không cần file
-// .png rời (giữ đúng triết lý "không phụ thuộc asset ngoài" mà AudioManager đã áp dụng
-// cho âm thanh procedural). Hình dạng là hình học nguyên bản đơn giản (không sao chép
-// pixel art của bất kỳ game nào) - chỉ đủ để phân biệt các loại thực thể bằng mắt thay
-// vì toàn hình chữ nhật trơn.
+// SPRITE SHEET - Load() uu tien doc atlas that (assets/sprites/atlas.cfg, Kenney Space
+// Shooter Redux - xem docs/ASSET_INTEGRATION.md) cho tung ten sprite; ten nao KHONG co
+// trong atlas.cfg (hoac file/entry loi) se tu dong fallback ve hinh hoc procedural sinh
+// trong RAM (khong crash, khong bao loi) - xem LoadAtlasEntry()/BuildXxx() trong
+// sprites.cpp. Warden/Medic (Phase 1a) hien dung fallback procedural vi atlas.png (Kenney)
+// da kin cho, khong con vung trong phu hop de map them 2 hinh moi ma khong tai su dung
+// coordinate cua loai khac (se lam giam kha nang phan biet bang mat - xem sprites.cpp).
 //
 // Phải gọi Load() SAU InitWindow() (texture cần GPU context), và Unload() TRƯỚC
 // CloseWindow() - xem GameManager::Run().
@@ -22,6 +24,8 @@ public:
     Texture2D boss{};
     Texture2D bossSentinel{};
     Texture2D bossSwarmer{};
+    Texture2D warden{};  // Phase 1a (Enemy & Item Revolution, Nguoi 1) - xem BuildWarden() trong sprites.cpp
+    Texture2D medic{};   // Phase 1a (Enemy & Item Revolution, Nguoi 1) - xem BuildMedic() trong sprites.cpp
 
     // ICON POWER-UP (16x16, silhouette hinh hoc thuan - cung triet ly voi cac sprite
     // dich/Boss o tren) - thay cho DrawRectangle mau tron truoc day (xem PowerUpType

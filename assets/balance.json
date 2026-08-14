@@ -41,7 +41,20 @@
     "kamikaze_score": 150,
     "kamikaze_speed": 220.0,
     "kamikaze_spawn_min_interval": 6.0,
-    "kamikaze_spawn_max_interval": 12.0
+    "kamikaze_spawn_max_interval": 12.0,
+
+    "warden_hp": 2,
+    "warden_score": 40,
+    "warden_reinforcement_count": 2,
+    "warden_spawn_chance_base": 0.06,
+    "warden_spawn_chance_max": 0.14,
+    "warden_spawn_chance_wave_step": 0.008,
+    "medic_score": 25,
+    "medic_heal_interval": 3.0,
+    "medic_heal_amount": 1,
+    "medic_spawn_chance_base": 0.05,
+    "medic_spawn_chance_max": 0.12,
+    "medic_spawn_chance_wave_step": 0.007
   },
 
   "ufo": {
