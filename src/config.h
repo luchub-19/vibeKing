@@ -296,8 +296,17 @@ namespace Config {
     // roi tinh lai ddaSpeedMul; PhysicsSystem::UpdateEnemies() nhan he so nay vao ban sao
     // cuc bo DifficultyStats (khong dung vao g_difficultyTable goc - xem physics_system.cpp).
     // ==========================================
-    inline float DDA_STEP_UP   = 0.05f; // Khong mat mang nao ca chu ky Boss -> +5%
-    inline float DDA_STEP_DOWN = 0.10f; // Vat lon (dat nguong) -> -10%, giam nhanh hon tang de "cuu" nguoi choi kip thoi
+    // Phase 4 (Enemy & Item Revolution, "don no"): step_up giam nhe (0.05->0.04),
+    // step_down tang nhe (0.10->0.12) - voi 4 loai dich moi (Warden/Medic/Weaver/Bomber)
+    // + Swarmer gio trieu hoi ngau nhien ca 3 loai thoat luoi, "duong cong kho" von da doi
+    // so voi cong thuc "chi tang so" cu: nhieu co che hon de lam quen cung luc, nen (1)
+    // thuong cho nguoi dang choi tot MOT CHUT dieu do hon (khong day kho len qua nhanh khi
+    // nen tang da phuc tap hon truoc), (2) "cuu" nguoi dang vat lon nhanh hon 1 chut (kho
+    // khan nhieu kha nang la do CHUA QUEN co che moi, khong han la thao tac kem). Day la
+    // diem khoi dau hop ly co ly do ro rang, KHONG phai so da qua playtest thuc te - nen
+    // tinh chinh them neu choi thu thay chua vua.
+    inline float DDA_STEP_UP   = 0.04f; // Khong mat mang nao ca chu ky Boss -> +4%
+    inline float DDA_STEP_DOWN = 0.12f; // Vat lon (dat nguong) -> -12%, giam nhanh hon tang de "cuu" nguoi choi kip thoi
     inline float DDA_MIN_MUL   = 0.7f;  // San duoi - khong bao gio de dich cham/ban thua hon 70% muc do kho da chon
     inline float DDA_MAX_MUL   = 1.3f;  // Tran tren - khong bao gio vuot 130% du nguoi choi gioi den dau
     inline int   DDA_STRUGGLE_THRESHOLD = 2; // Mat >= 2 mang trong 1 chu ky Boss moi tinh la "vat lon"

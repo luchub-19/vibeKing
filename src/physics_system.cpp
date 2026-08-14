@@ -425,13 +425,24 @@ void PhysicsSystem::UpdateWeaverEnemies(GameManager& gm, float dt) {
         gm.SpawnWeaver();
     }
 
+    // DDA (Phase 4 - "do lai dda sau khi co dich moi"): Weaver/Bomber KHONG di qua
+    // GetDifficultyStats()/stats.enemySpeedMax nhu Basic/Tanky/Zigzag/Warden/Medic (dung
+    // hang so rieng WEAVER_SPEED_X/BOMBER_SPEED_X, khong thuoc bang kho theo wave) - truoc
+    // Phase 4, dieu nay vo tinh khien ca 2 loai HOAN TOAN MIEN NHIEM voi DDA: 1 nguoi choi
+    // dang duoc DDA "cuu" (ddaSpeedMul < 1 sau khi vat lon) van gap Weaver/Bomber o toc do
+    // GOC, khong duoc giam nhu moi loai khac. Nhan truc tiep gm.ddaSpeedMul vao toc do
+    // ngang o day de dong bo voi tinh than DDA_STEP_DOWN/UP ap dung DONG DEU cho toan bo
+    // dich, khong rieng gi nhom cu.
     for (size_t i = 0; i < gm.weaverEnemies.Size(); ) {
         WeaverEnemy& w = gm.weaverEnemies[i];
-        w.rect.x += (float)w.direction * Config::WEAVER_SPEED_X * dt;
+        w.rect.x += (float)w.direction * Config::WEAVER_SPEED_X * gm.ddaSpeedMul * dt;
         w.phase += Config::WEAVER_WEAVE_FREQUENCY * dt;
         // baseY la TAM co dinh (khong doi) - rect.y duoc TINH LAI moi frame tu baseY +
         // sin(phase), khong cong don truc tiep vao rect.y, nen khong the "troi" xa dan
-        // khoi bien do mong muon du chay bao lau.
+        // khoi bien do mong muon du chay bao lau. (Chi toc do NGANG bi DDA anh huong,
+        // KHONG phai bien do/tan so dao dong - giu dung "hinh dang" duong bay, chi nhanh/
+        // cham lai theo DDA, giong tinh than "khong doi cong thuc, chi doi he so" cua
+        // enemySpeedMax o cac loai khac.)
         w.rect.y = w.baseY + sinf(w.phase) * Config::WEAVER_WEAVE_AMPLITUDE;
 
         bool exitedRight = (w.direction > 0 && w.rect.x > Config::SCREEN_W);
@@ -457,11 +468,17 @@ void PhysicsSystem::UpdateBomberEnemies(GameManager& gm, float dt) {
 
     for (size_t i = 0; i < gm.bomberEnemies.Size(); ) {
         BomberEnemy& b = gm.bomberEnemies[i];
-        b.rect.x += (float)b.direction * Config::BOMBER_SPEED_X * dt;
+        // DDA (Phase 4): toc do ngang nhan ddaSpeedMul (cung ly do voi Weaver o tren).
+        b.rect.x += (float)b.direction * Config::BOMBER_SPEED_X * gm.ddaSpeedMul * dt;
 
         b.bombTimer -= dt;
         if (b.bombTimer <= 0.0f) {
-            b.bombTimer = Config::BOMBER_BOMB_INTERVAL;
+            // DDA: chia cho ddaSpeedMul (khong phai nhan) - dung khuon
+            // stats.enemyFireRate /= gm.ddaSpeedMul cua Basic/Tanky/Zigzag (UpdateEnemies())
+            // vi BOMBER_BOMB_INTERVAL la 1 THOI GIAN CHO (giong enemyFireRate), khong phai
+            // toc do: ddaSpeedMul > 1 (thuong nguoi choi) phai lam khoang cho NGAN lai
+            // (tha bom nhanh hon), khong phai dai ra.
+            b.bombTimer = Config::BOMBER_BOMB_INTERVAL / gm.ddaSpeedMul;
             Vector2 vel{ 0.0f, Config::ENEMY_BULLET_SPEED }; // Y duong = roi xuong (Y+ la xuong duoi)
             gm.enemyBullets.Fire(b.rect.x + b.rect.width / 2.0f - Config::BULLET_WIDTH / 2.0f,
                                   b.rect.y + b.rect.height, vel);
@@ -535,17 +552,27 @@ void PhysicsSystem::UpdateBoss(GameManager& gm, float dt) {
         }
     }
 
-    // TRIEU HOI TIEP VIEN (B4 - DATA-DRIVEN): dispatch qua desc.hasSummonMechanic THAY VI
-    // if (boss.type == BossType::Swarmer) truoc day - "muon" lai dung
-    // GameManager::SpawnKamikaze() da co san (PhysicsSystem la friend cua GameManager - xem
-    // game_manager.h) thay vi tu viet duong bay/muc tieu rieng. Vi doi hinh dang TRONG
-    // trong boss wave (xem InitLevel()), SpawnKamikaze() se tu dong roi vao nhanh "spawn tu
-    // ngoai man hinh" cua no (xem comment tren struct KamikazeEnemy) - dung y muon.
+    // TRIEU HOI TIEP VIEN (B4 - DATA-DRIVEN, mo rong Phase 4): dispatch qua
+    // desc.hasSummonMechanic - "muon" lai dung GameManager::SpawnXxx() da co san
+    // (PhysicsSystem la friend cua GameManager - xem game_manager.h) thay vi tu viet
+    // duong bay/muc tieu rieng. Vi doi hinh dang TRONG trong boss wave (xem InitLevel()),
+    // moi ham Spawn* deu tu dong roi vao nhanh "spawn tu ngoai man hinh" cua no. Random
+    // CHON 1 SummonKind trong desc.summonPool cho CA DOT (khong phai random rieng le
+    // tung con) - Phase 4: Swarmer gio co the trieu hoi Weaver/Bomber thay vi LUON
+    // Kamikaze nhu truoc, giu cam giac "1 dot tang vien dong nhat" (vd "dot nay toan
+    // Bomber") thay vi 1 dam linh tinh moi con 1 loai.
     if (desc.hasSummonMechanic) {
         boss.summonTimer -= dt;
         if (boss.summonTimer <= 0.0f) {
-            for (int i = 0; i < (*desc.summonCount) && gm.kamikazeEnemies.Size() < Config::MAX_KAMIKAZE; i++) {
-                gm.SpawnKamikaze();
+            SummonKind kind = (desc.summonPoolSize > 0)
+                ? desc.summonPool[GetRandomValue(0, desc.summonPoolSize - 1)]
+                : SummonKind::Kamikaze; // summonPoolSize=0 "quen dien" (khong nen xay ra) - fallback an toan ve hanh vi cu thay vi doc mang rong
+            for (int i = 0; i < (*desc.summonCount); i++) {
+                switch (kind) {
+                    case SummonKind::Kamikaze: gm.SpawnKamikaze(); break;
+                    case SummonKind::Weaver:   gm.SpawnWeaver();   break;
+                    case SummonKind::Bomber:   gm.SpawnBomber();   break;
+                }
             }
             boss.summonTimer = *desc.summonInterval;
             gm.audio.PlayBossPhase();

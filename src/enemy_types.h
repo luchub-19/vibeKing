@@ -239,6 +239,15 @@ inline const char* BossTypeName(BossType type) {
 // ==========================================
 enum class BossMovementPattern : uint8_t { Pace, Sway };
 
+// TRIEU HOI TIEP VIEN (Phase 4 - Enemy & Item Revolution, mo rong B4): danh sach LOAI co
+// the trieu hoi. Enum THUAN (khong phu thuoc GameManager) vi file nay dung TRUOC
+// game_manager.h trong chuoi include (enemy_types.h khong biet GameManager la kieu gi,
+// chi forward-declare duoc, khong the &GameManager::SpawnXxx o day) - UpdateBoss()
+// (physics_system.cpp, noi GameManager DA dinh nghia day du) random chon 1 SummonKind
+// trong summonPool cua descriptor MOI LAN het summonTimer, roi tu switch/case ra dung
+// ham GameManager::SpawnXxx tuong ung. Xem struct BossTypeDescriptor ben duoi.
+enum class SummonKind : uint8_t { Kamikaze, Weaver, Bomber };
+
 struct BossTypeDescriptor {
     BossMovementPattern movement = BossMovementPattern::Pace;
 
@@ -253,25 +262,36 @@ struct BossTypeDescriptor {
     const float* shieldDuration = nullptr;
     const float* shieldFireInterval = nullptr;
 
-    // TRIEU HOI TIEP VIEN dinh ky (rieng Swarmer truoc day).
+    // TRIEU HOI TIEP VIEN dinh ky (rieng Swarmer truoc day) - hasSummonMechanic=false thi
+    // 4 con tro/gia tri duoi khong bao gio duoc doc toi (summonPoolSize=0 an toan lam gia
+    // tri mac dinh vi UpdateBoss() luon kiem tra hasSummonMechanic TRUOC).
     bool hasSummonMechanic = false;
     const float* summonInterval = nullptr;
     const int* summonCount = nullptr;
+    const SummonKind* summonPool = nullptr; // Danh sach loai CO THE trieu hoi - 1 dot random dung 1 phan tu (xem UpdateBoss())
+    int summonPoolSize = 0;
 };
+
+// Swarmer (Phase 4): trieu hoi ngau nhien 1 trong 3 loai MOI DOT thay vi LUON Kamikaze
+// nhu truoc day - phai dinh nghia TRUOC g_bossTypeDescriptors[] o duoi (thu tu khoi tao
+// bien inline trong CUNG 1 file theo dung thu tu khai bao, an toan tai thoi diem bien
+// dich/lien ket).
+inline SummonKind g_swarmerSummonPool[] = { SummonKind::Kamikaze, SummonKind::Weaver, SummonKind::Bomber };
 
 // Index THANG bang (int)BossType (Vanguard=0, Sentinel=1, Swarmer=2 - xem enum BossType
 // o tren) - dung khuon voi Config::g_difficultyTable, KHONG switch/case.
 inline BossTypeDescriptor g_bossTypeDescriptors[3] = {
     // Vanguard: pace het chieu rong man hinh, khong khien, khong trieu hoi.
-    { BossMovementPattern::Pace, nullptr, nullptr, false, nullptr, nullptr, nullptr, false, nullptr, nullptr },
+    { BossMovementPattern::Pace, nullptr, nullptr, false, nullptr, nullptr, nullptr, false, nullptr, nullptr, nullptr, 0 },
     // Sentinel: lac quanh baseX + khien tam dinh ky.
     { BossMovementPattern::Sway, &Config::BOSS_SENTINEL_SWAY_AMPLITUDE, &Config::BOSS_SENTINEL_SWAY_FREQUENCY,
       true, &Config::BOSS_SENTINEL_SHIELD_INTERVAL, &Config::BOSS_SENTINEL_SHIELD_DURATION, &Config::BOSS_SENTINEL_SHIELD_FIRE_INTERVAL,
-      false, nullptr, nullptr },
-    // Swarmer: lac quanh baseX (bien do/tan so khac Sentinel) + trieu hoi Kamikaze dinh ky.
+      false, nullptr, nullptr, nullptr, 0 },
+    // Swarmer: lac quanh baseX (bien do/tan so khac Sentinel) + trieu hoi dinh ky, random
+    // 1 trong {Kamikaze, Weaver, Bomber} moi dot (Phase 4 - truoc day LUON Kamikaze).
     { BossMovementPattern::Sway, &Config::BOSS_SWARMER_SWAY_AMPLITUDE, &Config::BOSS_SWARMER_SWAY_FREQUENCY,
       false, nullptr, nullptr, nullptr,
-      true, &Config::BOSS_SWARMER_SUMMON_INTERVAL, &Config::BOSS_SWARMER_SUMMON_COUNT },
+      true, &Config::BOSS_SWARMER_SUMMON_INTERVAL, &Config::BOSS_SWARMER_SUMMON_COUNT, g_swarmerSummonPool, 3 },
 };
 
 inline const BossTypeDescriptor& GetBossTypeDescriptor(BossType type) {

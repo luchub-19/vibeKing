@@ -409,6 +409,56 @@ TEST_CASE("UpdateBomberEnemies: het BOMBER_BOMB_INTERVAL thi tha dung 1 dan enem
     REQUIRE(vel.y > 0.0f); // Roi XUONG (Y+ la xuong duoi)
 }
 
+// Phase 4 (Enemy & Item Revolution, "don no"): truoc Phase 4, Weaver/Bomber dung hang so
+// toc do RIENG (khong qua GetDifficultyStats()) nen HOAN TOAN mien nhiem voi DDA - 2 test
+// duoi xac nhan lo hong do da duoc va, dong bo voi Basic/Tanky/Zigzag/Warden/Medic.
+TEST_CASE("UpdateWeaverEnemies: ddaSpeedMul nhan truc tiep vao toc do ngang (khong con mien nhiem DDA nhu truoc Phase 4)", "[physics][weaver][dda]") {
+    GameManager gm;
+    GTA::WeaverEnemies(gm).Clear();
+    GTA::SetWeaverSpawnTimer(gm, 999.0f);
+    WeaverEnemy w{};
+    w.rect = { 400.0f, 100.0f, 32.0f, 22.0f };
+    w.direction = 1;
+    w.baseY = 100.0f;
+    GTA::WeaverEnemies(gm).Spawn(w);
+    float xBefore = GTA::WeaverEnemies(gm)[0].rect.x;
+
+    GTA::SetDdaSpeedMul(gm, 2.0f); // Gia lap DDA dang "thuong" nguoi choi choi tot
+    PhysicsSystem::UpdateWeaverEnemies(gm, 0.1f);
+    float dxDoubled = GTA::WeaverEnemies(gm)[0].rect.x - xBefore;
+
+    GTA::WeaverEnemies(gm).Clear();
+    GTA::WeaverEnemies(gm).Spawn(w); // Spawn lai tu dau, cung diem xuat phat
+    GTA::SetDdaSpeedMul(gm, 1.0f); // DDA trung tinh
+    PhysicsSystem::UpdateWeaverEnemies(gm, 0.1f);
+    float dxNormal = GTA::WeaverEnemies(gm)[0].rect.x - xBefore;
+
+    REQUIRE(dxDoubled == Approx(dxNormal * 2.0f).epsilon(0.001));
+}
+
+TEST_CASE("UpdateBomberEnemies: ddaSpeedMul nhan vao toc do ngang VA chia nguoc vao khoang cho tha bom (khong con mien nhiem DDA nhu truoc Phase 4)", "[physics][bomber][dda]") {
+    GameManager gm;
+    GTA::BomberEnemies(gm).Clear();
+    GTA::SetBomberSpawnTimer(gm, 999.0f);
+    BomberEnemy b{};
+    b.rect = { 400.0f, 70.0f, 34.0f, 24.0f };
+    b.direction = 1;
+    b.bombTimer = 0.0f; // Het han ngay - kich hoat nhanh reset bombTimer ben duoi
+    GTA::BomberEnemies(gm).Spawn(b);
+    float xBefore = GTA::BomberEnemies(gm)[0].rect.x;
+
+    GTA::SetDdaSpeedMul(gm, 2.0f);
+    PhysicsSystem::UpdateBomberEnemies(gm, 0.1f);
+    float dx = GTA::BomberEnemies(gm)[0].rect.x - xBefore;
+    float bombTimerAfter = GTA::BomberEnemies(gm)[0].bombTimer;
+
+    // Toc do ngang: dda=2.0 phai di gap DOI quang duong so voi dda=1.0 trong cung 0.1s.
+    REQUIRE(dx == Approx(Config::BOMBER_SPEED_X * 2.0f * 0.1f).epsilon(0.001));
+    // Khoang cho tha bom: dda=2.0 phai CHIA (khong phai nhan) - khoang cho con lai LUON
+    // BOMBER_BOMB_INTERVAL/2.0, ngan hon binh thuong (tha bom nhanh hon khi DDA "thuong").
+    REQUIRE(bombTimerAfter == Approx(Config::BOMBER_BOMB_INTERVAL / 2.0f).epsilon(0.001));
+}
+
 // ==========================================
 // C3.3 - BOSS: BossStage() phan loai dung 3 giai doan theo % HP con lai
 // ==========================================
@@ -579,7 +629,7 @@ TEST_CASE("UpdateBoss: Sentinel bat/tat khien dung theo BOSS_SENTINEL_SHIELD_INT
     REQUIRE(GTA::BossPool(gm)[0].phaseTimer == Approx(Config::BOSS_SENTINEL_SHIELD_INTERVAL));
 }
 
-TEST_CASE("UpdateBoss: Swarmer trieu hoi dung BOSS_SWARMER_SUMMON_COUNT Kamikaze khi summonTimer het qua desc.hasSummonMechanic", "[physics][boss][dda_descriptor]") {
+TEST_CASE("UpdateBoss: Swarmer trieu hoi dung BOSS_SWARMER_SUMMON_COUNT con, CUNG 1 loai duy nhat khi summonTimer het", "[physics][boss][dda_descriptor]") {
     GameManager gm;
     Boss b{};
     b.rect = { 350.0f, 80.0f, 100.0f, 60.0f };
@@ -590,14 +640,61 @@ TEST_CASE("UpdateBoss: Swarmer trieu hoi dung BOSS_SWARMER_SUMMON_COUNT Kamikaze
     GTA::BossPool(gm).Clear();
     GTA::BossPool(gm).Spawn(b);
     GTA::KamikazeEnemies(gm).Clear();
+    GTA::WeaverEnemies(gm).Clear();
+    GTA::BomberEnemies(gm).Clear();
 
     PhysicsSystem::UpdateBoss(gm, Config::BOSS_SWARMER_SUMMON_INTERVAL);
 
-    // Doi hinh (basic/tanky/zigzag) dang trong trong test nay -> SpawnKamikaze() tu roi
-    // vao nhanh "spawn tu ngoai man hinh" (xem game_manager.cpp) thay vi "muon" 1 con dang
-    // co trong doi hinh - dung y that cua boss wave (InitLevel() de doi hinh trong luc co Boss).
-    REQUIRE((int)GTA::KamikazeEnemies(gm).Size() == Config::BOSS_SWARMER_SUMMON_COUNT);
+    // Doi hinh (basic/tanky/zigzag) dang trong trong test nay -> moi ham Spawn* tu roi vao
+    // nhanh "spawn tu ngoai man hinh" (xem game_manager.cpp) thay vi "muon" 1 con dang co
+    // trong doi hinh - dung y that cua boss wave (InitLevel() de doi hinh trong luc co Boss).
+    //
+    // Phase 4: Swarmer gio random 1 trong {Kamikaze,Weaver,Bomber} MOI DOT (truoc day LUON
+    // Kamikaze) - test nay khong con gia dinh loai cu the, chi xac nhan bat bien KHONG DOI:
+    // (1) TONG so con moi sinh dung BOSS_SWARMER_SUMMON_COUNT, (2) ca dot dong nhat 1 loai
+    // (chi 1 trong 3 pool tang, 2 pool con lai = 0), khong tron lan nhieu loai trong 1 dot.
+    // Test rieng ben duoi xac nhan CA 3 loai deu co the roi trung (khong con luon la
+    // Kamikaze) bang thong ke qua nhieu dot doc lap.
+    size_t kCount = GTA::KamikazeEnemies(gm).Size();
+    size_t wCount = GTA::WeaverEnemies(gm).Size();
+    size_t bCount = GTA::BomberEnemies(gm).Size();
+    REQUIRE((int)(kCount + wCount + bCount) == Config::BOSS_SWARMER_SUMMON_COUNT);
+    int nonZeroPools = (kCount > 0 ? 1 : 0) + (wCount > 0 ? 1 : 0) + (bCount > 0 ? 1 : 0);
+    REQUIRE(nonZeroPools == 1);
     REQUIRE(GTA::BossPool(gm)[0].summonTimer == Approx(Config::BOSS_SWARMER_SUMMON_INTERVAL));
+}
+
+TEST_CASE("UpdateBoss: qua nhieu dot doc lap, Swarmer trieu hoi ra CA 3 loai (Kamikaze/Weaver/Bomber) - khong con LUON la Kamikaze nhu truoc Phase 4", "[physics][boss][dda_descriptor]") {
+    // Test thong ke: 60 dot DOC LAP (moi dot 1 GameManager rieng de khong cong don pool
+    // giua cac dot, nhung dung chung 1 luong random toan cuc cua raylib xuyen suot vi
+    // GetRandomValue() khong reset theo tung GameManager - moi dot la 1 lan roi that su
+    // moi). Xac suat 1/3 moi loai/dot NEU code dung; neu ai do lo hardcode nham lai
+    // Kamikaze, xac suat test nay bao "van con bug" (thay it nhat 1 loai bi thieu hoan
+    // toan sau 60 dot) xap xi 100% - guong an toan chac chan, khong phai may rui.
+    bool sawKamikaze = false, sawWeaver = false, sawBomber = false;
+    for (int trial = 0; trial < 60; trial++) {
+        GameManager gm;
+        Boss b{};
+        b.rect = { 350.0f, 80.0f, 100.0f, 60.0f };
+        b.hp = 40; b.maxHp = 40;
+        b.type = BossType::Swarmer;
+        b.baseX = 350.0f;
+        b.summonTimer = Config::BOSS_SWARMER_SUMMON_INTERVAL;
+        GTA::BossPool(gm).Clear();
+        GTA::BossPool(gm).Spawn(b);
+        GTA::KamikazeEnemies(gm).Clear();
+        GTA::WeaverEnemies(gm).Clear();
+        GTA::BomberEnemies(gm).Clear();
+
+        PhysicsSystem::UpdateBoss(gm, Config::BOSS_SWARMER_SUMMON_INTERVAL);
+
+        if (GTA::KamikazeEnemies(gm).Size() > 0) sawKamikaze = true;
+        if (GTA::WeaverEnemies(gm).Size() > 0) sawWeaver = true;
+        if (GTA::BomberEnemies(gm).Size() > 0) sawBomber = true;
+    }
+    REQUIRE(sawKamikaze);
+    REQUIRE(sawWeaver);
+    REQUIRE(sawBomber);
 }
 
 TEST_CASE("UpdateBoss: di chuyen Sway (Sentinel/Swarmer) dao dong QUANH baseX theo cong thuc sin, khong bao gio ra khoi [baseX-amplitude, baseX+amplitude]", "[physics][boss][dda_descriptor]") {

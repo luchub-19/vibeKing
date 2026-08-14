@@ -110,6 +110,24 @@ TEST_CASE("GetBossTypeDescriptor: dung movement pattern + co che rieng cho ca 3 
     REQUIRE_FALSE(swarmer.hasShieldMechanic);
     REQUIRE(swarmer.hasSummonMechanic);
     REQUIRE(swarmer.summonCount != nullptr);
+    // Phase 4 (Enemy & Item Revolution): summonPool phai co du 3 loai {Kamikaze,Weaver,
+    // Bomber} - truoc Phase 4 Swarmer LUON trieu hoi Kamikaze, gio phai co the ra ca 3.
+    REQUIRE(swarmer.summonPool != nullptr);
+    REQUIRE(swarmer.summonPoolSize == 3);
+    bool hasKamikaze = false, hasWeaver = false, hasBomber = false;
+    for (int i = 0; i < swarmer.summonPoolSize; i++) {
+        if (swarmer.summonPool[i] == SummonKind::Kamikaze) hasKamikaze = true;
+        if (swarmer.summonPool[i] == SummonKind::Weaver) hasWeaver = true;
+        if (swarmer.summonPool[i] == SummonKind::Bomber) hasBomber = true;
+    }
+    REQUIRE(hasKamikaze);
+    REQUIRE(hasWeaver);
+    REQUIRE(hasBomber);
+
+    // Vanguard/Sentinel khong trieu hoi gi - summonPoolSize phai la 0 (an toan, khong ai
+    // vo tinh doc mang null).
+    REQUIRE(vanguard.summonPoolSize == 0);
+    REQUIRE(sentinel.summonPoolSize == 0);
 }
 
 TEST_CASE("GetBossTypeDescriptor: con tro TRO THANG Config (khong sao chep) - LoadBalance ghi de van thay ngay", "[boss][descriptor][balance]") {
