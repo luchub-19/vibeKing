@@ -636,3 +636,94 @@ TEST_CASE("Goi y phim: dem nguoc tu HUD_HINT_DURATION o van MOI, ve 0 sau do, va
     GTA::CallInitLevel(gm, /*newGame=*/false);
     REQUIRE(GTA::HintTimer(gm) <= 0.0f);
 }
+
+// ==========================================
+// TONG KET RUN + BANNER DAU WAVE (Phase Graphics/UX)
+// ==========================================
+TEST_CASE("Tong ket run: kills/best combo/CR kiem duoc duoc ghi nhan va reset dung o van MOI", "[game_manager][summary]") {
+    GameManager gm;
+    QuarantinePersistence(gm);
+    GTA::CallInitLevel(gm, /*newGame=*/true);
+    REQUIRE(GTA::RunKills(gm) == 0);
+    REQUIRE(GTA::RunBestCombo(gm) == 0);
+
+    // 3 event ghi diem lien tiep -> 3 kill, combo len bac 3.
+    auto& q = GTA::PendingEvents(gm);
+    for (int i = 0; i < 3; i++) {
+        q.clear();
+        GameEvent kill;
+        kill.position = { 100.0f + (float)i * 20.0f, 100.0f };
+        kill.scoreValue = 100;
+        q.push_back(kill);
+        GTA::CallProcessEvents(gm);
+    }
+    REQUIRE(GTA::RunKills(gm) == 3);
+    REQUIRE(GTA::RunBestCombo(gm) == 3);
+
+    // Sang wave ke tiep KHONG duoc reset - day la thong ke cua ca VAN, khong phai cua wave.
+    GTA::CallInitLevel(gm, /*newGame=*/false);
+    REQUIRE(GTA::RunKills(gm) == 3);
+    REQUIRE(GTA::RunBestCombo(gm) == 3);
+
+    // Van MOI thi reset sach.
+    GTA::CallInitLevel(gm, /*newGame=*/true);
+    REQUIRE(GTA::RunKills(gm) == 0);
+    REQUIRE(GTA::RunBestCombo(gm) == 0);
+    REQUIRE(GTA::RunCurrencyEarned(gm) == 0);
+}
+
+TEST_CASE("Tong ket run: runCurrencyEarned KHOP dung gia tri AwardCurrency() tra ve luc GAME_OVER", "[game_manager][summary][currency]") {
+    // Khoa lai rang bang tong ket doc CON SO THAT tu MetaProgress chu khong tu tinh lai
+    // score/META_SCORE_TO_CURRENCY_RATE o tang hien thi (2 noi tinh se lech nhau khi doi RATE).
+    GameManager gm;
+    QuarantinePersistence(gm);
+    GTA::SetState(gm, GameState::PLAYING);
+
+    const int score = Config::META_SCORE_TO_CURRENCY_RATE * 7 + 13; // 7 CR + phan du bi lam tron xuong
+    GTA::PlayerRef(gm).AddScore(score);
+    REQUIRE(GTA::PlayerRef(gm).GetScore() == score);
+    int currencyBefore = GTA::MetaProgressRef(gm).GetCurrency();
+
+    // Dua lives ve 0 qua API cong khai cua Player, dung khuon test GAME_OVER o tren (phai
+    // Update() qua het cua so bat tu giua 2 lan TakeDamage).
+    Player& p = GTA::PlayerRef(gm);
+    BulletPool<Config::MAX_PLAYER_BULLETS>& bullets = GTA::PlayerBullets(gm);
+    for (int guard = 0; guard < 10 && p.GetLives() > 0; guard++) {
+        REQUIRE(p.TakeDamage());
+        if (p.GetLives() <= 0) break;
+        p.Update(Config::INVINCIBLE_TIME + 0.1f, InputState{}, bullets);
+    }
+    REQUIRE(p.GetLives() <= 0);
+
+    // Giu 1 dich song, dat xa ca 2 bien va xa hang player, de UpdateEnemies() khong kich
+    // hoat WAVE_CLEAR/GAME_OVER-do-cham-day truoc khi ham chay toi doan kiem tra lives.
+    GTA::BasicEnemies(gm).Clear();
+    BasicEnemy keepAlive{};
+    keepAlive.rect = { 400.0f, 100.0f, 40.0f, 25.0f };
+    GTA::BasicEnemies(gm).Spawn(keepAlive);
+    GTA::CallUpdatePlaying(gm, 0.016f);
+
+    REQUIRE(GTA::PendingState(gm) == GameState::GAME_OVER);
+    REQUIRE(GTA::RunCurrencyEarned(gm) == 7);
+    REQUIRE(GTA::MetaProgressRef(gm).GetCurrency() == currencyBefore + 7);
+}
+
+TEST_CASE("Banner dau wave: hien o MOI wave (ca wave dau lan wave sau) roi tu tat", "[game_manager][banner]") {
+    GameManager gm;
+    QuarantinePersistence(gm);
+
+    GTA::CallInitLevel(gm, /*newGame=*/true);
+    REQUIRE(GTA::WaveBannerTimer(gm) == Config::WAVE_BANNER_DURATION);
+
+    GTA::SetState(gm, GameState::PLAYING);
+    GTA::BasicEnemies(gm).Clear();
+    BasicEnemy keepAlive{};
+    keepAlive.rect = { 10.0f, 10.0f, 40.0f, 25.0f };
+    GTA::BasicEnemies(gm).Spawn(keepAlive);
+    for (int f = 0; f < 40; f++) GTA::CallUpdatePlaying(gm, 0.1f); // 4s > WAVE_BANNER_DURATION
+    REQUIRE(GTA::WaveBannerTimer(gm) <= 0.0f);
+
+    // KHAC hintTimer (chi hien o van moi): banner phai hien LAI moi wave.
+    GTA::CallInitLevel(gm, /*newGame=*/false);
+    REQUIRE(GTA::WaveBannerTimer(gm) == Config::WAVE_BANNER_DURATION);
+}

@@ -87,6 +87,12 @@ public:
     // Hen gio goi y phim ("P: PAUSE  R: RESTART") - xem GameManager::hintTimer.
     static float HintTimer(const GameManager& gm) { return gm.hintTimer; }
 
+    // Banner dau wave + thong ke tong ket run (man hinh GAME OVER) - xem game_manager.h.
+    static float WaveBannerTimer(const GameManager& gm) { return gm.waveBannerTimer; }
+    static int RunKills(const GameManager& gm) { return gm.runKills; }
+    static int RunBestCombo(const GameManager& gm) { return gm.runBestCombo; }
+    static int RunCurrencyEarned(const GameManager& gm) { return gm.runCurrencyEarned; }
+
     static BulletPool<Config::MAX_PLAYER_BULLETS>& PlayerBullets(GameManager& gm) { return gm.playerBullets; }
     static BulletPool<Config::MAX_ENEMY_BULLETS>& EnemyBullets(GameManager& gm) { return gm.enemyBullets; }
 

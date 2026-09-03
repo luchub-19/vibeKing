@@ -195,22 +195,99 @@ void RenderSystem::DrawEndScreen(const GameManager& gm) {
 
         canvas.CenteredText(centerX, 335, 16, GRAY, Loc::UpgradeSelectHint);
     } else {
-        canvas.CenteredText(centerX, 180, 40, Palette::UiDanger, "GAME OVER");
-        canvas.CenteredText(centerX, 240, 20, WHITE, TextFormat("FINAL SCORE: %d   WAVE REACHED: %d", gm.player.GetScore(), gm.wave));
-
-        // 3 trang thai ro rang thay vi 1 bool "co pha ky luc hay khong": NewRecord (giờ
-        // la #1), MadeTop10 (lot danh sach nhung khong phai #1), hoac khong lot top nao
-        // ca (van hien diem cao nhat hien tai de nguoi choi biet minh con thieu bao nhieu).
-        if (gm.lastSubmitResult == SubmitResult::NewRecord) {
-            canvas.CenteredText(centerX, 270, 20, Palette::UiAccent, Loc::NewRecordBanner);
-        } else if (gm.lastSubmitResult == SubmitResult::MadeTop10) {
-            canvas.CenteredText(centerX, 270, 20, Palette::UiSuccess, Loc::MadeTop10Banner);
-        } else {
-            canvas.CenteredText(centerX, 270, 18, GRAY, TextFormat("TOP SCORE: %d", gm.leaderboard.GetTopScore()));
-        }
-        canvas.CenteredText(centerX, 330, 20, GRAY, "ENTER: MENU   R: RESTART");
+        DrawRunSummary(canvas, gm, centerX);
     }
     canvas.Draw(gm.gameFont);
+}
+
+// ==========================================
+// BANG TONG KET RUN (man hinh GAME OVER)
+//
+// TRUOC DAY man hinh nay chi co 3 dong chu tho giua nen sao: "GAME OVER", "FINAL SCORE /
+// WAVE REACHED", va 1 banner ky luc. Van de lon nhat KHONG phai tham my ma la thong tin:
+// GameManager::UpdatePlaying() goi metaProgress.AwardCurrency() DUNG TAI khoanh khac nay,
+// nhung man hinh khong he noi nguoi choi vua kiem duoc bao nhieu CR, dang co tong bao
+// nhieu, hay con thieu bao nhieu de mo khoa loadout ke tiep. Ca he thong meta-progression
+// (thu duy nhat khien nguoi choi bam Restart thay vi tat game) vo hinh dung vao luc no
+// tra thuong - nguoi choi phai quay ve Menu roi tu doc "0/150" moi biet.
+//
+// CHAY SO: 3 con so quan trong nhat (diem/CR kiem duoc/tong CR) dem len tu 0 trong
+// Config::SUMMARY_COUNT_UP_DURATION giay dau (gm.endScreenTimer). Day khong phai trang tri
+// - no keo anh mat nguoi choi o lai bang tong ket du 1 nhip thay vi bam Enter ngay, tuc la
+// khoanh "phan thuong" that su duoc nhin thay.
+// ==========================================
+void RenderSystem::DrawRunSummary(UICanvas& canvas, const GameManager& gm, int centerX) {
+    // 0..1 - tien do chay so. Sau khi day, moi con so dung o gia tri that.
+    float t = (Config::SUMMARY_COUNT_UP_DURATION > 0.0f)
+                ? fminf(gm.endScreenTimer / Config::SUMMARY_COUNT_UP_DURATION, 1.0f)
+                : 1.0f;
+    auto countUp = [t](int finalValue) { return (int)((float)finalValue * t); };
+
+    canvas.CenteredText(centerX, 96, 40, Palette::UiDanger, "GAME OVER");
+
+    Color panelFill = Palette::UiPanelFill;
+    panelFill.a = (unsigned char)(255.0f * Config::HUD_PANEL_ALPHA);
+    // panelH tinh DU cho: header (44) + 6 hang x 26 + khoang tach 6 + dong "NEXT" + thanh
+    // tien do + le duoi. Ban dau de 232 -> dong NEXT/thanh bar de len hang TOTAL (thay ro
+    // trong anh chup: "NEXT: VANGUARD 17/150 CR" cat ngang chu "TOTAL ... 17 CR").
+    const float panelW = 380.0f, panelX = (float)centerX - panelW / 2.0f;
+    const float panelY = 150.0f, panelH = 250.0f;
+    canvas.Panel({ panelX, panelY, panelW, panelH }, panelFill, Palette::UiPanelEdge, Config::HUD_PANEL_BORDER_THICKNESS);
+    canvas.CenteredText(centerX, (int)panelY + 12, 18, Palette::UiAccent, Loc::RunSummaryTitle);
+
+    // 1 helper duy nhat cho MOI dong "nhan trai - gia tri phai" - canh le bang toa do co
+    // dinh 2 ben panel thay vi 1 chuoi TextFormat gop ca 2 (chuoi gop khong the canh phai
+    // duoc, va do dai gia tri thay doi se lam nhan nhay theo).
+    float rowY = panelY + 44.0f;
+    auto row = [&](const char* label, const char* value, Color valueColor, int size = 16) {
+        canvas.Text((int)panelX + 18, (int)rowY, size, Palette::UiDim, label);
+        // Canh PHAI: dat tam o (mep phai - nua be rong uoc luong) thi van lech; dung
+        // CenteredText quanh 1 tam co dinh gan mep phai la du on cho cot gia tri ngan.
+        canvas.CenteredText((int)(panelX + panelW - 62.0f), (int)rowY, size, valueColor, value);
+        rowY += 26.0f;
+    };
+
+    row(Loc::RunSummaryScore, TextFormat("%d", countUp(gm.player.GetScore())), Palette::UiText, 17);
+    row(Loc::RunSummaryWave,  TextFormat("%d", gm.wave), Palette::UiText);
+    row(Loc::RunSummaryKills, TextFormat("%d", countUp(gm.runKills)), Palette::UiText);
+    row(Loc::RunSummaryCombo, gm.runBestCombo > 1 ? TextFormat("x%d", gm.runBestCombo) : "-",
+        gm.runBestCombo > 1 ? Palette::ScoreText : Palette::UiDim);
+
+    rowY += 6.0f;
+    row(Loc::RunSummaryEarned, TextFormat("+%d", countUp(gm.runCurrencyEarned)),
+        gm.runCurrencyEarned > 0 ? Palette::UiAccent : Palette::UiDim, 17);
+    row(Loc::RunSummaryTotal, TextFormat("%d CR", countUp(gm.metaProgress.GetCurrency())), Palette::UiText);
+
+    // MUC TIEU KE TIEP: loadout re nhat chua mo khoa + thanh tien do. Danh sach loadout va
+    // gia cua chung KHONG duoc liet ke lai o day - doc qua NextLockedLoadout()/
+    // GetLoadoutUnlockCost() (meta_progress.h), cung 1 nguon voi man hinh Menu.
+    // Vi tri suy tu `rowY` (con tro chay cua helper row() o tren) thay vi tinh nguoc tu day
+    // panel: them/bot 1 hang thong ke sau nay se tu day khoi nay xuong, khong lam no de len
+    // hang cuoi nhu ban dau.
+    LoadoutType next = NextLockedLoadout(gm.metaProgress);
+    if (next == LoadoutType::Standard) {
+        canvas.CenteredText(centerX, (int)rowY + 8, 15, Palette::UiSuccess, Loc::AllUnlocked);
+    } else {
+        int cost = GetLoadoutUnlockCost(next);
+        int have = gm.metaProgress.GetCurrency();
+        canvas.CenteredText(centerX, (int)rowY + 6, 14, Palette::UiDim,
+                            TextFormat(Loc::NextUnlockFmt, GetLoadoutName(next), have, cost));
+        float ratio = (cost > 0) ? (float)have / (float)cost : 1.0f;
+        canvas.Bar({ panelX + 18.0f, rowY + 26.0f, panelW - 36.0f, 8.0f }, ratio,
+                   Palette::UiPanelEdge, Palette::UiAccent, Palette::UiPanelEdge);
+    }
+
+    // 3 trang thai ro rang thay vi 1 bool "co pha ky luc hay khong": NewRecord (gio la #1),
+    // MadeTop10 (lot danh sach nhung khong phai #1), hoac khong lot top nao ca (van hien
+    // diem cao nhat hien tai de nguoi choi biet minh con thieu bao nhieu).
+    if (gm.lastSubmitResult == SubmitResult::NewRecord) {
+        canvas.CenteredText(centerX, 418, 20, Palette::UiAccent, Loc::NewRecordBanner);
+    } else if (gm.lastSubmitResult == SubmitResult::MadeTop10) {
+        canvas.CenteredText(centerX, 418, 20, Palette::UiSuccess, Loc::MadeTop10Banner);
+    } else {
+        canvas.CenteredText(centerX, 420, 17, Palette::UiDim, TextFormat("TOP SCORE: %d", gm.leaderboard.GetTopScore()));
+    }
+    canvas.CenteredText(centerX, 458, 18, Palette::UiDim, "ENTER: MENU   R: RESTART");
 }
 
 // IDLE ANIMATION (Phase 1 - Graphics/UI Overhaul, Nguoi 1): transform-THUAN quanh tam 1
@@ -220,6 +297,16 @@ void RenderSystem::DrawEndScreen(const GameManager& gm) {
 // MOI danh rieng cho DrawSprite() - KHONG duoc dung ket qua nay lam rect that (hitbox) cua
 // entity, xem tung noi goi trong DrawPlaying() ben duoi (luon giu nguyen `e.rect`/
 // `boss.rect` cho va cham/logic, chi doi bien tam o buoc VE).
+// CHOP TRANG khi trung don ma chua chet: tron mau goc ve gan TRANG theo `flash` con lai.
+// Day la phan hoi "cham vao duoc" re nhat va doc nhanh nhat trong the loai nay - truoc day
+// don khong-chi-mang chi co vai hat particle, gan nhu khong thay gi. Chi 3 loai co trang
+// thai do (Tanky/Warden/Boss) goi toi, xem Config::HIT_FLASH_DURATION.
+static Color HitFlashTint(Color base, float flash) {
+    if (flash <= 0.0f) return base;
+    float t = fminf(flash / Config::HIT_FLASH_DURATION, 1.0f);
+    return Palette::Lerp(base, Color{ 255, 255, 255, base.a }, t);
+}
+
 static Rectangle IdleWobble(Rectangle r, float time, float phase, float bobAmp, float bobFreq, float scaleAmp) {
     float s = sinf(time * bobFreq + phase);
     float bob = bobAmp * s;
@@ -297,7 +384,7 @@ void RenderSystem::DrawPlaying(const GameManager& gm) {
         float phase = (float)e.column * Config::ANIM_IDLE_PHASE_STEP;
         Rectangle drawRect = IdleWobble(e.rect, animTime, phase, Config::ANIM_IDLE_BOB_AMPLITUDE,
                                          Config::ANIM_IDLE_BOB_FREQUENCY, Config::ANIM_IDLE_SCALE_AMPLITUDE);
-        DrawSprite(gm.sprites.tankyAlien, drawRect, e.color);
+        DrawSprite(gm.sprites.tankyAlien, drawRect, HitFlashTint(e.color, e.hitFlash));
         if (e.hp < TankyEnemy::HP) {
             // Dich mau day bi thuong -> vien sang de nguoi choi thay ro da gay sat thuong
             // - dung e.rect GOC (khong phai drawRect) cho vien nay: day la chi bao gan
@@ -322,7 +409,7 @@ void RenderSystem::DrawPlaying(const GameManager& gm) {
         float phase = (float)e.column * Config::ANIM_IDLE_PHASE_STEP;
         Rectangle drawRect = IdleWobble(e.rect, animTime, phase, Config::ANIM_IDLE_BOB_AMPLITUDE,
                                          Config::ANIM_IDLE_BOB_FREQUENCY, Config::ANIM_IDLE_SCALE_AMPLITUDE);
-        DrawSprite(gm.sprites.warden, drawRect, e.color);
+        DrawSprite(gm.sprites.warden, drawRect, HitFlashTint(e.color, e.hitFlash));
         if (e.hp < WardenEnemy::HP) {
             // Dung khuon Tanky: vien sang khi da an don nhung chua chet han - chi bao gan
             // voi hitbox that (e.rect goc), khong phai drawRect co wobble.
@@ -372,7 +459,7 @@ void RenderSystem::DrawPlaying(const GameManager& gm) {
             // nen khong can lech pha (phase=0), khac Basic/Tanky/Zigzag o tren.
             Rectangle drawRect = IdleWobble(boss.rect, animTime, 0.0f, Config::ANIM_BOSS_IDLE_BOB_AMPLITUDE,
                                              Config::ANIM_BOSS_IDLE_BOB_FREQUENCY, Config::ANIM_BOSS_IDLE_SCALE_AMPLITUDE);
-            DrawSprite(tex, drawRect, tint);
+            DrawSprite(tex, drawRect, HitFlashTint(tint, boss.hitFlash));
 
             // VONG KHIEN: chi ve khi Sentinel dang bat kha xam pham - vien tron xanh bao
             // quanh toan bo rect, bao hieu ro rang "dan khong an thua luc nay" (khop voi
@@ -570,6 +657,26 @@ void RenderSystem::DrawHUD(const GameManager& gm) {
         canvas.CenteredText((int)(barX + barW / 2.0f), 24, 14, barFill, TextFormat("BOSS - %s", BossTypeName(boss.type)));
         if (boss.type == BossType::Sentinel && boss.shieldActive) {
             canvas.Text((int)(barX + barW - 60.0f), 24, 14, SKYBLUE, Loc::ShieldTag);
+        }
+    }
+
+    // ==========================================
+    // BANNER DAU WAVE - ve SAU cung trong HUD nen luon nam tren moi thu khac. Chu lon, can
+    // giua, mo dan o Config::WAVE_BANNER_FADE giay cuoi. Wave boss dung chinh ten loai boss
+    // (BossTypeName - 1 nguon duy nhat trong enemy_types.h, cung ham HUD dang dung cho
+    // thanh mau boss) thay vi chuoi "BOSS" chung chung: nguoi choi biet ngay minh sap gap
+    // co che nao truoc khi no bat dau, thay vi phai doan qua vai giay dau tran.
+    // ==========================================
+    if (gm.waveBannerTimer > 0.0f) {
+        float alpha = (gm.waveBannerTimer < Config::WAVE_BANNER_FADE)
+                        ? (gm.waveBannerTimer / Config::WAVE_BANNER_FADE) : 1.0f;
+        int cx = Config::SCREEN_W / 2;
+        if (gm.isBossWave && gm.bossPool.Size() > 0) {
+            canvas.CenteredText(cx, 250, 46, Fade(Palette::BossEnrage2, alpha),
+                                TextFormat("BOSS - %s", BossTypeName(gm.bossPool[0].type)));
+            canvas.CenteredText(cx, 300, 18, Fade(Palette::UiDim, alpha), Loc::BossIncomingHint);
+        } else {
+            canvas.CenteredText(cx, 250, 46, Fade(Palette::UiAccent, alpha), TextFormat("WAVE %d", gm.wave));
         }
     }
 

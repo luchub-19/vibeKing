@@ -89,10 +89,11 @@ void MetaProgress::Save(const std::string& path) const {
     }
 }
 
-void MetaProgress::AwardCurrency(int scoreThisRun) {
+int MetaProgress::AwardCurrency(int scoreThisRun) {
     int earned = scoreThisRun / Config::META_SCORE_TO_CURRENCY_RATE;
     if (earned > 0) totalCurrency += earned;
     Save(filePath); // Luu ngay khi van ket thuc (khong doi Save() thu cong nao khac)
+    return earned;
 }
 
 bool MetaProgress::TryUnlock(LoadoutType type, int cost) {

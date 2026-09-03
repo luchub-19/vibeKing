@@ -1,5 +1,6 @@
 #pragma once
 #include "raylib.h"
+#include "ui_system.h"
 
 class GameManager; // Forward declare - RenderSystem chi CAN 1 tham chieu const toi "the
                     // gioi" de doc du lieu ve, khong so huu du lieu nao ca.
@@ -44,6 +45,9 @@ private:
     // RenderSystem (xem `friend class RenderSystem` trong game_manager.h) - da tu kiem
     // chung dung 1 free function se build loi bien private ngay lan dau thu (cung ly do
     // da giai thich trong physics_system.h cho ApplyFormationMoveX/DescendRowAndCheckGameOver).
+    // Bang tong ket run (nhanh GAME_OVER cua DrawEndScreen) - tach ham rieng vi no dai
+    // gap nhieu lan nhanh WAVE_CLEAR ben canh, gop chung se lam DrawEndScreen kho doc.
+    static void DrawRunSummary(UICanvas& canvas, const GameManager& gm, int centerX);
     static void DrawWeaverEnemies(const GameManager& gm, float animTime);
     static void DrawBomberEnemies(const GameManager& gm, float animTime);
 };

@@ -115,6 +115,7 @@ void PhysicsSystem::UpdateEnemies(GameManager& gm, float dt) {
         if (ApplyFormationMoveX(gm.basicEnemies[i].rect, gm.enemyDirection, gm.enemySpeed, dt)) hitEdge = true;
     }
     for (size_t i = 0; i < gm.tankyEnemies.Size(); i++) {
+        if (gm.tankyEnemies[i].hitFlash > 0.0f) gm.tankyEnemies[i].hitFlash -= dt; // Chop trang tat dan
         if (ApplyFormationMoveX(gm.tankyEnemies[i].rect, gm.enemyDirection, gm.enemySpeed, dt)) hitEdge = true;
     }
     // Zigzag: hanh vi rieng (dao dong sin) truoc khi ap doi hinh ngang. CHUAN HOA ECS:
@@ -261,6 +262,7 @@ void PhysicsSystem::UpdateEnemies(GameManager& gm, float dt) {
 bool PhysicsSystem::UpdateWardenEnemies(GameManager& gm, float dt) {
     bool hitEdge = false;
     for (size_t i = 0; i < gm.wardenEnemies.Size(); i++) {
+        if (gm.wardenEnemies[i].hitFlash > 0.0f) gm.wardenEnemies[i].hitFlash -= dt; // Chop trang tat dan
         if (ApplyFormationMoveX(gm.wardenEnemies[i].rect, gm.enemyDirection, gm.enemySpeed, dt)) hitEdge = true;
     }
     return hitEdge;
@@ -521,6 +523,7 @@ void PhysicsSystem::UpdateBomberEnemies(GameManager& gm, float dt) {
 void PhysicsSystem::UpdateBoss(GameManager& gm, float dt) {
     if (gm.bossPool.Size() == 0) return;
     Boss& boss = gm.bossPool[0];
+    if (boss.hitFlash > 0.0f) boss.hitFlash -= dt; // Chop trang tat dan
     int stage = BossStage(boss);
     const BossTypeDescriptor& desc = GetBossTypeDescriptor(boss.type);
 
@@ -752,6 +755,7 @@ void PhysicsSystem::CheckCollisions(GameManager& gm) {
                     gm.hitStop.Trigger(0.04f);
                     gm.pendingEvents.push_back(MakeEnemyKilledEvent(EnemyCenter(e.rect), e.color, TankyEnemy::SCORE_VALUE));
                 } else {
+                    e.hitFlash = Config::HIT_FLASH_DURATION; // Chop trang 1 nhip - xem RenderSystem
                     // Dich mau day van con song sau don nay - phan hoi nhe hon de phan
                     // biet voi don ha guc han.
                     // HIT-FLASH: truoc day nhanh nay KHONG set position/particleCount -
@@ -794,6 +798,7 @@ void PhysicsSystem::CheckCollisions(GameManager& gm) {
                     ev.wardenReinforcementCount = Config::WARDEN_REINFORCEMENT_COUNT;
                     gm.pendingEvents.push_back(ev);
                 } else {
+                    e.hitFlash = Config::HIT_FLASH_DURATION; // Chop trang 1 nhip - xem RenderSystem
                     GameEvent ev;
                     ev.position = EnemyCenter(e.rect);
                     ev.sfx = SfxType::Hit;
@@ -861,7 +866,10 @@ void PhysicsSystem::CheckCollisions(GameManager& gm) {
                 // duoc UpdateBoss() set duoi nhanh desc.hasShieldMechanic, nen no da la cau
                 // tra loi dung cho MOI loai boss, hien tai lan sau nay.
                 bool shielded = boss.shieldActive;
-                if (!shielded && boss.hp > 0) boss.hp--;
+                if (!shielded && boss.hp > 0) {
+                    boss.hp--;
+                    boss.hitFlash = Config::HIT_FLASH_DURATION; // Chop trang 1 nhip - xem RenderSystem
+                }
 
                 // BUG FIX: truoc day co 1 "placeholder" GameEvent thua o day, vo tinh
                 // gan particleCount=1 + position=player.GetCenter() -> no lam 1 hat do

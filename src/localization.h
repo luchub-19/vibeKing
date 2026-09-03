@@ -33,6 +33,17 @@ namespace Loc {
 
     // --- End screen (RenderSystem::DrawEndScreen) ---
     constexpr const char* NewRecordBanner = "NEW RECORD! (#1)";
+    // --- Bang tong ket run (man hinh GAME OVER) ---
+    constexpr const char* RunSummaryTitle   = "RUN SUMMARY";
+    constexpr const char* RunSummaryScore   = "SCORE";
+    constexpr const char* RunSummaryWave    = "WAVE REACHED";
+    constexpr const char* RunSummaryKills   = "ENEMIES DESTROYED";
+    constexpr const char* RunSummaryCombo   = "BEST COMBO";
+    constexpr const char* RunSummaryEarned  = "CURRENCY EARNED";
+    constexpr const char* RunSummaryTotal   = "TOTAL";
+    // %s = ten loadout ke tiep, %d/%d = currency dang co / chi phi mo khoa
+    constexpr const char* NextUnlockFmt     = "NEXT: %s  %d/%d CR";
+    constexpr const char* AllUnlocked       = "ALL LOADOUTS UNLOCKED";
     constexpr const char* MadeTop10Banner = "TOP 10!";
 
     // --- Upgrade select (RenderSystem::DrawEndScreen, state WAVE_CLEAR - Track C Nguoi 2
@@ -58,6 +69,7 @@ namespace Loc {
 
     // --- HUD (RenderSystem::DrawHUD) ---
     constexpr const char* ShieldTag = "SHIELD!";
+    constexpr const char* BossIncomingHint = "INCOMING";
 
     // --- GetRebindableActions() (game_manager.h) ---
     // 3/4 nhan hanh dong REBIND thuoc pham vi dich cua A3 ("Pause" giu nguyen literal

@@ -60,6 +60,14 @@ inline int GetSkinUnlockCost(SkinType type) {
     }
 }
 
+// Loadout RE NHAT ma nguoi choi CHUA mo khoa - dung de man hinh Game Over chi ra "muc
+// tieu ke tiep" (con thieu bao nhieu CR nua). Tra ve Standard khi da mo khoa het (Standard
+// von mien phi nen no cung dong vai "khong con gi de mo" ma khong can them enum rieng).
+// Dat o day, canh GetLoadoutUnlockCost(), de moi thu lien quan toi chi phi mo khoa nam
+// chung 1 cho - RenderSystem khong duoc tu liet ke lai danh sach loadout va gia cua chung.
+struct MetaProgress;
+LoadoutType NextLockedLoadout(const MetaProgress& mp);
+
 struct MetaProgress {
 private:
     int totalCurrency = 0;
@@ -76,7 +84,12 @@ public:
     // Config::META_SCORE_TO_CURRENCY_RATE, cong don vao totalCurrency roi LUU FILE NGAY
     // (khong doi den lan Save() thu cong nao khac - xem game_manager.cpp, noi goi ham nay
     // dung 1 lan duy nhat tai doan code chuyen state sang GAME_OVER).
-    void AwardCurrency(int scoreThisRun);
+    //
+    // TRA VE so currency THUC SU vua duoc cong (0 neu diem chua du 1 don vi). Man hinh
+    // Game Over can con so nay de hien "+N CR" - tra ve tu day thay vi de RenderSystem tu
+    // tinh lai scoreThisRun/META_SCORE_TO_CURRENCY_RATE: cong thuc quy doi phai o DUNG 1
+    // noi, neu khong doi RATE hay them lam tron/bonus sau nay se lam 2 cho lech nhau.
+    int AwardCurrency(int scoreThisRun);
 
     // Thu mo khoa 1 loadout: neu CHUA mo khoa truoc do VA du currency thi tru currency +
     // bat co unlocked tuong ung + luu file ngay (giong TrySubmit cua Leaderboard - moi
@@ -94,3 +107,11 @@ public:
     bool TryUnlockSkin(SkinType type, int cost);
     bool IsSkinUnlocked(SkinType type) const;
 };
+
+// Dinh nghia sau struct (can IsUnlocked()). Thu tu Vanguard -> Overcharge chinh la thu tu
+// gia tang dan, khong can sort.
+inline LoadoutType NextLockedLoadout(const MetaProgress& mp) {
+    if (!mp.IsUnlocked(LoadoutType::Vanguard))   return LoadoutType::Vanguard;
+    if (!mp.IsUnlocked(LoadoutType::Overcharge)) return LoadoutType::Overcharge;
+    return LoadoutType::Standard; // Da mo khoa het
+}

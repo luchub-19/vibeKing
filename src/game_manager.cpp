@@ -66,6 +66,11 @@ void GameManager::InitLevel(bool newGame) {
         ddaLivesLostSinceCheck = 0;
         ddaSpeedMul = 1.0f;
         hintTimer = Config::HUD_HINT_DURATION; // Goi y phim chi hien o dau van MOI, khong lap lai moi wave
+        // Thong ke tong ket run - chi reset o van MOI, cong don xuyen suot cac wave cua
+        // cung 1 van (khac hoan toan cac field wave-scoped o duoi).
+        runKills = 0;
+        runBestCombo = 0;
+        runCurrencyEarned = 0;
     } else {
         player.ResetForNewWave();
     }
@@ -145,6 +150,8 @@ void GameManager::InitLevel(bool newGame) {
     waveFireRateMul = 1.0f - Config::WAVE_FIRE_RATE_STEP * (float)(wave - 1);
     if (waveFireRateMul < Config::WAVE_FIRE_RATE_MIN_MUL) waveFireRateMul = Config::WAVE_FIRE_RATE_MIN_MUL;
 
+    waveBannerTimer = Config::WAVE_BANNER_DURATION; // Banner "WAVE n" / "BOSS - X" cho MOI wave (ca wave dau lan cac wave sau)
+
     if (newGame) ApplyLoadoutBonus(); // Bonus loadout la "bat dau 1 VAN moi" - KHONG lap lai moi wave (newGame=false)
 }
 
@@ -214,6 +221,7 @@ int GameManager::ApplyComboAndScore(int baseScore, Vector2 at) {
     if (comboTimer > 0.0f) comboCount++;
     else comboCount = 1;
     comboTimer = Config::COMBO_WINDOW;
+    if (comboCount > runBestCombo) runBestCombo = comboCount; // Moc cao nhat cua ca van - xem bang tong ket Game Over
 
     int steps = comboCount - 1;
     if (steps > Config::COMBO_MAX_STEPS) steps = Config::COMBO_MAX_STEPS;
@@ -416,6 +424,11 @@ void GameManager::UpdateMenu() {
 // GAME_OVER / WAVE_CLEAR
 // ==========================================
 void GameManager::UpdateEndScreen() {
+    // Dong ho rieng cua man hinh ket thuc - RenderSystem dung de chay so dan trong bang
+    // tong ket (xem DrawEndScreen). Dat o day thay vi trong Run() de no chi chay khi that
+    // su dang o man hinh nay va khong bi dong bang boi transition fade.
+    endScreenTimer += GetFrameTime();
+
     MenuInput input = InputSystem::PollMenu(settings);
 
     if (state == GameState::WAVE_CLEAR) {
@@ -531,7 +544,8 @@ void GameManager::UpdatePlaying(float dt) {
     if (menuInput.Restart) { InitLevel(true); return; }
     if (menuInput.ToggleFullscreen) ToggleFullscreen();
 
-    if (hintTimer > 0.0f) hintTimer -= dt; // Goi y phim tu tat sau Config::HUD_HINT_DURATION giay
+    if (hintTimer > 0.0f) hintTimer -= dt;             // Goi y phim tu tat sau Config::HUD_HINT_DURATION giay
+    if (waveBannerTimer > 0.0f) waveBannerTimer -= dt; // Banner dau wave tu tat sau Config::WAVE_BANNER_DURATION giay
 
     screenShake.Update(dt);
     particles.Update(dt);
@@ -637,7 +651,8 @@ void GameManager::UpdatePlaying(float dt) {
     if (player.GetLives() <= 0) {
         audio.PlayGameOver();
         lastSubmitResult = leaderboard.TrySubmit(player.GetScore(), wave);
-        metaProgress.AwardCurrency(player.GetScore());
+        runCurrencyEarned = metaProgress.AwardCurrency(player.GetScore()); // Giu lai de bang tong ket hien "+N CR"
+        endScreenTimer = 0.0f; // Bat dau lai hieu ung chay so cua bang tong ket
         RequestTransition(GameState::GAME_OVER);
     }
 }
@@ -684,7 +699,10 @@ void GameManager::ProcessEvents() {
         }
 
         if (ev.shakeDuration > 0.0f) screenShake.Trigger(ev.shakeDuration, ev.shakeIntensity);
-        if (ev.scoreValue > 0) ApplyComboAndScore(ev.scoreValue, ev.position);
+        if (ev.scoreValue > 0) {
+            runKills++; // Moi event co diem la 1 lan ha guc (gom ca UFO/Boss) - xem bang tong ket Game Over
+            ApplyComboAndScore(ev.scoreValue, ev.position);
+        }
         if (ev.dropPowerUp) MaybeDropPowerUp(ev.position);
 
         // WARDEN (Phase 1a - Enemy & Item Revolution, Nguoi 1): "yeu hon" nghia la spawn

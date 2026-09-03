@@ -371,6 +371,21 @@ namespace Config {
     // Truoc day dong nay khong bao gio tat, nam vinh vien giua dinh man hinh. Doc boi
     // GameManager::InitLevel()/UpdatePlaying() (hintTimer) va RenderSystem::DrawHUD().
     constexpr float HUD_HINT_DURATION = 6.0f;
+    // Bang tong ket run (man hinh GAME OVER): so giay de 3 con so quan trong (diem / CR
+    // kiem duoc / tong CR) dem len tu 0 toi gia tri that. Muc dich khong phai trang tri -
+    // no giu anh mat nguoi choi o lai du 1 nhip de THAY phan thuong, thay vi bam Enter ngay.
+    constexpr float SUMMARY_COUNT_UP_DURATION = 0.9f;
+
+    // CHOP TRANG khi dich trung don ma CHUA chet: so giay sprite duoc to sang trang.
+    // Rat ngan - day la phan hoi "cham vao duoc" tuc thi, khong phai hieu ung trang tri;
+    // dai hon ~0.1s se thanh nhap nhay kho chiu khi ban lien thanh vao 1 con Tanky.
+    constexpr float HIT_FLASH_DURATION = 0.07f;
+
+    // BANNER dau wave ("WAVE 3" / "BOSS - SENTINEL"): tong thoi luong hien, va so giay
+    // CUOI dung de mo dan. Truoc day wave moi va Boss deu bat dau trong im lang tuyet doi -
+    // khong co khoanh khac nao danh dau, nhip choi phang li tu wave 1 toi wave 20.
+    constexpr float WAVE_BANNER_DURATION = 1.8f;
+    constexpr float WAVE_BANNER_FADE     = 0.7f;
     constexpr float HUD_HINT_FADE     = 1.5f; // Giay CUOI trong so tren duoc dung de mo dan ve 0 thay vi bien mat dot ngot
 
     // Chieu cao TOI DA cua cum HUD goc tren-trai. PHAI nho hon LevelGridConfig::startY

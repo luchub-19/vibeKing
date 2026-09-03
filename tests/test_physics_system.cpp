@@ -776,3 +776,60 @@ TEST_CASE("UpdateBoss: di chuyen Sway (Sentinel/Swarmer) dao dong QUANH baseX th
     }
     REQUIRE(GTA::BossPool(gm)[0].phaseAccum > 0.0f); // tich luy that, khong dung yen
 }
+
+// ==========================================
+// CHOP TRANG khi trung don ma CHUA chet (Phase Graphics/UX).
+// Chi kiem duoc phan LOGIC (co duoc dat khong, co tat dan khong) - viec to sprite sang
+// trang nam trong RenderSystem::HitFlashTint(), la ham VE thuan nen khong co test tu dong
+// (xem muc "Ham VE thuan" trong CLAUDE.md).
+// ==========================================
+TEST_CASE("hitFlash: dat khi Tanky trung don ma chua chet, KHONG dat o don ha guc han", "[physics][hitflash]") {
+    GameManager gm;
+    TankyEnemy t{};
+    t.rect = { 200.0f, 150.0f, 32.0f, 32.0f };
+    t.color = WHITE;
+    GTA::TankyEnemies(gm).Clear();
+    GTA::TankyEnemies(gm).Spawn(t);
+
+    const int totalHp = TankyEnemy::HP;
+    REQUIRE(totalHp >= 2);
+    REQUIRE(GTA::TankyEnemies(gm)[0].hitFlash == 0.0f);
+
+    // Don dau tien: con song -> phai chop.
+    GTA::PendingEvents(gm).clear();
+    FireBulletAt(GTA::PlayerBullets(gm), GTA::TankyEnemies(gm)[0].rect);
+    PhysicsSystem::CheckCollisions(gm);
+    REQUIRE(GTA::TankyEnemies(gm).Size() == 1);
+    REQUIRE(GTA::TankyEnemies(gm)[0].hitFlash == Config::HIT_FLASH_DURATION);
+
+    // Tu tat dan qua UpdateEnemies() va khong troi tu do xuong am vo han.
+    PhysicsSystem::UpdateEnemies(gm, Config::HIT_FLASH_DURATION * 0.5f);
+    REQUIRE(GTA::TankyEnemies(gm)[0].hitFlash < Config::HIT_FLASH_DURATION);
+    REQUIRE(GTA::TankyEnemies(gm)[0].hitFlash > 0.0f);
+    for (int f = 0; f < 20; f++) PhysicsSystem::UpdateEnemies(gm, Config::HIT_FLASH_DURATION);
+    REQUIRE(GTA::TankyEnemies(gm)[0].hitFlash <= 0.0f);
+    REQUIRE(GTA::TankyEnemies(gm)[0].hitFlash > -Config::HIT_FLASH_DURATION * 2.0f);
+}
+
+TEST_CASE("hitFlash: Boss chop khi trung, nhung KHONG chop khi dan bi khien chan", "[physics][hitflash][boss]") {
+    GameManager gm;
+    GTA::BossPool(gm).Clear();
+    Boss b{};
+    b.rect = { 300.0f, 80.0f, 120.0f, 60.0f };
+    b.hp = 50; b.maxHp = 50;
+    b.type = BossType::Sentinel;
+    b.shieldActive = true; // Khien dang bat -> dan bi hap thu hoan toan
+    GTA::BossPool(gm).Spawn(b);
+
+    FireBulletAt(GTA::PlayerBullets(gm), GTA::BossPool(gm)[0].rect);
+    PhysicsSystem::CheckCollisions(gm);
+    REQUIRE(GTA::BossPool(gm)[0].hp == 50);          // khien chan het sat thuong
+    REQUIRE(GTA::BossPool(gm)[0].hitFlash == 0.0f);  // khong an don thi khong chop
+
+    GTA::BossPool(gm)[0].shieldActive = false;
+    GTA::PendingEvents(gm).clear();
+    FireBulletAt(GTA::PlayerBullets(gm), GTA::BossPool(gm)[0].rect);
+    PhysicsSystem::CheckCollisions(gm);
+    REQUIRE(GTA::BossPool(gm)[0].hp == 49);
+    REQUIRE(GTA::BossPool(gm)[0].hitFlash == Config::HIT_FLASH_DURATION);
+}

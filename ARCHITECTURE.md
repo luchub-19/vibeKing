@@ -325,6 +325,11 @@ cùng đội hình vì làm sai bước 4).
    Tanky (nhiều máu, có nhánh "trúng nhưng chưa chết") hoặc Boss (thực thể toàn
    cục, không nằm trong pool). Dù theo cách nào, vẫn không gọi audio/particle
    trực tiếp — chỉ push `GameEvent`.
+   Nếu loại mới có trạng thái **"trúng nhưng chưa chết"** (nhiều máu), thêm luôn
+   `float hitFlash` vào struct: đặt `= Config::HIT_FLASH_DURATION` ở nhánh không-chí-mạng
+   trong `CheckCollisions()`, giảm theo `dt` trong hàm Update tương ứng, và bọc tint bằng
+   `HitFlashTint()` ở bước vẽ. Loại 1 máu không cần — chúng chết ngay nên không có gì để
+   chớp.
 6. Vòng vẽ + `Culling::IsVisible()` trong `RenderSystem::DrawPlaying()`. Màu lấy từ
    `Palette::` — thêm 1 hằng số mới vào `palette.h` cho loại địch này, đặt trong dải
    **LẠNH** trừ khi nó lao thẳng vào người chơi (xem luật ở đầu `palette.h`). Không gọi

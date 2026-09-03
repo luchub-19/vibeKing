@@ -39,6 +39,11 @@ struct TankyEnemy {
     Color color;
     int column = 0;
     int hp = HP;
+    // CHOP TRANG khi trung don ma CHUA chet - dem nguoc tu Config::HIT_FLASH_DURATION, dat
+    // trong CheckCollisions(), giam trong UpdateEnemies(), doc trong RenderSystem de to
+    // sprite sang trang. CHI 3 loai co trang thai "trung nhung chua chet" (Tanky/Warden/
+    // Boss) mang field nay - loai 1 mau chet ngay nen khong co gi de chop.
+    float hitFlash = 0.0f;
 };
 
 struct ZigzagEnemy {
@@ -87,6 +92,7 @@ struct WardenEnemy {
     Color color;
     int column = 0;
     int hp = HP;
+    float hitFlash = 0.0f; // Xem TankyEnemy::hitFlash
 };
 
 struct MedicEnemy {
@@ -194,6 +200,8 @@ struct Boss {
 
     // SWARMER: dinh ky trieu hoi tiep vien tu pool KamikazeEnemy co san (xem UpdateBoss()).
     float summonTimer = 0.0f;
+
+    float hitFlash = 0.0f; // Xem TankyEnemy::hitFlash
 
     // KHONG con ham Stage() o day - cung ly do voi ZigzagEnemy o tren: struct nay CHI
     // la du lieu. Dung BossStage(boss) (free function ben duoi) o bat ky system nao can

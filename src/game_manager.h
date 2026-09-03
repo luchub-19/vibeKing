@@ -149,6 +149,12 @@ private:
     // wave tang len, InitLevel(false) spawn lai voi doi hinh/toc do/nhip ban kho hon,
     // giu nguyen diem/mang cua nguoi choi. Xem InitLevel().
     int wave = 1;
+    // BANNER DAU WAVE: dem nguoc tu Config::WAVE_BANNER_DURATION, dat trong InitLevel(),
+    // giam trong UpdatePlaying(), doc boi RenderSystem::DrawHUD(). Truoc day wave moi va ca
+    // Boss deu bat dau trong im lang tuyet doi - khong co khoanh khac nao danh dau, nhip
+    // choi phang li tu wave 1 toi wave 20. KHONG can luu chuoi rieng: RenderSystem tu dung
+    // tu `wave` + `isBossWave` + BossTypeName(bossPool[0].type), tranh nhan doi du lieu.
+    float waveBannerTimer = 0.0f;
     float waveFireRateMul = 1.0f; // Tinh 1 lan trong InitLevel() theo wave hien tai
     bool isBossWave = false;      // wave % Config::BOSS_WAVE_INTERVAL == 0 -> spawn Boss thay vi luoi doi hinh
 
@@ -165,6 +171,17 @@ private:
     float ddaSpeedMul = 1.0f;
     int ddaLivesLostSinceCheck = 0;
     int ddaLastKnownLives = Config::MAX_LIVES;
+
+    // TONG KET RUN (Phase Graphics/UX): 4 so lieu chi ton tai trong 1 van, reset o
+    // InitLevel(newGame=true), doc boi RenderSystem::DrawEndScreen() de dung bang tong ket
+    // luc Game Over. TRUOC DAY man hinh Game Over chi hien SCORE + WAVE, va dac biet la
+    // KHONG he noi nguoi choi vua kiem duoc bao nhieu currency - trong khi AwardCurrency()
+    // chay dung tai do. Ca he thong meta-progression (mo khoa loadout 150/400 CR) vi vay
+    // vo hinh dung vao khoanh khac no tra thuong.
+    int runKills = 0;            // Dem trong ProcessEvents(), moi event co scoreValue > 0 la 1 lan ha guc (gom ca UFO/Boss)
+    int runBestCombo = 0;        // Bac combo cao nhat dat duoc, cap nhat trong ApplyComboAndScore()
+    int runCurrencyEarned = 0;   // Gia tri TRA VE cua metaProgress.AwardCurrency() - khong tu tinh lai cong thuc quy doi
+    float endScreenTimer = 0.0f; // Dem LEN tu 0 khi vao GAME_OVER - dung cho hieu ung chay so cua bang tong ket
 
     // COMBO SCORE: ha guc lien tiep trong Config::COMBO_WINDOW giay se duoc nhan diem.
     float comboTimer = 0.0f;

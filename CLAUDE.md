@@ -161,6 +161,21 @@ test (lưu giá trị gốc, ghi đè, chạy, phục hồi cuối bài) - xem t
 0/false khi raylib chưa init, và `PlaySound()` trên 1 `Sound{}` chưa từng `LoadSound()`
 cũng tự no-op (raylib tự kiểm tra `IsSoundValid()` nội bộ), không crash.
 
+## Trạng thái chỉ sống trong 1 ván vs 1 wave
+
+`GameManager` có 2 nhóm field dễ nhầm nhau, phân biệt bằng chỗ chúng được reset trong
+`InitLevel()`:
+
+- **Theo VÁN** - chỉ reset ở nhánh `newGame == true`: `runKills`/`runBestCombo`/
+  `runCurrencyEarned` (bảng tổng kết Game Over), `hintTimer` (gợi ý phím, chỉ hiện cho
+  người chơi mới), và bộ DDA (`ddaSpeedMul`/`ddaLivesLostSinceCheck`/`ddaLastKnownLives`).
+- **Theo WAVE** - reset ở CẢ 2 nhánh: mọi pool địch, bullet/particle/power-up, combo,
+  `waveBannerTimer` (banner phải hiện lại mỗi wave), `enemySpeed`/`waveFireRateMul`.
+
+Đặt nhầm nhóm không gây lỗi build và test cũ vẫn xanh - nó chỉ hiện ra dưới dạng "sao
+banner không hiện lại ở wave 2" hoặc "sao tổng kết đếm cả ván trước". Có test khoá riêng
+cho cả 2 nhóm trong `test_game_manager.cpp` (`[summary]`, `[banner]`).
+
 ## Trước khi sửa UpdatePlaying()/CheckCollisions()
 
 `metaProgress.AwardCurrency()` HIỆN TẠI chỉ được gọi ở nhánh `player.GetLives()<=0`

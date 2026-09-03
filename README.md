@@ -36,7 +36,9 @@ vì 1), và Cleanser (xoá sạch đạn địch đang bay - bom cứu nạn).
 nâng cấp (tốc độ di chuyển / +1 mạng / thưởng điểm), cộng dồn cả ván, và wave boss sắp tới
 thì nâng cấp được áp dụng 2 lần. Xuyên nhiều ván: điểm quy đổi thành **currency** để mở
 khoá loadout *Vanguard* (150 CR, bắt đầu với +1 mạng) và *Overcharge* (400 CR, bắt đầu với
-Rapid Fire sẵn). Bảng **Top 10** lưu kèm wave đạt được.
+Rapid Fire sẵn). Bảng **Top 10** lưu kèm wave đạt được. Kết thúc mỗi ván có **bảng tổng
+kết**: điểm, wave, số địch hạ, combo cao nhất, CR vừa kiếm được, tổng CR, và thanh tiến độ
+tới lần mở khoá kế tiếp.
 
 **Độ khó.** Chọn EASY/NORMAL/HARD trong menu, và bên trên đó còn một tầng **DDA** (dynamic
 difficulty adjustment) tự điều chỉnh: mỗi lần hạ Boss, game xem bạn mất bao nhiêu mạng
