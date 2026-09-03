@@ -36,7 +36,24 @@ TEN=X,Y,W,H
   atlas.cfg hiện tại làm vậy cho `bossSentinel`↔`tankyAlien` và `bossSwarmer`↔
   `zigzagAlien` (xem lý do chọn trong comment đầu file).
 
-## ⚠️ Toàn bộ 13 texture PHẢI là ảnh khử màu (gray/desaturated)
+## Còn bao nhiêu chỗ trong atlas.png?
+
+Nhiều hơn bạn nghĩ. `atlas.cfg` từng ghi *"atlas.png đã kín chỗ"* ở 4 nơi khác nhau, và
+**8 sprite đã phải vẽ bằng code vì lời khẳng định đó** — nó sai theo hai tầng:
+
+1. Dải `y=104..137, x>=160` (684×32 px) vốn đã trống trơn — đo được 0 pixel không trong
+   suốt. `iconOverdrive` vừa được nhét vào đó mà không cần đụng kích thước ảnh.
+2. Kể cả khi hết chỗ thật thì kích thước atlas **không bị hardcode ở đâu cả**:
+   `LoadAtlasEntry()` (`sprites.cpp`) đọc `atlasImg.width/height` lúc chạy. Cứ làm ảnh to
+   hơn rồi thêm dòng toạ độ là xong, không sửa một dòng C++ nào.
+
+Ràng buộc THẬT không phải chỗ trống mà là **pack không còn dáng địch nào**: Kenney "Space
+Shooter Remastered" có đúng 5 dáng (`enemyBlack1..5`) và cả 5 đã dùng hết cho
+`basicAlien`/`tankyAlien`/`zigzagAlien`/`kamikaze`/`boss` — đã đối chiếu từng pixel kênh
+alpha, khác 0. Mọi sprite địch MỚI đều phải lắp ráp từ `PNG/Parts`, hoặc chấp nhận
+procedural.
+
+## ⚠️ Toàn bộ texture PHẢI là ảnh khử màu (gray/desaturated)
 
 Đây là điểm dễ làm sai nhất khi thay ảnh khác vào atlas.png: `DrawSprite()`
 (`src/sprites.h`) vẽ bằng `DrawTexturePro(tex, ..., tint)` — raylib **nhân** màu texture
@@ -61,6 +78,10 @@ chỉ cho đạn / đe doạ lao thẳng vào người chơi / phần thưởng 
 | `player` | `skinTint`, mặc định `Palette::PlayerShip`, đổi được qua skin mở khoá | `player.h`/`player.cpp` |
 | 6 `icon*` lúc RƠI trên mặt đất | `Palette::PowerUp` — **cùng 1 màu cho cả 6 loại**; phân biệt loại nào thì đọc bằng HÌNH icon | `render_system.cpp::DrawPlaying` |
 | 5 `icon*` trên HUD (đang có hiệu lực) | mỗi loại 1 màu riêng (`SKYBLUE`/`ORANGE`/`MAGENTA`/`GOLD`/`RED`) — đây là nhãn UI, không phải vật thể trong thế giới game | `render_system.cpp::DrawHUD` |
+
+5 trong 6 `icon*` có ảnh Kenney thật; `iconSpreadShot` vẫn là procedural **có chủ đích** —
+xem lý do đầy đủ trong `atlas.cfg`, tóm tắt: pack không có dáng nào diễn đạt được "1 phát
+toả thành 3 tia", còn hình 3 mũi tên toả ra mà `BuildIconSpreadShot()` vẽ thì nói đúng ý.
 
 Lưu ý chỗ dễ nhầm ở 2 dòng cuối: cùng một texture `icon*` được tô **2 màu khác nhau tuỳ
 ngữ cảnh**. Lúc power-up đang rơi, thông tin quan trọng nhất là "có thứ để nhặt" nên cả 6
