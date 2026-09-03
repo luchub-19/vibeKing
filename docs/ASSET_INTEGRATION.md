@@ -43,16 +43,31 @@ TEN=X,Y,W,H
 với `tint` theo từng kênh RGB. Toàn bộ 13 vai trò hiện đang được gán 1 tint **không phải
 màu trắng** ở nơi gọi:
 
+Mọi tint dưới đây đến từ `Palette::` (`src/palette.h`) — **không còn hằng số màu của
+raylib ở đường gameplay nào cả**. Bảng màu chia 2 dải: LẠNH cho nền + mọi loại địch, NÓNG
+chỉ cho đạn / đe doạ lao thẳng vào người chơi / phần thưởng (xem luật đầy đủ ở đầu
+`palette.h`).
+
 | Vai trò | Tint | Nơi gán |
 |---|---|---|
-| `basicAlien` | `PURPLE`/`VIOLET` (xen kẽ theo hàng) | `game_manager.cpp::InitLevel` |
-| `tankyAlien` | `MAROON` | `game_manager.cpp::InitLevel` |
-| `zigzagAlien` | `SKYBLUE` | `game_manager.cpp::InitLevel` |
-| `kamikaze` | `RED` | `game_manager.cpp::SpawnKamikaze` |
-| `ufo` | `RED` (cố định) | `render_system.cpp::DrawPlaying` |
-| `boss`/`bossSentinel`/`bossSwarmer` | `WHITE`→`ORANGE`→`RED` theo stage HP | `render_system.cpp::DrawPlaying` |
-| `player` | `skinTint`, mặc định `GREEN`, đổi được qua skin mở khoá | `player.h`/`player.cpp` |
-| 4 `icon*` | `ORANGE`/`SKYBLUE`/`MAGENTA`/`LIME` (mỗi loại 1 màu riêng) | `render_system.cpp::DrawPlaying` |
+| `basicAlien` | `Palette::BasicA`/`BasicB` (xen kẽ theo hàng) | `game_manager.cpp::InitLevel` |
+| `tankyAlien` | `Palette::Tanky` | `game_manager.cpp::InitLevel` |
+| `zigzagAlien` | `Palette::Zigzag` | `game_manager.cpp::InitLevel` |
+| `warden` / `medic` | `Palette::Warden` / `Palette::Medic` | `game_manager.cpp::InitLevel` |
+| `weaver` / `bomber` | `Palette::Weaver` / `Palette::Bomber` | `game_manager.cpp::SpawnWeaver`/`SpawnBomber` |
+| `kamikaze` | `Palette::Kamikaze` (dải NÓNG — loại duy nhất lao thẳng vào người chơi) | `game_manager.cpp::SpawnKamikaze` |
+| `ufo` | `Palette::Ufo` (dải NÓNG — mục tiêu thưởng điểm) | `render_system.cpp::DrawPlaying` |
+| `boss`/`bossSentinel`/`bossSwarmer` | `Palette::Boss` → `BossEnrage1` → `BossEnrage2` theo stage HP (lạnh → nóng dần = "enrage") | `render_system.cpp::DrawPlaying` |
+| `player` | `skinTint`, mặc định `Palette::PlayerShip`, đổi được qua skin mở khoá | `player.h`/`player.cpp` |
+| 6 `icon*` lúc RƠI trên mặt đất | `Palette::PowerUp` — **cùng 1 màu cho cả 6 loại**; phân biệt loại nào thì đọc bằng HÌNH icon | `render_system.cpp::DrawPlaying` |
+| 5 `icon*` trên HUD (đang có hiệu lực) | mỗi loại 1 màu riêng (`SKYBLUE`/`ORANGE`/`MAGENTA`/`GOLD`/`RED`) — đây là nhãn UI, không phải vật thể trong thế giới game | `render_system.cpp::DrawHUD` |
+
+Lưu ý chỗ dễ nhầm ở 2 dòng cuối: cùng một texture `icon*` được tô **2 màu khác nhau tuỳ
+ngữ cảnh**. Lúc power-up đang rơi, thông tin quan trọng nhất là "có thứ để nhặt" nên cả 6
+dùng chung màu vàng của dải NÓNG; trước đây mỗi loại một màu riêng, vừa phá luật lạnh/nóng
+(`SKYBLUE`/`LIME` lấn thẳng vào dải màu của địch) vừa khiến pickup không có dấu hiệu thị
+giác chung nào để nhận ra từ xa. Còn trên HUD thì ngược lại — bạn cần biết CHÍNH XÁC cái
+nào đang chạy, nên giữ màu riêng.
 
 Nếu bake sẵn màu bão hoà vào atlas.png, kết quả trên màn hình sẽ bị "đục" (2 màu nhân
 vào nhau) thay vì lên đúng màu như bảng trên. `atlas.png` hiện tại lấy từ Kenney "Space

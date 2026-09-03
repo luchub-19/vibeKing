@@ -157,9 +157,22 @@ flowchart LR
     PE --> P5["MaybeDropPowerUp()"]
 ```
 
+**Điểm xả DUY NHẤT là cuối `ProcessEvents()`.** Đây từng là một cái bẫy thật:
+`CheckCollisions()` trước đây `.clear()` hàng đợi ngay ở đầu hàm, dựa trên giả
+định "chỉ mình nó sinh event". Sai — `UpdateKamikaze()` chạy TRƯỚC nó trong
+cùng frame và cũng đẩy event vào (nổ + sfx + rung khi Kamikaze lao trúng
+player), nên toàn bộ số đó bị nuốt: người chơi mất 1 mạng mà màn hình im lặng
+hoàn toàn. Quy tắc hiện tại: **ai chạy trước `ProcessEvents()` trong frame đều
+được quyền ghi vào hàng đợi; không ai được clear nó ngoài `ProcessEvents()`.**
+
+`ProcessEvents()` duyệt bằng **index + bản sao**, không phải range-for: thân
+vòng lặp có thể làm dài thêm chính hàng đợi đang duyệt (`ApplyComboAndScore()`
+đẩy thêm event "+1 mạng" khi vượt mốc `EXTRA_LIFE_SCORE_THRESHOLD`). Range-for
+ở đó là heap-use-after-free thật sự, đã bắt được bằng AddressSanitizer.
+
 **Vì sao KHÔNG dùng hàng đợi đa-frame (deferred sang frame sau)?** Cố ý —
-`pendingEvents` bị `.clear()` ở đầu `CheckCollisions()` và được xử lý sạch
-ngay trong `ProcessEvents()` cùng frame đó. Đây không phải một message bus
+`ProcessEvents()` chạy mỗi frame ngay sau `CheckCollisions()` và xả sạch, nên
+hàng đợi luôn rỗng khi frame mới bắt đầu. Đây không phải một message bus
 tổng quát (publish/subscribe với nhiều listener đăng ký động) — nó là 1 buffer
 tái sử dụng (tránh cấp phát lại `std::vector` mỗi frame) để **tách bạch 2 mối
 quan tâm** (phát hiện vs phản ứng) mà vẫn giữ độ trễ bằng 0. Nếu sau này cần
@@ -199,9 +212,20 @@ nâng cấp thành hàng đợi có timestamp — chưa cần ở quy mô hiện
 | `meta_progress.h/.cpp` | `MetaProgress` — currency tích luỹ xuyên nhiều lượt chơi, ghi file có checksum cùng khuôn Leaderboard | `AwardCurrency()` HIỆN chỉ được gọi ở đúng 1 nhánh của `UpdatePlaying()` (lives<=0) — xem lưu ý currency ở CLAUDE.md trước khi thêm nhánh gọi mới |
 | `file_logger.h/.cpp` | Hook `SetTraceLogCallback` → ghi mọi `TraceLog` ra file xoay vòng | — |
 | `culling.h` | `Culling::IsVisible()` — bỏ lệnh vẽ cho thực thể ngoài camera | — |
+| `wave_generator.h/.cpp` | `WaveGenerator::Generate()` — quyết định "ô nào có địch loại gì" theo wave; hàm THUẦN, không biết `GameManager` tồn tại | Không đọc/ghi `GameManager` ở đây — `InitLevel()` mới là nơi biến `FormationSpawn` thành `EnemyPool::Spawn()` |
+| `upgrade_types.h` | `UpgradeType` + `g_upgradeTypeDescriptors[]` — nâng cấp chọn sau mỗi wave, data-driven cùng khuôn với `BossTypeDescriptor` | Không thêm `switch(UpgradeType)` rải rác — thêm 1 dòng vào bảng |
+| `parallax.h/.cpp` | `Parallax` — starfield nhiều lớp, vẽ dưới cùng ở MỌI state trước switch-case | — |
+| `post_process.h/.cpp` | `PostProcess` — bloom + CRT áp lúc upscale `renderTarget`; tự fallback về 1 `DrawTexturePro` nếu shader lỗi/tắt | — |
+| `localization.h` | `Loc::` — chuỗi hiển thị, 1 nguồn duy nhất cho RenderSystem và `GetRebindableActions()` | Không hardcode chuỗi UI rải rác trong `render_system.cpp` |
+| `palette.h` | `Palette::` — 1 nguồn duy nhất cho MỌI màu; thi hành luật LẠNH (nền + mọi loại địch) vs NÓNG (đạn, đe doạ tức thì, phần thưởng). Kèm `Lerp()`/`Shade()` để dẫn xuất sắc độ thay vì khai thêm hằng số | Không gọi thẳng hằng số màu của raylib (`PURPLE`, `RED`, `GREEN`...) ở bất kỳ đâu trong đường gameplay — thêm 1 tên vào `Palette::` |
 | `process_metrics.h` | Đọc RAM (RSS) thật từ `/proc/self/status` | — |
 
 ## 6. Data-Driven: ranh giới `constexpr` vs `inline`
+
+`Palette::` (`palette.h`) nằm hẳn ở phía `constexpr`: màu là dữ liệu **trình bày**, không
+phải dữ liệu cân bằng, nên có chủ đích KHÔNG có mặt trong `assets/balance.json` /
+`Config::LoadBalance()`. Đổi màu = sửa `palette.h` rồi build lại, giống `SCREEN_W` hay
+`TRANSITION_DURATION`.
 
 `config.h` chia rõ 2 nhóm — xem comment đầu file để có định nghĩa đầy đủ:
 
@@ -255,7 +279,9 @@ mạng lúc build). 2 nhóm:
   `game_manager.cpp`/`physics_system.cpp` kéo theo toàn bộ chuỗi phụ thuộc
   biên dịch của `GameManager::Run()`, target `unit_tests` giờ link thêm cả
   `render_system.cpp`/`audio_system.cpp`/`sprites.cpp`/`file_logger.cpp`/
-  `level_config.cpp` — dù không đường nào trong số đó thực sự CHẠY lúc test.
+  `level_config.cpp`/`parallax.cpp`/`post_process.cpp` — dù không đường nào
+  trong số đó thực sự CHẠY lúc test. Danh sách đầy đủ luôn là target
+  `unit_tests` trong `CMakeLists.txt`, không phải đoạn liệt kê này.
 
 `.github/workflows/ci.yml` — 2 bước build tách biệt: **(1)** build raylib từ
 source + build project (cấu hình mặc định) + `ctest`; **(2)** build lại TOÀN
@@ -268,18 +294,40 @@ test đỏ — phần đó nằm ở cấu hình repo, không set được từ 
 
 ## 8. Khi cần thêm 1 loại địch mới — checklist nhanh
 
+Bước 3 và 4 là 2 bước hay bị bỏ sót nhất, và cả hai đều đã gây bug thật rồi
+(Warden/Medic báo WAVE_CLEAR sớm vì thiếu bước 3; Warden/Medic không tụt hàng
+cùng đội hình vì làm sai bước 4).
+
 1. Struct dữ liệu thuần trong `enemy_types.h` (không hàm hành vi).
 2. `EnemyPool<NewEnemy, N>` + `SpatialGrid` riêng trong `game_manager.h`
    (`friend`-accessible bởi Physics/RenderSystem).
-3. Hàm `PhysicsSystem::UpdateNewEnemy(GameManager&, float dt)` — di chuyển +
-   spawn logic.
-4. Khối xử lý va chạm tương ứng trong `PhysicsSystem::CheckCollisions()` — nếu
+3. **`GameManager::InitLevel()`**: thêm `pool.Clear()` vào khối reset đầu hàm.
+   Nếu địch spawn theo lịch riêng (kiểu UFO/Kamikaze/Weaver/Bomber) thì thêm
+   luôn `RollNext<Loại>Timer()` ở đó — thiếu nó thì timer giữ giá trị của ván
+   trước.
+4. **Quyết định địch này có thuộc ĐỘI HÌNH hay không** — đây là ngã ba quan
+   trọng nhất, không phải chi tiết:
+   - **Thuộc đội hình** (như Warden/Medic): phải cộng vào `activeCount` trong
+     `UpdateEnemies()` (nếu không, wave báo sạch trong khi nó vẫn còn sống),
+     VÀ phải di chuyển/tụt hàng bên trong `UpdateEnemies()` để `hitEdge` là
+     một quyết định DUY NHẤT của cả đội hình. Tách ra hàm `UpdateXxx()` riêng
+     cho dễ đọc thì được, nhưng hàm đó chỉ được di chuyển và **trả về
+     `hitEdge`** — không tự đổi hướng, không tự tụt hàng.
+   - **Thoát lưới** (như Kamikaze/Weaver/Bomber/UFO): pool + timer + grid hoàn
+     toàn riêng, hàm `PhysicsSystem::UpdateXxx(GameManager&, float dt)` gọi
+     thẳng từ `UpdatePlaying()`, không đụng gì tới `activeCount`/`hitEdge`.
+5. Khối xử lý va chạm tương ứng trong `PhysicsSystem::CheckCollisions()` —
+   nhớ đủ 3 phần: `grid.Clear()`+`Insert()` ở đầu hàm, mảng `pendingKill`
+   riêng, và vòng quét swap-and-pop ở cuối. Ngoài ra: nếu
    địch mới "1 máu, chết ngay khi trúng" (như Basic/Zigzag/Kamikaze), gọi thẳng
    `ResolveOneHitKillCollision(...)` (định nghĩa đầu `physics_system.cpp`) thay
    vì viết tay lại vòng lặp; chỉ viết khối riêng nếu có state phức tạp hơn kiểu
    Tanky (nhiều máu, có nhánh "trúng nhưng chưa chết") hoặc Boss (thực thể toàn
    cục, không nằm trong pool). Dù theo cách nào, vẫn không gọi audio/particle
    trực tiếp — chỉ push `GameEvent`.
-5. Vòng vẽ + `Culling::IsVisible()` trong `RenderSystem::DrawPlaying()`.
-6. Hằng số cân bằng: `inline` trong `config.h`/struct + dòng `Assign()` trong
+6. Vòng vẽ + `Culling::IsVisible()` trong `RenderSystem::DrawPlaying()`. Màu lấy từ
+   `Palette::` — thêm 1 hằng số mới vào `palette.h` cho loại địch này, đặt trong dải
+   **LẠNH** trừ khi nó lao thẳng vào người chơi (xem luật ở đầu `palette.h`). Không gọi
+   thẳng hằng số màu của raylib.
+7. Hằng số cân bằng: `inline` trong `config.h`/struct + dòng `Assign()` trong
    `config.cpp` + field tương ứng trong `assets/balance.json`.
