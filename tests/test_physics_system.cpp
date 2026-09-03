@@ -72,6 +72,13 @@ TEST_CASE("CheckCollisions: Tanky enemy can dung TankyEnemy::HP phat moi chet - 
     REQUIRE(totalHp >= 2); // kich ban "nhieu phat" chi co y nghia neu HP > 1
 
     for (int hitNum = 1; hitNum < totalHp; hitNum++) {
+        // Xa hang doi bang tay TRUOC moi phat. Trong game that, GameManager::ProcessEvents()
+        // lo viec nay moi frame (no la diem xa DUY NHAT - CheckCollisions() co y KHONG con
+        // tu clear(), neu khong no se nuot cac event ma UpdateKamikaze() day vao truoc do;
+        // xem comment dau CheckCollisions()). Test nay goi CheckCollisions() nhieu lan lien
+        // tiep ma khong qua ProcessEvents(), nen phai tu xa de moi vong chi thay event cua
+        // rieng phat dan vua ban.
+        GTA::PendingEvents(gm).clear();
         FireBulletAt(GTA::PlayerBullets(gm), GTA::TankyEnemies(gm)[0].rect);
         PhysicsSystem::CheckCollisions(gm);
 
@@ -96,6 +103,7 @@ TEST_CASE("CheckCollisions: Tanky enemy can dung TankyEnemy::HP phat moi chet - 
     }
 
     // Phat thu totalHp - ha guc that su
+    GTA::PendingEvents(gm).clear();
     FireBulletAt(GTA::PlayerBullets(gm), GTA::TankyEnemies(gm)[0].rect);
     PhysicsSystem::CheckCollisions(gm);
 
@@ -126,6 +134,7 @@ TEST_CASE("CheckCollisions: Warden can dung WardenEnemy::HP phat moi chet - chi 
     REQUIRE(totalHp >= 2); // kich ban "nhieu phat" chi co y nghia neu HP > 1
 
     for (int hitNum = 1; hitNum < totalHp; hitNum++) {
+        GTA::PendingEvents(gm).clear(); // Xem giai thich o test Tanky ngay tren
         FireBulletAt(GTA::PlayerBullets(gm), GTA::WardenEnemies(gm)[0].rect);
         PhysicsSystem::CheckCollisions(gm);
 
@@ -140,6 +149,7 @@ TEST_CASE("CheckCollisions: Warden can dung WardenEnemy::HP phat moi chet - chi 
         REQUIRE(events[0].flashOnHit == true);
     }
 
+    GTA::PendingEvents(gm).clear();
     FireBulletAt(GTA::PlayerBullets(gm), GTA::WardenEnemies(gm)[0].rect);
     PhysicsSystem::CheckCollisions(gm);
 
@@ -216,7 +226,7 @@ TEST_CASE("UpdateMedicEnemies: het Config::MEDIC_HEAL_INTERVAL, hoi dung Config:
     GTA::TankyEnemies(gm).Spawn(hurt);
 
     REQUIRE(Config::MEDIC_HEAL_INTERVAL > 0.0f);
-    PhysicsSystem::UpdateMedicEnemies(gm, Config::MEDIC_HEAL_INTERVAL, false); // 1 buoc du het dung 1 chu ky
+    PhysicsSystem::UpdateMedicEnemies(gm, Config::MEDIC_HEAL_INTERVAL); // 1 buoc du het dung 1 chu ky
 
     REQUIRE(GTA::TankyEnemies(gm)[0].hp == TankyEnemy::HP);                 // "full" khong doi
     REQUIRE(GTA::TankyEnemies(gm)[1].hp == TankyEnemy::HP - 1 + Config::MEDIC_HEAL_AMOUNT); // "hurt" duoc hoi
@@ -224,45 +234,91 @@ TEST_CASE("UpdateMedicEnemies: het Config::MEDIC_HEAL_INTERVAL, hoi dung Config:
     // Hoi lien tuc nhieu chu ky nua: khong bao gio vuot HP goc du con lai thieu it hon
     // MEDIC_HEAL_AMOUNT.
     for (int i = 0; i < 10; i++) {
-        PhysicsSystem::UpdateMedicEnemies(gm, Config::MEDIC_HEAL_INTERVAL, false);
+        PhysicsSystem::UpdateMedicEnemies(gm, Config::MEDIC_HEAL_INTERVAL);
     }
     REQUIRE(GTA::TankyEnemies(gm)[1].hp == TankyEnemy::HP);
     REQUIRE(GTA::TankyEnemies(gm)[0].hp == TankyEnemy::HP);
 }
 
-TEST_CASE("UpdateWardenEnemies/UpdateMedicEnemies: alreadyFlipped=true thi KHONG tu doi enemyDirection/tang enemySpeed lan nua", "[physics][warden][medic]") {
-    // Khoa lai co che guard chong "doi huong 2 lan cung 1 frame" giua UpdateEnemies() (co
-    // the da tu doi huong roi) va Warden/Medic - xem GameManager::UpdatePlaying().
+// ==========================================
+// HOI QUY: Warden/Medic phai tut hang CUNG NHIP voi Basic/Tanky/Zigzag.
+//
+// Test cu o cho nay khoa co che `alreadyFlipped` (chong doi huong 2 lan giua UpdateEnemies()
+// va 2 ham Warden/Medic goi rieng tu UpdatePlaying()). Co che do da bi go bo cung voi nguyen
+// nhan cua no: Warden/Medic gio nam TRONG UpdateEnemies(), khong con ham nao goi rieng nen
+// khong con kha nang doi huong 2 lan de ma phai chong.
+//
+// Thay bang test bat DUNG cai bug ma co che cu khong he cham toi: Warden/Medic nam GIUA luoi
+// khong bao gio tu cham bien man hinh, nen truoc day KHONG BAO GIO tut hang - doi hinh chinh
+// hanh quan xuong bo lai chung lo lung phia tren (do that: wave 7, basic y 50->350 trong khi
+// warden dung yen o 90).
+// ==========================================
+TEST_CASE("UpdateEnemies: Warden/Medic nam GIUA luoi tut hang DUNG BANG Basic khi doi hinh cham bien", "[physics][warden][medic][formation]") {
     GameManager gm;
+    GTA::BasicEnemies(gm).Clear();
     GTA::WardenEnemies(gm).Clear();
     GTA::MedicEnemies(gm).Clear();
     GTA::SetEnemyDirection(gm, 1);
     GTA::SetEnemySpeed(gm, 50.0f);
 
-    // Dat 1 Warden sat canh phai man hinh - chac chan hitEdge=true ngay buoc dau.
+    const float startY = 100.0f;
+
+    // Basic sat canh PHAI - day la con duy nhat cham bien, tuc la con quyet dinh khi nao ca
+    // doi hinh doi huong/tut hang.
+    BasicEnemy b{};
+    b.rect = { (float)Config::SCREEN_W - 5.0f, startY, 40.0f, 25.0f };
+    b.column = 0;
+    GTA::BasicEnemies(gm).Spawn(b);
+
+    // Warden va Medic o GIUA man hinh - khong bao gio tu cham bien duoc.
     WardenEnemy w{};
-    w.rect = { (float)Config::SCREEN_W - 5.0f, 100.0f, 42.0f, 30.0f };
+    w.rect = { 380.0f, startY, 42.0f, 30.0f };
+    w.column = 1;
     w.hp = WardenEnemy::HP;
     GTA::WardenEnemies(gm).Spawn(w);
 
-    PhysicsSystem::UpdateWardenEnemies(gm, 0.5f, /*alreadyFlipped=*/true);
+    MedicEnemy m{};
+    m.rect = { 300.0f, startY, 34.0f, 24.0f };
+    m.column = 2;
+    GTA::MedicEnemies(gm).Spawn(m);
 
-    REQUIRE(GTA::EnemyDirection(gm) == 1);      // KHONG doi - alreadyFlipped=true nghia la UpdateEnemies() da lo roi
-    REQUIRE(GTA::EnemySpeed(gm) == 50.0f);      // KHONG tang them
+    PhysicsSystem::UpdateEnemies(gm, 0.5f); // dt du lon de Basic cham bien ngay buoc dau
 
-    // Doi xung: alreadyFlipped=false thi PHAI tu doi/tang toc (khong ai khac lam thay).
+    REQUIRE(GTA::EnemyDirection(gm) == -1);  // doi hinh da doi huong
+    const float basicY = GTA::BasicEnemies(gm)[0].rect.y;
+    REQUIRE(basicY > startY);                // Basic da tut hang
+
+    // Mau chot: ca 3 phai o CUNG mot hang. Truoc ban sua, warden/medic van dung nguyen startY.
+    REQUIRE(GTA::WardenEnemies(gm)[0].rect.y == basicY);
+    REQUIRE(GTA::MedicEnemies(gm)[0].rect.y == basicY);
+}
+
+TEST_CASE("UpdateEnemies: doi hinh chi doi huong DUNG 1 LAN moi frame du Warden cung cham bien cung luc", "[physics][warden][medic][formation]") {
+    // Mat con lai cua cung van de: truoc day Warden/Medic tu doi huong trong ham rieng cua
+    // chung, nen 1 Warden cham bien CUNG frame voi Basic co the lat huong lan 2 (= khong doi)
+    // va tang toc gap doi. Gio chi co DUNG 1 cho doi huong trong toan bo doi hinh.
+    GameManager gm;
+    GTA::BasicEnemies(gm).Clear();
+    GTA::WardenEnemies(gm).Clear();
+    GTA::MedicEnemies(gm).Clear();
     GTA::SetEnemyDirection(gm, 1);
     GTA::SetEnemySpeed(gm, 50.0f);
-    GTA::WardenEnemies(gm).Clear();
-    WardenEnemy w2{};
-    w2.rect = { (float)Config::SCREEN_W - 5.0f, 100.0f, 42.0f, 30.0f };
-    w2.hp = WardenEnemy::HP;
-    GTA::WardenEnemies(gm).Spawn(w2);
 
-    PhysicsSystem::UpdateWardenEnemies(gm, 0.5f, /*alreadyFlipped=*/false);
+    BasicEnemy b{};
+    b.rect = { (float)Config::SCREEN_W - 5.0f, 100.0f, 40.0f, 25.0f };
+    b.column = 0;
+    GTA::BasicEnemies(gm).Spawn(b);
 
-    REQUIRE(GTA::EnemyDirection(gm) == -1);     // CO doi - khong ai khac lo viec nay
-    REQUIRE(GTA::EnemySpeed(gm) > 50.0f);       // CO tang
+    WardenEnemy w{};                                    // CUNG sat bien phai nhu Basic
+    w.rect = { (float)Config::SCREEN_W - 5.0f, 100.0f, 42.0f, 30.0f };
+    w.column = 1;
+    w.hp = WardenEnemy::HP;
+    GTA::WardenEnemies(gm).Spawn(w);
+
+    PhysicsSystem::UpdateEnemies(gm, 0.5f);
+
+    REQUIRE(GTA::EnemyDirection(gm) == -1);             // doi DUNG 1 lan (khong phai 2 lan = quay ve 1)
+    REQUIRE(GTA::EnemySpeed(gm) == 50.0f + Config::ENEMY_SPEED_INC); // tang DUNG 1 buoc
 }
 
 // ==========================================
@@ -496,7 +552,7 @@ TEST_CASE("CheckCollisions: boss khong shield (Vanguard) mat dung 1 HP moi phat 
     REQUIRE(GTA::PlayerBullets(gm).GetActiveCount() == 0);
 
     // Nguoi 3 (Audio & UI) - hit-flash: duong "boss trung, con song, khong shield" la 1
-    // trong 2 diem noi flashOnHit da ghi trong TASK_DIVISION.md (diem con lai la Tanky,
+    // trong 2 diem noi flashOnHit duoc dat theo ke hoach chia viec (diem con lai la Tanky,
     // xem test C3.2 o tren) - truoc gio chua co test nao kiem noi dung pendingEvents cho
     // đúng nhánh nay ca, chi kiem HP/dan.
     const auto& events = GTA::PendingEvents(gm);

@@ -47,10 +47,11 @@ public:
         if (life <= 0.0f) active = false;
     }
 
-    // KHONG culling: luon Spawn() gan vi tri player (ApplyComboAndScore() khong nhan
-    // tham so vi tri rieng - xem game_manager.cpp), doi song ngan (<1s) va chi troi len 1
-    // doan nho - cung ly do voi Bullet/PowerUp trong culling.h (tu huy truoc khi kip ra
-    // xa man hinh), khac voi Particle (co the bi trong luc day ra ngoai bien man hinh).
+    // KHONG culling: Spawn() tai VI TRI HA GUC (ApplyComboAndScore() nhan tham so `at` -
+    // xem game_manager.cpp; truoc day hardcode vi tri player nen moi popup deu chong len
+    // nhau o dung 1 diem), doi song ngan (<1s) va chi troi len 1 doan nho - cung ly do voi
+    // Bullet/PowerUp trong culling.h (tu huy truoc khi kip ra xa man hinh), khac voi
+    // Particle (co the bi trong luc day ra ngoai bien man hinh).
     void Draw(const Font& font) const {
         float alpha = life / maxLife;
         if (alpha < 0.0f) alpha = 0.0f;
@@ -65,6 +66,7 @@ public:
     }
 
     bool IsActive() const { return active; }
+    Vector2 GetPosition() const { return pos; }
 };
 
 // Cung thuat toan swap-and-pop voi ParticlePool/BulletPool - dung lai pattern da kiem
@@ -120,4 +122,8 @@ public:
     }
 
     size_t GetActiveCount() const { return activeCount; }
+
+    // Doc vi tri 1 popup dang song - dung boi test khoa lai "popup hien tai vi tri HA GUC,
+    // khong phai tai phi thuyen" (xem tests/test_game_manager.cpp). Chi doc, khong cho ghi.
+    Vector2 GetPosition(size_t index) const { return pool[index].GetPosition(); }
 };

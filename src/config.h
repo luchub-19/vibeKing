@@ -147,7 +147,7 @@ namespace Config {
 
     // TRONG SO ROI POWER-UP (Phase 1b, Nguoi 1) - GameManager::MaybeDropPowerUp() dung
     // random co trong so (khong con GetRandomValue(0,3) deu tuyet doi nhu 4 loai goc) de
-    // co the "chia lai trong so" qua balance.json ma khong doi code - xem TASK_SPLIT.md.
+    // co the "chia lai trong so" qua balance.json ma khong doi code.
     // SpreadShot/Overdrive mac dinh THAP hon 4 loai goc (Overdrive thap nhat vi la lua
     // chon rui-ro-cao-loi-ich-cao, khong nen roi qua thuong xuyen).
     inline float POWERUP_WEIGHT_RAPIDFIRE  = 1.0f;
@@ -366,6 +366,19 @@ namespace Config {
     // HUD PANEL/ICON - RenderSystem::DrawHUD() dung UICanvas::Panel()/Icon() moi
     // (ui_system.h) thay text-tren-nen-den truoc day.
     constexpr float HUD_PANEL_ALPHA = 0.55f;         // 0..1 - do phu nen panel (van thay duoc gameplay phia sau)
+
+    // GOI Y PHIM ("P: PAUSE  R: RESTART") - so giay hien o dau moi van MOI roi tu tat.
+    // Truoc day dong nay khong bao gio tat, nam vinh vien giua dinh man hinh. Doc boi
+    // GameManager::InitLevel()/UpdatePlaying() (hintTimer) va RenderSystem::DrawHUD().
+    constexpr float HUD_HINT_DURATION = 6.0f;
+    constexpr float HUD_HINT_FADE     = 1.5f; // Giay CUOI trong so tren duoc dung de mo dan ve 0 thay vi bien mat dot ngot
+
+    // Chieu cao TOI DA cua cum HUD goc tren-trai. PHAI nho hon LevelGridConfig::startY
+    // (level.cfg, mac dinh 50) - neu khong, panel se de len hang dich TREN CUNG cua doi
+    // hinh, dung loi da thay trong anh chup game that: panel cu cao 80px (y 6..86) trong
+    // khi hang dich dau tien bat dau o y=50. Cum SCORE/WAVE/COMBO vi vay xep 1 HANG NGANG
+    // (kieu arcade) thay vi 3 dong doc.
+    constexpr float HUD_TOP_BAND_H = 32.0f;
     constexpr float HUD_PANEL_BORDER_THICKNESS = 2.0f;
     constexpr float HUD_ICON_SIZE = 18.0f;           // px - kich thuoc badge icon trong HUD
 

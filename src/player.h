@@ -1,5 +1,6 @@
 #pragma once
 #include "raylib.h"
+#include "palette.h"
 #include <array>
 #include "bullet_pool.h"
 #include "config.h"
@@ -25,7 +26,7 @@ private:
     float pierceTimer = 0.0f; // Piercing Shot (power-up) - dan ban ra xuyen qua nhieu muc tieu
     // Phase 1b (Enemy & Item Revolution, Nguoi 1) - cung "ho" timer power-up tam thoi o
     // tren, dat canh pierceTimer theo dung vi tri da thong nhat o Buoc 0 cua ke hoach
-    // chia viec (TASK_SPLIT.md).
+    // chia viec.
     float spreadShotTimer = 0.0f; // Spread Shot: ban 3 tia toa nhe thay vi 1, xem Update()
     float overdriveTimer = 0.0f;  // Overdrive: tang nhip ban, doi lai trung don luc active mat 2 mang thay vi 1, xem TakeDamage()
 
@@ -36,10 +37,10 @@ private:
     // pierceTimer o tren - dung y muon, nang cap phai ton tai xuyen suot nhieu wave).
     std::array<int, UPGRADE_TYPE_COUNT> runUpgradeStacks{};
 
-    // A7: mau than tau, mac dinh GREEN (giu DUNG hanh vi hardcode cu trong Draw()).
+    // A7: mau than tau, mac dinh Palette::PlayerShip (truoc day la GREEN thuan cua raylib).
     // DrawSprite() (sprites.h) da nhan san tham so tint tu truoc - Player chi can giu
-    // 1 field de "nho" skin dang chon thay vi hardcode GREEN thang trong Draw().
-    Color skinTint = GREEN;
+    // 1 field de "nho" skin dang chon thay vi hardcode mau thang trong Draw().
+    Color skinTint = Palette::PlayerShip;
 
 public:
     Player();

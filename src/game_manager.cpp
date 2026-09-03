@@ -6,6 +6,7 @@
 #include "file_logger.h"
 #include "wave_generator.h"
 #include "upgrade_types.h"
+#include "palette.h"
 
 // ==========================================
 // TRANSITION (fade giua cac state)
@@ -64,6 +65,7 @@ void GameManager::InitLevel(bool newGame) {
         ddaLastKnownLives = player.GetLives();
         ddaLivesLostSinceCheck = 0;
         ddaSpeedMul = 1.0f;
+        hintTimer = Config::HUD_HINT_DURATION; // Goi y phim chi hien o dau van MOI, khong lap lai moi wave
     } else {
         player.ResetForNewWave();
     }
@@ -109,21 +111,21 @@ void GameManager::InitLevel(bool newGame) {
         for (const FormationSpawn& spawn : WaveGenerator::Generate(wave, levelGrid)) {
             switch (spawn.kind) {
                 case FormationEnemyKind::Zigzag:
-                    zigzagEnemies.Spawn(ZigzagEnemy{ {spawn.x, spawn.y, 36.0f, 22.0f}, SKYBLUE, spawn.column, 0.0f, 0.0f });
+                    zigzagEnemies.Spawn(ZigzagEnemy{ {spawn.x, spawn.y, 36.0f, 22.0f}, Palette::Zigzag, spawn.column, 0.0f, 0.0f });
                     break;
                 case FormationEnemyKind::Tanky:
-                    tankyEnemies.Spawn(TankyEnemy{ {spawn.x, spawn.y, 44.0f, 30.0f}, MAROON, spawn.column, TankyEnemy::HP });
+                    tankyEnemies.Spawn(TankyEnemy{ {spawn.x, spawn.y, 44.0f, 30.0f}, Palette::Tanky, spawn.column, TankyEnemy::HP });
                     break;
                 case FormationEnemyKind::Basic: {
-                    Color col = (spawn.row % 2 == 0) ? PURPLE : VIOLET;
+                    Color col = (spawn.row % 2 == 0) ? Palette::BasicA : Palette::BasicB;
                     basicEnemies.Spawn(BasicEnemy{ {spawn.x, spawn.y, 40.0f, 25.0f}, col, spawn.column });
                     break;
                 }
                 case FormationEnemyKind::Warden:
-                    wardenEnemies.Spawn(WardenEnemy{ {spawn.x, spawn.y, 42.0f, 30.0f}, DARKBLUE, spawn.column, WardenEnemy::HP });
+                    wardenEnemies.Spawn(WardenEnemy{ {spawn.x, spawn.y, 42.0f, 30.0f}, Palette::Warden, spawn.column, WardenEnemy::HP });
                     break;
                 case FormationEnemyKind::Medic:
-                    medicEnemies.Spawn(MedicEnemy{ {spawn.x, spawn.y, 34.0f, 24.0f}, LIME, spawn.column, 0.0f });
+                    medicEnemies.Spawn(MedicEnemy{ {spawn.x, spawn.y, 34.0f, 24.0f}, Palette::Medic, spawn.column, 0.0f });
                     break;
             }
         }
@@ -167,7 +169,7 @@ void GameManager::SpawnBunkers() {
 
     for (int i = 0; i < bunkerCount; i++) {
         float slotCenterX = Config::BUNKER_MARGIN_X + usableWidth * ((float)i + 0.5f) / (float)bunkerCount;
-        bunkers.emplace_back(slotCenterX - halfWidth, Config::BUNKER_Y, GREEN);
+        bunkers.emplace_back(slotCenterX - halfWidth, Config::BUNKER_Y, Palette::BunkerIntact);
     }
 }
 
@@ -206,7 +208,7 @@ void GameManager::MaybeDropPowerUp(Vector2 at) {
     powerUps.Spawn(PowerUp{ rect, type });
 }
 
-int GameManager::ApplyComboAndScore(int baseScore) {
+int GameManager::ApplyComboAndScore(int baseScore, Vector2 at) {
     // Ha guc them 1 dich trong luc combo timer con hieu luc -> tang bac combo; het
     // thoi gian (khong ha them dich nao) -> combo tu dong reset ve 0 (xem UpdatePlaying).
     if (comboTimer > 0.0f) comboCount++;
@@ -216,7 +218,7 @@ int GameManager::ApplyComboAndScore(int baseScore) {
     int steps = comboCount - 1;
     if (steps > Config::COMBO_MAX_STEPS) steps = Config::COMBO_MAX_STEPS;
     int finalScore = (int)((float)baseScore * (1.0f + Config::COMBO_BONUS_PER_STEP * (float)steps));
-    floatingTexts.Spawn(player.GetCenter(), finalScore, comboCount); // Chi hien thi - khong dung toi phep tinh diem o tren
+    floatingTexts.Spawn(at, finalScore, comboCount); // Chi hien thi - khong dung toi phep tinh diem o tren
 
     if (player.AddScore(finalScore)) {
         // +1 MANG tu moc diem (xem Config::EXTRA_LIFE_SCORE_THRESHOLD) - dung mau GOLD
@@ -224,7 +226,7 @@ int GameManager::ApplyComboAndScore(int baseScore) {
         // de nguoi choi nhan ra ngay day la 1 cot moc dang chu y, khong phai nhat power-up.
         GameEvent ev;
         ev.position = player.GetCenter();
-        ev.color = GOLD;
+        ev.color = Palette::PowerUp;
         ev.particleCount = 20;
         ev.sfx = SfxType::Pickup;
         pendingEvents.push_back(ev);
@@ -300,7 +302,7 @@ void GameManager::SpawnKamikaze() {
     if (len < 1.0f) len = 1.0f;
     Vector2 vel{ (dir.x / len) * Config::KAMIKAZE_SPEED, (dir.y / len) * Config::KAMIKAZE_SPEED };
 
-    kamikazeEnemies.Spawn(KamikazeEnemy{ rect, RED, vel });
+    kamikazeEnemies.Spawn(KamikazeEnemy{ rect, Palette::Kamikaze, vel });
     RollNextKamikazeTimer();
 }
 
@@ -323,7 +325,7 @@ void GameManager::SpawnWeaver() {
     // cung luc se bay o nhieu do cao khac nhau, dung tinh than "kho doan duong bay".
     float baseY = (float)GetRandomValue((int)Config::WEAVER_BASE_Y_MIN, (int)Config::WEAVER_BASE_Y_MAX);
     Rectangle rect{ startX, baseY, Config::WEAVER_WIDTH, Config::WEAVER_HEIGHT };
-    weaverEnemies.Spawn(WeaverEnemy{ rect, YELLOW, direction, baseY, 0.0f });
+    weaverEnemies.Spawn(WeaverEnemy{ rect, Palette::Weaver, direction, baseY, 0.0f });
     RollNextWeaverTimer();
 }
 
@@ -341,7 +343,7 @@ void GameManager::SpawnBomber() {
     // luon = BOMBER_BOMB_INTERVAL) de nhieu Bomber tren man hinh khong tha bom DONG BO
     // cung 1 nhip - cam giac hon loan/tu nhien hon.
     float initialBombTimer = (float)GetRandomValue(0, (int)(Config::BOMBER_BOMB_INTERVAL * 1000.0f)) / 1000.0f;
-    bomberEnemies.Spawn(BomberEnemy{ rect, ORANGE, direction, initialBombTimer });
+    bomberEnemies.Spawn(BomberEnemy{ rect, Palette::Bomber, direction, initialBombTimer });
     RollNextBomberTimer();
 }
 
@@ -529,6 +531,8 @@ void GameManager::UpdatePlaying(float dt) {
     if (menuInput.Restart) { InitLevel(true); return; }
     if (menuInput.ToggleFullscreen) ToggleFullscreen();
 
+    if (hintTimer > 0.0f) hintTimer -= dt; // Goi y phim tu tat sau Config::HUD_HINT_DURATION giay
+
     screenShake.Update(dt);
     particles.Update(dt);
     floatingTexts.Update(dt);
@@ -552,37 +556,17 @@ void GameManager::UpdatePlaying(float dt) {
         // MUZZLE FLASH (Nguoi 3 - Audio & UI): dau nong = giua-tren rect player, dung
         // CHINH vi tri playerBullets.Fire() dat vien dan dau tien (xem player.cpp).
         Rectangle pr = player.GetRect();
-        particles.Burst({ pr.x + pr.width / 2.0f, pr.y }, Config::MUZZLE_FLASH_PARTICLE_COUNT, YELLOW);
+        particles.Burst({ pr.x + pr.width / 2.0f, pr.y }, Config::MUZZLE_FLASH_PARTICLE_COUNT, Palette::PlayerBullet);
     }
 
-    // WARDEN/MEDIC (Phase 1a - Enemy & Item Revolution, Nguoi 1): ghi lai huong/pha
-    // chuyen canh TRUOC khi goi UpdateEnemies() - dung de phat hien SAU do UpdateEnemies()
-    // co vua tu doi huong doi hinh (Basic/Tanky/Zigzag cham bien) hoac vua kich hoat 1
-    // transition (WAVE_CLEAR/GAME_OVER) trong CHINH frame nay hay khong, ma KHONG can sua
-    // 1 dong nao trong UpdateEnemies() (dung tinh than "khong sua ham Update cua Basic/
-    // Tanky/Zigzag") - xem 2 cho dung ben duoi.
-    int enemyDirectionBeforeUpdate = enemyDirection;
-    TransitionPhase phaseBeforeUpdate = transitionPhase;
-
+    // Warden/Medic KHONG con duoc goi rieng o day nua: chung la mot phan cua doi hinh nen
+    // UpdateEnemies() so huu luon (di chuyen + tut hang cung nhip voi Basic/Tanky/Zigzag).
+    // Khoi cu o cho nay phai tu suy ra "doi hinh vua doi huong chua" / "vua kich hoat
+    // transition chua" de tranh doi huong 2 lan - toan bo mo hop do bien mat cung voi
+    // nguyen nhan cua no. Xem lich su bug lech hang o dau PhysicsSystem::UpdateEnemies().
     if (isBossWave) PhysicsSystem::UpdateBoss(*this, dt);
     else PhysicsSystem::UpdateEnemies(*this, dt);
     if (state != GameState::PLAYING) return; // UpdateEnemies/danh boss co the trigger WAVE_CLEAR/GAME_OVER
-
-    // Warden/Medic van tham gia doi hinh (di chuyen dung khuon Basic/Tanky, xem
-    // enemy_types.h) nhung nam trong 2 ham RIENG (khong the goi tu ben trong UpdateEnemies()
-    // ma khong sua no) - CHI goi khi KHONG phai boss wave (boss wave khong co luoi doi
-    // hinh nao ca) VA UpdateEnemies() o tren CHUA vua kich hoat transition frame nay (neu
-    // co, RequestTransition() da doi transitionPhase NGAY LAP TUC dong bo - xem
-    // GameManager::RequestTransition() - tranh Warden/Medic CUNG cham nguong hitEdge/day
-    // man hinh o DUNG frame do va goi lai PlayGameOver()/TrySubmit()/RequestTransition()
-    // lan 2 cho cung 1 su kien; cai gia phai tra chi la Warden/Medic dung hinh THEM dung 1
-    // frame - khong nhan duoc trong luc man hinh da bat dau fade sang WAVE_CLEAR/GAME_OVER).
-    if (!isBossWave && transitionPhase == phaseBeforeUpdate) {
-        bool formationAlreadyFlipped = (enemyDirection != enemyDirectionBeforeUpdate);
-        PhysicsSystem::UpdateWardenEnemies(*this, dt, formationAlreadyFlipped);
-        PhysicsSystem::UpdateMedicEnemies(*this, dt, enemyDirection != enemyDirectionBeforeUpdate);
-        if (state != GameState::PLAYING) return; // Warden/Medic cham day man hinh cung co the kich hoat GAME_OVER
-    }
 
     playerBullets.Update(dt);
     enemyBullets.Update(dt);
@@ -605,10 +589,10 @@ void GameManager::UpdatePlaying(float dt) {
         Vector2 bossCenter = EnemyCenter(bossPool[0].rect);
         bossPool.Destroy(0);
         audio.PlayBossDefeat();
-        particles.Burst(bossCenter, 40, RED);
+        particles.Burst(bossCenter, 40, Palette::BossEnrage2);
         screenShake.Trigger(0.4f, 12.0f);
         hitStop.Trigger(0.1f); // Nang do hon dong bang thuong (0.04f) - xem physics_system.cpp
-        ApplyComboAndScore(Config::BOSS_SCORE_VALUE);
+        ApplyComboAndScore(Config::BOSS_SCORE_VALUE, bossCenter);
         wave++;
         lastSubmitResult = leaderboard.TrySubmit(player.GetScore(), wave);
 
@@ -665,7 +649,25 @@ void GameManager::UpdatePlaying(float dt) {
 // logic phat hien va cham. Xem events.h de biet ly do tach.
 // ==========================================
 void GameManager::ProcessEvents() {
-    for (const GameEvent& ev : pendingEvents) {
+    // BUG FIX - duyet bang INDEX, KHONG bang range-for. Ly do khong hien nhien: than vong
+    // lap co the LAM DAI THEM chinh hang doi dang duyet - ApplyComboAndScore() (goi tu nhanh
+    // ev.scoreValue > 0 ben duoi) push them 1 event "+1 mang" khi diem vua vuot moc
+    // Config::EXTRA_LIFE_SCORE_THRESHOLD. Voi range-for, push_back do realloc vector va lam
+    // hong CA tham chieu `ev` lan iterator ket thuc -> heap-use-after-free THAT SU (da bat
+    // duoc bang AddressSanitizer, khong phai lo ngai ly thuyet), kich hoat moi 5000 diem.
+    //
+    // Doc lai pendingEvents[i] + goi lai .size() MOI VONG (khong cache ra bien) de vong lap
+    // luon nhin thay bo dem hien tai sau bat ky lan realloc nao. Tac dung phu la 1 sua loi
+    // thu hai: event "+1 mang" gio THAT SU duoc xu ly (particle GOLD + sfx). Truoc day
+    // range-for khong bao gio duyet toi no va clear() cuoi ham xoa luon - moc +1 mang khong
+    // he co phan hoi hinh anh/am thanh nao ca.
+    for (size_t i = 0; i < pendingEvents.size(); i++) {
+        // BAN SAO, khong phai tham chieu: index-based thoi VAN chua du an toan - than vong
+        // lap con doc `ev.dropPowerUp`/`ev.wardenReinforcementCount` SAU khi da goi
+        // ApplyComboAndScore(), va chinh lan goi do co the realloc vector lam tham chieu
+        // treo. GameEvent la POD nho (~60 byte, khong so huu bo nho dong) nen copy 1 lan
+        // moi vong la re va cat dut hoan toan moi rui ro dangling.
+        const GameEvent ev = pendingEvents[i];
         if (ev.particleCount > 0) particles.Burst(ev.position, ev.particleCount, ev.color);
         // HIT-FLASH (Nguoi 3 - Audio & UI): cum particle TRANG rieng, CONG DON voi burst
         // mau thuong o tren neu co (khong thay the) - bao "chi trung", tach voi burst mau
@@ -682,7 +684,7 @@ void GameManager::ProcessEvents() {
         }
 
         if (ev.shakeDuration > 0.0f) screenShake.Trigger(ev.shakeDuration, ev.shakeIntensity);
-        if (ev.scoreValue > 0) ApplyComboAndScore(ev.scoreValue);
+        if (ev.scoreValue > 0) ApplyComboAndScore(ev.scoreValue, ev.position);
         if (ev.dropPowerUp) MaybeDropPowerUp(ev.position);
 
         // WARDEN (Phase 1a - Enemy & Item Revolution, Nguoi 1): "yeu hon" nghia la spawn
@@ -699,7 +701,7 @@ void GameManager::ProcessEvents() {
         for (int k = 0; k < ev.wardenReinforcementCount; k++) {
             float offsetX = ((float)k - (float)(ev.wardenReinforcementCount - 1) / 2.0f) * 18.0f;
             Rectangle rect{ ev.position.x + offsetX - 20.0f, ev.position.y - 12.5f, 40.0f, 25.0f };
-            basicEnemies.Spawn(BasicEnemy{ rect, PURPLE, -1 });
+            basicEnemies.Spawn(BasicEnemy{ rect, Palette::BasicA, -1 });
         }
     }
     pendingEvents.clear();
@@ -807,7 +809,7 @@ void GameManager::Run() {
         // BUOC 1: ve toan bo gameplay vao canvas noi bo co dinh (khong lien quan gi
         // toi kich thuoc window/monitor that).
         BeginTextureMode(renderTarget);
-        ClearBackground(BLACK);
+        ClearBackground(Palette::Background);
 
         background.Draw(); // Starfield - duoi cung MOI trang thai (Menu/Playing/EndScreen...), truoc noi dung tung state
 

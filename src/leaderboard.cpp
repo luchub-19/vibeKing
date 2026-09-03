@@ -55,6 +55,14 @@ void Leaderboard::Load(const std::string& path) {
 }
 
 SubmitResult Leaderboard::TrySubmit(int score, int wave) {
+    // 1 van 0 diem KHONG phai thanh tich. Truoc day danh sach rong lam `isNewRecord` luon
+    // dung, nen lan chet dau tien cua nguoi choi moi - ke ca chet o wave 1 voi dung 0 diem,
+    // chua ban trung gi - van duoc chuc mung bang bang "NEW RECORD! (#1)" (da thay trong
+    // anh chup game that). Vua la loi khen rong, vua nhet 1 dong 0 diem vao Top 10 vinh vien.
+    // Chan o day thay vi o RenderSystem de MOI noi goi TrySubmit() deu duoc bao ve giong nhau,
+    // va de danh sach khong bao gio chua ban ghi rac.
+    if (score <= 0) return SubmitResult::NotQualified;
+
     bool isNewRecord = entries.empty() || score > entries[0].score;
     bool hasRoom = (int)entries.size() < Config::LEADERBOARD_MAX_ENTRIES;
     bool beatsWeakest = !entries.empty() && score > entries.back().score;

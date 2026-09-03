@@ -77,6 +77,15 @@ public:
     static MetaProgress& MetaProgressRef(GameManager& gm) { return gm.metaProgress; }
     static Leaderboard& LeaderboardRef(GameManager& gm) { return gm.leaderboard; }
     static HitStop& HitStopRef(GameManager& gm) { return gm.hitStop; }
+    // Particle la "bien quan sat" re nhat de biet 1 GameEvent CO thuc su di qua
+    // ProcessEvents() hay khong: hang doi da bi xa sach luc UpdatePlaying() tra ve, con
+    // particles thi con lai den cuoi frame. Xem 2 test hoi quy hang doi su kien o cuoi
+    // tests/test_game_manager.cpp.
+    static ParticlePool<Config::MAX_PARTICLES>& ParticlesRef(GameManager& gm) { return gm.particles; }
+    static FloatingTextPool<16>& FloatingTextsRef(GameManager& gm) { return gm.floatingTexts; }
+
+    // Hen gio goi y phim ("P: PAUSE  R: RESTART") - xem GameManager::hintTimer.
+    static float HintTimer(const GameManager& gm) { return gm.hintTimer; }
 
     static BulletPool<Config::MAX_PLAYER_BULLETS>& PlayerBullets(GameManager& gm) { return gm.playerBullets; }
     static BulletPool<Config::MAX_ENEMY_BULLETS>& EnemyBullets(GameManager& gm) { return gm.enemyBullets; }

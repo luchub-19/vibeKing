@@ -1,4 +1,5 @@
 #include "bunker.h"
+#include "palette.h"
 #include "config.h"
 #include <algorithm>
 #include <cassert>
@@ -29,17 +30,42 @@ Bunker::Bunker(float x, float y, Color col)
     originalVoxels = voxels;
 
     for (uint8_t v : voxels) if (v != 0) solidRemaining++;
+    originalSolid = solidRemaining; // Mau so co dinh cho GetIntegrity() - xem bunker.h
 }
 
+// ==========================================
+// TRUOC DAY: moi voxel ve bang DUNG 1 mau phang `color` (GREEN) - la chan trong nhu 1 mang
+// mau dac cat bang keo, khong co hinh khoi, va quan trong hon la KHONG NOI GI ve tinh trang
+// cua no. Nguoi choi chi biet la chan sap vo bang cach... dem lo thung.
+//
+// GIO ve 3 lop thong tin, deu suy ra tu du lieu DA CO SAN, khong them state nao:
+//   1. DO BEN -> SAC DO: mau goc noi suy Palette::BunkerIntact -> BunkerCritical theo
+//      GetIntegrity(). La chan con khoe thi sang va day dan, sap vo thi toi va xin xiu -
+//      doc duoc tu xa trong 1 cai liec mat.
+//   2. HINH KHOI -> VIEN SANG/BONG TOI: voxel nao KHONG co hang xom phia TREN thi la be mat
+//      huong len -> sang hon 1.35x; khong co hang xom phia DUOI -> mep duoi -> toi 0.65x.
+//      Chi bang 2 phep IsSolid() co san, khoi phang thanh co khoi.
+//   3. MEP VET KHOET -> vien sang o ca 2 canh trai/phai ho, nen cac lo dan khoet ra co
+//      duong vien thay vi bien mat vao nen den.
+// Van la 1 DrawRectangle moi voxel nhu truoc, khong them lenh ve nao.
+// ==========================================
 void Bunker::Draw() const {
+    const Color base = Palette::Lerp(Palette::BunkerCritical, Palette::BunkerIntact, GetIntegrity());
+
     for (int r = 0; r < ROWS; r++) {
         for (int c = 0; c < COLS; c++) {
             if (!IsSolid(c, r)) continue;
+
+            float mul = 1.0f;
+            if (!IsSolid(c, r - 1))      mul = 1.35f; // be mat huong len - hung sang
+            else if (!IsSolid(c, r + 1)) mul = 0.65f; // mep duoi - nam trong bong
+            else if (!IsSolid(c - 1, r) || !IsSolid(c + 1, r)) mul = 1.15f; // vien vet khoet 2 ben
+
             DrawRectangle(
                 (int)(originX + c * VOXEL_SIZE),
                 (int)(originY + r * VOXEL_SIZE),
                 (int)VOXEL_SIZE, (int)VOXEL_SIZE,
-                color
+                Palette::Shade(base, mul)
             );
         }
     }

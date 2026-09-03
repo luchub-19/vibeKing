@@ -124,3 +124,26 @@ TEST_CASE("Leaderboard: BAO MAT - file dinh dang cu (khong co dong SIG) bi tu ch
     lb.Load(TestPath());
     REQUIRE(lb.GetEntries().empty());
 }
+
+TEST_CASE("Leaderboard: van 0 diem KHONG duoc coi la ky luc va KHONG duoc ghi vao danh sach", "[leaderboard]") {
+    // Truoc ban sua, `isNewRecord` = entries.empty() || ... nen tren 1 bang xep hang RONG
+    // moi diem so deu la "ky luc moi" - ke ca 0. Lan chet dau tien cua nguoi choi moi (wave
+    // 1, chua ban trung gi) duoc chuc mung bang bang "NEW RECORD! (#1)", va dong 0 diem do
+    // nam lai trong Top 10 vinh vien. Da thay bang anh chup game that.
+    CleanupGuard guard;
+    Leaderboard lb;
+    lb.Load(TestPath());
+
+    REQUIRE(lb.TrySubmit(0, 1) == SubmitResult::NotQualified);
+    REQUIRE(lb.GetEntries().empty());          // khong ghi ban ghi rac vao danh sach
+    REQUIRE(lb.GetTopScore() == 0);
+
+    // Diem am (khong the xay ra trong gameplay, nhung TrySubmit la API cong khai) cung vay.
+    REQUIRE(lb.TrySubmit(-10, 1) == SubmitResult::NotQualified);
+    REQUIRE(lb.GetEntries().empty());
+
+    // Van diem duong dau tien VAN la ky luc moi nhu truoc - guard khong duoc lam hong
+    // duong di binh thuong.
+    REQUIRE(lb.TrySubmit(10, 1) == SubmitResult::NewRecord);
+    REQUIRE(lb.GetEntries().size() == 1);
+}

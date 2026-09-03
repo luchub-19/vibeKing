@@ -33,7 +33,17 @@ namespace {
     // nay - PHAI goi truoc bat ky scenario nao co the trigger TrySubmit()/AwardCurrency(),
     // neu khong chung se ghi de len file save THAT cua nguoi choi (duong dan mac dinh
     // hardcode trong GameManager::Run(), xem "meta_progress.dat"/Config::LeaderboardFilePath()).
+    //
+    // BUG FIX: truoc day ham nay KHONG tu don dep, va `CleanupGuard` o tren tuy duoc dinh
+    // nghia nhung KHONG TEST_CASE NAO khoi tao no ca (`grep -c "CleanupGuard guard"` = 0) -
+    // dead code im lang. Hau qua: moi lan chay unit_tests lai rot 2 file .dat vao cwd va de
+    // nguyen do, lam ban working tree (git status khong con sach sau ctest). Gio guard duoc
+    // DAT NGAY TRONG ham nay duoi dang bien static function-local: no song den luc chuong
+    // trinh thoat roi moi xoa 2 file - dung mot lan cho ca bo test, khong phu thuoc vao viec
+    // tung TEST_CASE co nho khai bao hay khong (chinh cho da quen).
     void QuarantinePersistence(GameManager& gm) {
+        static CleanupGuard guard; // Xoa 2 file tam khi process ket thuc - xem giai thich tren
+        (void)guard;
         GameManagerTestAccess::MetaProgressRef(gm).Load(MetaTestPath());
         GameManagerTestAccess::LeaderboardRef(gm).Load(LeaderboardTestPath());
     }
@@ -490,4 +500,139 @@ TEST_CASE("Mo phong 25 wave lien tiep (ca boss wave xen ke): khong crash, khong 
     REQUIRE(GTA::Wave(gm) == 1 + kWavesToSimulate);
     REQUIRE(GTA::WardenEnemies(gm).Size() <= Config::MAX_WARDEN_ENEMIES);
     REQUIRE(GTA::MedicEnemies(gm).Size() <= Config::MAX_MEDIC_ENEMIES);
+}
+
+// ==========================================
+// HOI QUY - HANG DOI SU KIEN (pendingEvents)
+//
+// 2 test duoi day khoa lai 2 bug thuc su tung ton tai cung 1 luc trong duong xu ly event,
+// deu da duoc xac minh bang cong cu chu khong phai suy luan:
+//   1. CheckCollisions() clear() hang doi ngay dau ham -> nuot sach event ma UpdateKamikaze()
+//      (chay TRUOC no trong cung frame) vua day vao. Do bang probe: player mat 1 mang ma
+//      pendingEvents rong tron sau ca UpdatePlaying().
+//   2. ProcessEvents() duyet bang range-for trong khi than vong lap co the push_back them
+//      (ApplyComboAndScore -> +1 mang tai moc diem) -> heap-use-after-free, bat duoc bang
+//      AddressSanitizer.
+// ==========================================
+TEST_CASE("UpdatePlaying: Kamikaze lao trung player van sinh event no/sfx - CheckCollisions() KHONG duoc nuot event day vao truoc no", "[game_manager][events][kamikaze]") {
+    GameManager gm;
+    QuarantinePersistence(gm);
+    GTA::SetState(gm, GameState::PLAYING);
+
+    // Giu 1 Basic con song de UpdateEnemies() khong kich hoat nhanh WAVE_CLEAR va return som.
+    BasicEnemy keepAlive{};
+    keepAlive.rect = { 10.0f, 10.0f, 40.0f, 25.0f };
+    keepAlive.column = 0;
+    GTA::BasicEnemies(gm).Spawn(keepAlive);
+
+    // 1 Kamikaze dat CHONG KHOP len player, van toc 0 -> chac chan va cham ngay frame nay.
+    Rectangle pr = GTA::PlayerRef(gm).GetRect();
+    GTA::KamikazeEnemies(gm).Clear();
+    GTA::KamikazeEnemies(gm).Spawn(KamikazeEnemy{ { pr.x, pr.y, 20.0f, 20.0f }, RED, { 0.0f, 0.0f } });
+
+    const int livesBefore = GTA::PlayerRef(gm).GetLives();
+    GTA::CallUpdatePlaying(gm, 0.016f);
+
+    REQUIRE(GTA::PlayerRef(gm).GetLives() == livesBefore - 1); // va cham THUC SU xay ra
+    // KHONG kiem tra KamikazeEnemies().Size()==0 o day: UpdateKamikaze() bat dau bang viec
+    // spawn theo lich (kamikazeSpawnTimer cua 1 GameManager tuoi la 0 -> spawn ngay), nen
+    // con vua lao trung bi Destroy() thi lai co 1 con MOI thay cho. So luong pool khong phai
+    // tin hieu on dinh cho test nay - va cham da duoc chung minh bang so mang o tren.
+
+    // ProcessEvents() da chay va xa hang doi cuoi UpdatePlaying(), nen khong the doc lai
+    // pendingEvents o day. Dung particle lam bang chung: event no cua Kamikaze mang
+    // particleCount=16, va CHI ProcessEvents() moi bien no thanh particles.Burst() that su
+    // (particles.Update() da chay TRUOC do trong frame nen khong con gi khac sinh hat -
+    // player khong ban duoc phat nao khi chay headless). Truoc ban sua, hang doi bi
+    // CheckCollisions() xoa sach -> 0 hat, khong no, khong tieng, khong rung.
+    REQUIRE(GTA::ParticlesRef(gm).GetActiveCount() >= 16);
+}
+
+TEST_CASE("ProcessEvents: event lam vuot moc +1 mang KHONG lam hong vong lap va van duoc xu ly trong cung luot", "[game_manager][events][extra_life]") {
+    GameManager gm;
+    QuarantinePersistence(gm);
+
+    // Dat diem sat duoi moc +1 mang, de event ghi diem ben duoi day player vuot qua no.
+    Player& p = GTA::PlayerRef(gm);
+    p.AddScore(Config::EXTRA_LIFE_SCORE_THRESHOLD - 1);
+    const int livesBefore = p.GetLives();
+    REQUIRE(livesBefore < Config::MAX_LIVES); // moc +1 mang chi co y nghia khi chua kich tran
+
+    // DUNG 1 event trong hang doi -> capacity==1, nen push_back cua ApplyComboAndScore()
+    // (+1 mang) CHAC CHAN realloc. Day chinh la dieu kien lam range-for cu treo con tro.
+    auto& q = GTA::PendingEvents(gm);
+    q.clear();
+    GameEvent scoring;
+    scoring.position = { 100.0f, 100.0f };
+    scoring.scoreValue = Config::EXTRA_LIFE_SCORE_THRESHOLD; // du de vuot moc
+    q.push_back(scoring);
+    REQUIRE(q.size() == 1);
+
+    GTA::CallProcessEvents(gm);
+
+    REQUIRE(p.GetLives() == livesBefore + 1);          // moc +1 mang da an
+    REQUIRE(GTA::PendingEvents(gm).empty());           // hang doi duoc xa sach cuoi ham
+    // Event "+1 mang" tu sinh phai duoc xu ly NGAY trong luot nay (particle GOLD burst).
+    // Truoc ban sua, range-for khong bao gio duyet toi no va clear() cuoi ham xoa luon -
+    // moc +1 mang hoan toan khong co phan hoi hinh anh/am thanh.
+    REQUIRE(GTA::ParticlesRef(gm).GetActiveCount() >= 20); // event "+1 mang" mang particleCount=20
+}
+
+TEST_CASE("ProcessEvents: popup diem/combo hien tai VI TRI HA GUC, khong phai tai phi thuyen", "[game_manager][events][floating_text]") {
+    // Truoc ban sua, ApplyComboAndScore() hardcode player.GetCenter() lam vi tri popup, nen
+    // moi con diem deu bay len tu chinh phi thuyen - nhieu don ha guc gan nhau lam cac popup
+    // chong DE LEN NHAU o dung 1 diem (doc khong ra) va mat luon thong tin "an diem O DAU".
+    // Da thay ro trong anh chup game that: "+12", "COMBO x3", "COMBO x4" xep chong o goc
+    // duoi-trai, tren dau phi thuyen.
+    GameManager gm;
+    QuarantinePersistence(gm);
+
+    const Vector2 killPos{ 640.0f, 120.0f }; // Xa han vi tri phi thuyen (day man hinh, gan giua)
+    Vector2 playerCenter = GTA::PlayerRef(gm).GetCenter();
+    REQUIRE(killPos.y != playerCenter.y); // tien de cua test: 2 vi tri phai khac nhau that su
+
+    auto& q = GTA::PendingEvents(gm);
+    q.clear();
+    GameEvent kill;
+    kill.position = killPos;
+    kill.scoreValue = 100;
+    q.push_back(kill);
+
+    auto& texts = GTA::FloatingTextsRef(gm);
+    texts.Reset();
+    GTA::CallProcessEvents(gm);
+
+    REQUIRE(texts.GetActiveCount() == 1);
+    REQUIRE(texts.GetPosition(0).x == killPos.x);
+    REQUIRE(texts.GetPosition(0).y == killPos.y);
+}
+
+TEST_CASE("Goi y phim: dem nguoc tu HUD_HINT_DURATION o van MOI, ve 0 sau do, va KHONG hoi lai moi wave", "[game_manager][hud]") {
+    // Truoc ban sua, dong "P: PAUSE  R: RESTART" hien VINH VIEN giua dinh man hinh suot ca
+    // van choi. Gio no chi song Config::HUD_HINT_DURATION giay dau cua 1 van MOI.
+    GameManager gm;
+    QuarantinePersistence(gm);
+
+    GTA::CallInitLevel(gm, /*newGame=*/true);
+    REQUIRE(GTA::HintTimer(gm) == Config::HUD_HINT_DURATION);
+
+    GTA::SetState(gm, GameState::PLAYING);
+    // Giu 1 dich song de UpdatePlaying() khong roi vao nhanh WAVE_CLEAR va return som.
+    GTA::BasicEnemies(gm).Clear();
+    BasicEnemy keepAlive{};
+    keepAlive.rect = { 10.0f, 10.0f, 40.0f, 25.0f };
+    GTA::BasicEnemies(gm).Spawn(keepAlive);
+
+    GTA::CallUpdatePlaying(gm, 1.0f);
+    REQUIRE(GTA::HintTimer(gm) == Approx(Config::HUD_HINT_DURATION - 1.0f));
+
+    // Chay qua het thoi luong -> ve <= 0 va KHONG di xuong am vo han (dem nguoc co chan).
+    for (int f = 0; f < 60; f++) GTA::CallUpdatePlaying(gm, 0.5f);
+    REQUIRE(GTA::HintTimer(gm) <= 0.0f);
+    REQUIRE(GTA::HintTimer(gm) > -1.0f); // khong troi tu do sau khi da ve 0
+
+    // Sang wave ke tiep (InitLevel(false)) KHONG lam goi y hien lai - no la huong dan cho
+    // nguoi choi MOI, khong phai thong bao moi wave.
+    GTA::CallInitLevel(gm, /*newGame=*/false);
+    REQUIRE(GTA::HintTimer(gm) <= 0.0f);
 }

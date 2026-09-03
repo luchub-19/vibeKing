@@ -43,25 +43,62 @@ public:
         if (offVertical || offHorizontal) active = false; // Can horizontal check vi gio dan co the bay cheo/ngang (aimed, radial)
     }
 
-    // BULLET GLOW (Nguoi 3 - Audio & UI): 1 vach mo NGUOC huong bay, dung LAI dung ky
+    // BULLET GLOW (Nguoi 3 - Audio & UI): 1 vet mo NGUOC huong bay, dung LAI dung ky
     // thuat ParticleShape::Spark (xem particle_pool.h: DrawLineEx theo huong van toc) -
-    // ve TRUOC loi dan dac ben duoi (blend cong/additive rieng CHI cho vach nay, tra ve
-    // blend mac dinh truoc khi ve loi) de loi dan van 100% net/dac, vach chi "hao quang"
+    // ve TRUOC loi dan dac ben duoi (blend cong/additive rieng CHI cho vet nay, tra ve
+    // blend mac dinh truoc khi ve loi) de loi dan van 100% net/dac, vet chi "hao quang"
     // phia sau. Hoan toan tu chua (Bullet da co san `vel`), khong them tham so/khong dung
     // toi he thong nao khac.
+    //
+    // ==========================================
+    // 2 BUG DA SUA O DAY (phat hien bang cach phong to anh chup game that, doc code khong
+    // thay - ca 2 deu chi lo ra khi bang mau moi lam dan du sang de bloom bat duoc):
+    //
+    // BUG 1 - BE DAY LAY NHAM CHIEU. Cong thuc cu la
+    //     fmaxf(rect.width, rect.height) * BULLET_GLOW_THICKNESS_MUL
+    // ma dan la 5x15 px (BULLET_WIDTH x BULLET_HEIGHT) => fmaxf tra ve 15, tuc CHIEU DAI
+    // doc theo huong bay, roi nhan 1.8 thanh be day 27px. Vet sang vi vay rong gap 5,4 lan
+    // chinh vien dan (5px) VA rong hon ca do dai cua no (14px) - nhin ra 1 tam van dat
+    // ngang phia sau dan chu khong phai 1 vet luot. Thu can lay la TIET DIEN vuong goc voi
+    // huong bay, tuc chieu NGAN: fminf. Voi dan bay cheo (aimed shot/radial burst) fminf
+    // van dung vi truc dai cua dan luon la truc bay.
+    //
+    // BUG 2 - VET KHONG NHAT DAN, KET THUC BANG CANH CUNG. DrawLineEx voi 1 be day lon la
+    // dung 1 hinh chu nhat dac, alpha deu tu dau den duoi. Vet luot phai MO DAN ve phia
+    // duoi moi doc ra la "chuyen dong", con canh cat ngang dot ngot thi doc ra la "1 mieng
+    // hinh hoc". Gio chia lam GLOW_SEGMENTS doan, moi doan mong hon va mo hon doan truoc.
+    //
+    // KHONG co test tu dong cho phan nay: day la ham VE thuan (khong tra ve gia tri, khong
+    // doi state), chi kiem chung duoc bang mat. Doi 2 hang so ben duoi thi chup lai anh de
+    // xac nhan, dung tin code doc suong la dung.
+    // ==========================================
     void Draw(Color color) const {
         float speed = sqrtf(vel.x * vel.x + vel.y * vel.y);
         if (speed > 1.0f) {
+            constexpr int GLOW_SEGMENTS = 4; // Du de mat doc ra do nhat dan, khong du nhieu de ton lenh ve
+
             Vector2 center = { rect.x + rect.width / 2.0f, rect.y + rect.height / 2.0f };
             Vector2 dir = { vel.x / speed, vel.y / speed };
-            Vector2 tail = { center.x - dir.x * Config::BULLET_GLOW_TRAIL_LENGTH,
-                              center.y - dir.y * Config::BULLET_GLOW_TRAIL_LENGTH };
-            Color glow = color;
-            glow.a = (unsigned char)(255.0f * Config::BULLET_GLOW_ALPHA);
-            float thickness = fmaxf(rect.width, rect.height) * Config::BULLET_GLOW_THICKNESS_MUL;
+            // fminf: TIET DIEN vuong goc huong bay (xem BUG 1 o tren), khong phai fmaxf.
+            float headThickness = fminf(rect.width, rect.height) * Config::BULLET_GLOW_THICKNESS_MUL;
 
-            BeginBlendMode(BLEND_ADDITIVE); // Chi vach mo - cong don anh sang thay vi che phu, moi ra cam giac "phat sang"
-            DrawLineEx(center, tail, thickness, glow);
+            BeginBlendMode(BLEND_ADDITIVE); // Cong don anh sang thay vi che phu - moi ra cam giac "phat sang"
+            for (int i = 0; i < GLOW_SEGMENTS; i++) {
+                float t0 = (float)i / (float)GLOW_SEGMENTS;
+                float t1 = (float)(i + 1) / (float)GLOW_SEGMENTS;
+                // Lay do mo/be day tai DIEM GIUA doan: neu lay tai t1 thi doan cuoi cung
+                // luon co he so 0 (vo hinh), phi mat 1/4 chieu dai vet.
+                float falloff = 1.0f - (t0 + t1) * 0.5f;
+
+                Vector2 p0 = { center.x - dir.x * Config::BULLET_GLOW_TRAIL_LENGTH * t0,
+                                center.y - dir.y * Config::BULLET_GLOW_TRAIL_LENGTH * t0 };
+                Vector2 p1 = { center.x - dir.x * Config::BULLET_GLOW_TRAIL_LENGTH * t1,
+                                center.y - dir.y * Config::BULLET_GLOW_TRAIL_LENGTH * t1 };
+
+                Color glow = color;
+                glow.a = (unsigned char)(255.0f * Config::BULLET_GLOW_ALPHA * falloff);
+                DrawLineEx(p0, p1, headThickness * (0.3f + 0.7f * falloff), glow);
+            }
             EndBlendMode();
         }
         DrawRectangleRec(rect, color);

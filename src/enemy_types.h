@@ -65,10 +65,12 @@ struct ZigzagEnemy {
 
 // ==========================================
 // WARDEN & MEDIC (Phase 1a - Enemy & Item Revolution, Nguoi 1): 2 loai dich LUOI moi -
-// KHAC KamikazeEnemy o duoi o cho VAN tham gia doi hinh/di chuyen dung khuon Basic/Tanky
-// (ApplyFormationMoveX() + DescendRowAndCheckGameOver() trong PhysicsSystem::
-// UpdateWardenEnemies()/UpdateMedicEnemies() - ham RIENG, KHONG chung UpdateEnemies(),
-// nhung cung cong thuc/khuon mau, khong dao dong rieng nhu Zigzag).
+// KHAC KamikazeEnemy o duoi o cho VAN tham gia doi hinh, di chuyen/tut hang CUNG NHIP voi
+// Basic/Tanky (ApplyFormationMoveX() + DescendRowAndCheckGameOver()), khong dao dong rieng
+// nhu Zigzag. PhysicsSystem::UpdateEnemies() so huu ca 5 pool doi hinh: 2 ham
+// UpdateWardenEnemies()/UpdateMedicEnemies() chi TACH RA cho de doc, chung chi di chuyen +
+// bao lai hitEdge, KHONG tu doi huong/tut hang (truoc day chung tu quyet dinh - va vi the
+// mot con nam giua luoi khong bao gio tut hang; xem lich su bug o dau UpdateEnemies()).
 //
 // CA HAI deu KHONG tham gia he thong chon "tien tuyen ban" dung chung trong
 // UpdateEnemies() (bien EnemyKind/considerColumn) - giu tinh than Kamikaze/Boss/UFO: moi
@@ -126,9 +128,9 @@ struct KamikazeEnemy {
 // giong Kamikaze o tren (pool + spawn timer + grid HOAN TOAN rieng, khong dinh gi den
 // doi hinh Basic/Tanky/Zigzag/luoi wave) nhung KHAC co che spawn - khong "boc" tu doi
 // hinh nhu Kamikaze, ma luon bay VAO tu ngoai man hinh (trai hoac phai) roi bay xuyen
-// qua, giong het khuon UFO (xem SpawnUfo()/UpdateUfo() - do la ly do TASK_SPLIT.md ghi
-// "cung khuon ufoSpawnTimer" thay vi khuon Kamikaze cho phan spawn). Ca 2 deu 1-mau
-// (chet ngay khi trung dan, khong co field hp) - do "kho ban trung" da den tu duong bay
+// qua, giong het khuon UFO (xem SpawnUfo()/UpdateUfo() - phan spawn co y dung khuon
+// ufoSpawnTimer, KHONG dung khuon Kamikaze). Ca 2 deu 1-mau (chet ngay khi trung dan,
+// khong co field hp) - do "kho ban trung" da den tu duong bay
 // (Weaver) hoac tu ap luc tha bom (Bomber), khong can them do day HP nhu Warden.
 // ==========================================
 struct WeaverEnemy {

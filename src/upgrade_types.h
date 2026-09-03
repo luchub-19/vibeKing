@@ -5,7 +5,7 @@
 
 // ==========================================
 // RUN UPGRADE (Track C - Nguoi 2, Phase 3: he thong chon nang cap sau wave) - so huu
-// 100% boi file nay, KHONG ai khac dung vao (xem TASK_SPLIT.md, bang file dung chung).
+// 100% boi file nay, KHONG ai khac dung vao (rang buoc tu ke hoach chia viec cua Track C).
 //
 // DATA-DRIVEN, dung DUNG KHUON voi BossTypeDescriptor (enemy_types.h) va
 // Config::g_difficultyTable: g_upgradeTypeDescriptors[] index THANG bang (int)UpgradeType,

@@ -1,4 +1,5 @@
 #include "player.h"
+#include "palette.h"
 #include "sprites.h"
 #include <cmath> // sinf/cosf - Spread Shot (Phase 1b, Nguoi 1)
 
@@ -189,6 +190,40 @@ void Player::Draw(const Texture2D& sprite) const {
     // power-up active co 1 pip mau rieng xep hang duoi tau - nhin duoc DUNG TAP HOP
     // nhung gi dang active, khong gioi han chi 1 loai, VA khong con lam "mat" mau skin
     // nguoi choi da chon du power-up nao dang active.
+    // LUA DAY + QUANG SANG (Phase Graphics): phi thuyen truoc day la 1 sprite phang, khong
+    // nguon sang, nen chinh vat the nguoi choi phai bam mat suot tran lai la vat the MO NHAT
+    // man hinh (thay ro trong anh chup game that). 2 lop them vao, deu ve o BLEND_ADDITIVE
+    // nen chi CONG anh sang, khong che mat sprite:
+    //   - Lua day: 3 vach ngan duoi than tau, do dai dao dong theo GetTime() -> tau luon
+    //     "dang chay" ke ca khi dung yen.
+    //   - Quang sang: 1 hinh chu nhat mo phu len than tau, dua do sang tong the len tren
+    //     nguong bloom (Config::BLOOM_THRESHOLD) de post-process TU no lam tau phat sang.
+    // Thuan trinh bay - KHONG dung toi rect that (hitbox) o bat ky dau.
+    {
+        float t = (float)GetTime();
+        float flicker = 0.7f + 0.3f * sinf(t * 22.0f);
+        float cx = rect.x + rect.width / 2.0f;
+        float baseY = rect.y + rect.height;
+
+        BeginBlendMode(BLEND_ADDITIVE);
+        Color thrust = Palette::PlayerThrust;
+        thrust.a = 200;
+        for (int i = -1; i <= 1; i++) {
+            float len = (i == 0 ? 9.0f : 5.5f) * flicker;
+            float x = cx + (float)i * 7.0f;
+            DrawLineEx({ x, baseY }, { x, baseY + len }, 2.5f, thrust);
+        }
+        // QUANG SANG: DrawCircleGradient (mo dan tu tam ra vien), KHONG phai DrawRectangleRec.
+        // Ban dau dung 1 hinh chu nhat mo phu len than tau - ket qua nhin thay ro trong anh
+        // chup: no doc ra la 1 CAI HOP xanh co canh cung quanh phi thuyen, xau hon han khong
+        // co gi. Gradient tron co do roi mem nen mat doc thanh "anh sang", dung y ban dau.
+        Color halo = Palette::PlayerShip;
+        halo.a = 70;
+        DrawCircleGradient({ cx, rect.y + rect.height / 2.0f },
+                            rect.width * 0.75f, halo, Fade(Palette::PlayerShip, 0.0f));
+        EndBlendMode();
+    }
+
     DrawSprite(sprite, rect, skinTint);
 
     if (HasShield()) {
@@ -204,7 +239,7 @@ void Player::Draw(const Texture2D& sprite) const {
         { HasPiercing(),   MAGENTA },
         { HasRapidFire(),  ORANGE  },
         { HasSpreadShot(), GOLD    }, // Phase 1b, Nguoi 1
-        { HasOverdrive(),  RED     }, // Phase 1b, Nguoi 1 - do = nhac nho rui ro "mat 2 mang" dang active
+        { HasOverdrive(),  Palette::EnemyBullet }, // Phase 1b, Nguoi 1 - do = nhac nho rui ro "mat 2 mang" dang active
     };
     int activeCount = 0;
     for (const auto& status : pips) if (status.active) activeCount++;

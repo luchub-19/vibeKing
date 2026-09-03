@@ -169,7 +169,12 @@ private:
     // COMBO SCORE: ha guc lien tiep trong Config::COMBO_WINDOW giay se duoc nhan diem.
     float comboTimer = 0.0f;
     int comboCount = 0;
-    int ApplyComboAndScore(int baseScore); // Cong diem co nhan combo, tra ve diem thuc nhan
+    // `at` = VI TRI HA GUC (tam cua dich vua chet), dung lam cho spawn popup "+diem/COMBO xN".
+    // TRUOC DAY ham nay hardcode player.GetCenter() lam vi tri popup - moi con diem deu bay
+    // len tu chinh phi thuyen, nen: (1) nhieu popup cua nhieu don ha guc trong cung 1 khoanh
+    // khac chong DE LEN NHAU o dung 1 diem, doc khong ra; (2) mat di thong tin QUAN TRONG
+    // nhat cua popup - "vua an diem O DAU". Da xac nhan bang anh chup game that.
+    int ApplyComboAndScore(int baseScore, Vector2 at); // Cong diem co nhan combo, tra ve diem thuc nhan
 
     // MYSTERY SHIP (UFO): dia bay do bay ngang qua dinh man hinh theo chu ky, thuong
     // diem thay doi ngau nhien moi lan spawn. Chi 1 the hien tai 1 thoi diem - khong can
@@ -198,7 +203,7 @@ private:
     // 2 loai nay VAN thuoc luoi doi hinh (spawn qua WaveGenerator/InitLevel() nhu Basic/
     // Tanky/Zigzag, xem ben duoi), chi dat pool/grid o day (canh Kamikaze/truoc Boss) thay
     // vi canh basicEnemies/tankyEnemies/zigzagEnemies o tren, theo dung vi tri da thong
-    // nhat o Buoc 0 cua ke hoach chia viec (TASK_SPLIT.md) - de gom chung 1 cho voi
+    // nhat o Buoc 0 cua ke hoach chia viec - de gom chung 1 cho voi
     // Weaver/Bomber (Phase 2, cung "thoat luoi" nhu Kamikaze, se them ngay duoi day).
     EnemyPool<WardenEnemy, Config::MAX_WARDEN_ENEMIES> wardenEnemies;
     SpatialGrid wardenGrid{ (float)Config::SCREEN_W, (float)Config::SCREEN_H, 80.0f,
@@ -252,6 +257,12 @@ private:
     // = da chon 1 hanh dong, dang CHO nguoi choi bam phim moi cho no.
     int rebindingActionIndex = -1;
     void UpdateKeybindScreen();
+
+    // GOI Y PHIM DIEU KHIEN: dem nguoc tu Config::HUD_HINT_DURATION luc bat dau 1 van MOI
+    // (InitLevel(newGame=true)), giam trong UpdatePlaying(). RenderSystem chi ve dong
+    // "P: PAUSE  R: RESTART" khi con > 0, mo dan o cuoi. Truoc day dong nay hien VINH VIEN
+    // giua dinh man hinh - huong dan cho 10 giay dau nhung o lai suot ca van choi.
+    float hintTimer = 0.0f;
 
     // OBSERVABILITY: bat/tat qua phim F3 (xem InputSystem::PollDebugOverlayToggle),
     // hoat dong o MOI trang thai - Run() tu doc phim nay moi frame thay vi qua

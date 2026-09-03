@@ -54,6 +54,12 @@ private:
     // dung, dac biet khi co nhieu bunker + nhieu dan tren man cung luc).
     int solidRemaining = 0;
 
+    // Tong so o "that" luc khoi tao (sau khi da khoet vom cong/goc bo tron thiet ke san) -
+    // MAU SO co dinh de tinh do ben con lai: solidRemaining / originalSolid. Chup 1 lan
+    // trong constructor, khong bao gio doi (regen bi chan tran boi chinh originalVoxels nen
+    // solidRemaining khong the vuot qua no).
+    int originalSolid = 0;
+
     Color color;
 
     bool InBounds(int col, int row) const {
@@ -97,6 +103,12 @@ public:
     Rectangle GetBounds() const { return { originX, originY, GetWidth(), GetHeight() }; }
 
     void Draw() const;
+
+    // 1.0 = con nguyen ven hoan toan, 0.0 = da bi pha sach. Draw() dung de noi suy mau
+    // (Palette::BunkerIntact -> BunkerCritical), nho vay do ben cua la chan DOC DUOC BANG
+    // MAU tu xa thay vi phai dem lo thung. Cung dung duoc cho bat ky he thong nao khac can
+    // biet "la chan con khoe khong" ma khong phai quet lai voxel.
+    float GetIntegrity() const { return originalSolid > 0 ? (float)solidRemaining / (float)originalSolid : 0.0f; }
 
     // Goi moi frame: hoi phuc dan 1 so voxel bi khoet (regen) + dao dong ngang nhe
     // (patrol). Xem cai dat trong bunker.cpp.

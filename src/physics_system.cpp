@@ -3,6 +3,7 @@
 #include <array>
 #include <vector>
 #include "game_manager.h"
+#include "palette.h"
 
 // Hinh dang hieu ung "ha guc 1 dich thuong" (Basic/Zigzag/Tanky/Kamikaze deu dung
 // chung 1 khuon: no to 14 hat + explosion sfx + rung nhe + cong diem co combo + co co
@@ -83,6 +84,29 @@ bool PhysicsSystem::ResolveOneHitKillCollision(GameManager& gm, Bullet& bullet, 
     }
     return false;
 }
+// ==========================================
+// UPDATE ENEMIES - TOAN BO doi hinh trong 1 ham.
+//
+// BUG FIX (lich su, dung xoa): Warden/Medic truoc day duoc cap nhat o 2 ham RIENG goi tu
+// GameManager::UpdatePlaying() SAU ham nay, moi ham tu tinh `hitEdge` cua RIENG pool minh va
+// chi tut hang khi CHINH no cham bien. Nhung doi hinh doi huong khi BAT KY con nao trong
+// luoi cham bien - nen mot Warden/Medic nam GIUA luoi khong bao gio tu cham bien, tuc KHONG
+// BAO GIO tut hang. Do bang probe chay InitLevel() that, 1200 frame:
+//
+//     wave 2: basic y  90->290 | warden y 130->130   (dung yen tai cho)
+//     wave 7: basic y  50->350 | warden y  90-> 90   (doi hinh di xuyen qua no 300px)
+//     wave 4: basic y  90->210 | warden y  90->230   (chieu nguoc lai: tut SOM hon ca doi hinh)
+//
+// Ca 2 chieu lech deu hong: doi hinh chinh hanh quan xuong con Warden/Medic lo lung lai phia
+// tren; ma dieu kien WAVE_CLEAR lai CO tinh chung, nen nguoi choi phai di don not may con
+// treo vo nghia. Medic thi vinh vien o xa dam Tanky no can hoi mau.
+//
+// Co che `alreadyFlipped` cu (truyen tu UpdatePlaying() de tranh doi huong 2 lan) chi la mieng
+// va cho trieu chung do, khong cham vao nguyen nhan. Gio bo han: `hitEdge` la 1 quyet dinh
+// DUY NHAT cua CA doi hinh - gom tu ca 5 pool, roi ap dung doi huong/tang toc/tut hang MOT
+// LAN cho tat ca. Nho vay khong con kha nang doi huong 2 lan, va cung khong con kha nang lech
+// hang giua cac pool.
+// ==========================================
 void PhysicsSystem::UpdateEnemies(GameManager& gm, float dt) {
     bool hitEdge = false;
 
@@ -113,6 +137,13 @@ void PhysicsSystem::UpdateEnemies(GameManager& gm, float dt) {
         // som/tre hon dung luc, du doi hinh that chua thuc su cham bien.
         if (ApplyFormationMoveX(e.rect, gm.enemyDirection, gm.enemySpeed, dt, newOffset)) hitEdge = true;
     }
+    // Warden/Medic: cung THUOC doi hinh nay, chi tach ra 2 ham rieng cho de doc (Medic con
+    // co phan hoi mau). Ket qua `hitEdge` cua chung duoc gom CHUNG vao bien o tren - do la
+    // toan bo cach sua bug lech hang mo ta o dau ham. Goi truoc nhanh WAVE_CLEAR ben duoi de
+    // chung kip di chuyen dung 1 buoc cuoi cung nhu Basic/Tanky/Zigzag.
+    if (UpdateWardenEnemies(gm, dt)) hitEdge = true;
+    if (UpdateMedicEnemies(gm, dt)) hitEdge = true;
+
     // Kamikaze KHONG tham gia vong lap tren (pool + spawn logic hoan toan rieng, xem
     // UpdateKamikaze) - dung nhu thiet ke "khong pha hong logic kiem tra bien luoi doi hinh".
 
@@ -163,6 +194,14 @@ void PhysicsSystem::UpdateEnemies(GameManager& gm, float dt) {
         for (size_t i = 0; i < gm.zigzagEnemies.Size(); i++) {
             if (DescendRowAndCheckGameOver(gm, gm.zigzagEnemies[i].rect)) return;
         }
+        // Warden/Medic tut hang o CHINH day, cung vong `if (hitEdge)` voi 3 pool tren - day
+        // la diem mau chot cua ban sua: khong con dieu kien tut hang RIENG cho tung nhom nua.
+        for (size_t i = 0; i < gm.wardenEnemies.Size(); i++) {
+            if (DescendRowAndCheckGameOver(gm, gm.wardenEnemies[i].rect)) return;
+        }
+        for (size_t i = 0; i < gm.medicEnemies.Size(); i++) {
+            if (DescendRowAndCheckGameOver(gm, gm.medicEnemies[i].rect)) return;
+        }
     }
 
     gm.enemyFireTimer += dt;
@@ -212,32 +251,22 @@ void PhysicsSystem::UpdateEnemies(GameManager& gm, float dt) {
 }
 
 // ==========================================
-// WARDEN/MEDIC (Phase 1a - Enemy & Item Revolution, Nguoi 1): 2 ham RIENG, KHONG goi tu
-// ben trong UpdateEnemies() o tren (xem physics_system.h + GameManager::UpdatePlaying() de
-// biet ly do/cach tranh doi huong-2-lan). Van dung lai NGUYEN VEN ApplyFormationMoveX()/
-// DescendRowAndCheckGameOver() (2 helper thuan, khong rieng cho Basic/Tanky) nen hanh vi
-// di chuyen/tut hang giong het, chi khac o cho KHONG tu quyet dinh doi huong khi
-// `alreadyFlipped` da la true.
+// WARDEN/MEDIC (Phase 1a - Enemy & Item Revolution, Nguoi 1): 2 ham nay CHI DI CHUYEN (Medic
+// them phan hoi mau) va bao lai co "co con nao cham bien khong". Chung KHONG tu doi huong,
+// KHONG tu tang toc, KHONG tu tut hang - UpdateEnemies() o tren lam ca 3 viec do MOT LAN cho
+// TOAN BO doi hinh, sau khi da gom hitEdge cua ca 5 pool (xem giai thich bug lech hang o dau
+// UpdateEnemies()). Van dung lai NGUYEN VEN ApplyFormationMoveX() nen cong thuc di chuyen
+// giong het Basic/Tanky.
 // ==========================================
-void PhysicsSystem::UpdateWardenEnemies(GameManager& gm, float dt, bool alreadyFlipped) {
+bool PhysicsSystem::UpdateWardenEnemies(GameManager& gm, float dt) {
     bool hitEdge = false;
     for (size_t i = 0; i < gm.wardenEnemies.Size(); i++) {
         if (ApplyFormationMoveX(gm.wardenEnemies[i].rect, gm.enemyDirection, gm.enemySpeed, dt)) hitEdge = true;
     }
-    if (!hitEdge) return;
-
-    if (!alreadyFlipped) {
-        DifficultyStats stats = GetDifficultyStats(gm.difficulty);
-        stats.enemySpeedMax *= gm.ddaSpeedMul;
-        gm.enemyDirection *= -1;
-        gm.enemySpeed = fminf(gm.enemySpeed + Config::ENEMY_SPEED_INC, stats.enemySpeedMax);
-    }
-    for (size_t i = 0; i < gm.wardenEnemies.Size(); i++) {
-        if (DescendRowAndCheckGameOver(gm, gm.wardenEnemies[i].rect)) return;
-    }
+    return hitEdge;
 }
 
-void PhysicsSystem::UpdateMedicEnemies(GameManager& gm, float dt, bool alreadyFlipped) {
+bool PhysicsSystem::UpdateMedicEnemies(GameManager& gm, float dt) {
     bool hitEdge = false;
     for (size_t i = 0; i < gm.medicEnemies.Size(); i++) {
         MedicEnemy& e = gm.medicEnemies[i];
@@ -274,17 +303,7 @@ void PhysicsSystem::UpdateMedicEnemies(GameManager& gm, float dt, bool alreadyFl
             }
         }
     }
-    if (!hitEdge) return;
-
-    if (!alreadyFlipped) {
-        DifficultyStats stats = GetDifficultyStats(gm.difficulty);
-        stats.enemySpeedMax *= gm.ddaSpeedMul;
-        gm.enemyDirection *= -1;
-        gm.enemySpeed = fminf(gm.enemySpeed + Config::ENEMY_SPEED_INC, stats.enemySpeedMax);
-    }
-    for (size_t i = 0; i < gm.medicEnemies.Size(); i++) {
-        if (DescendRowAndCheckGameOver(gm, gm.medicEnemies[i].rect)) return;
-    }
+    return hitEdge;
 }
 
 void PhysicsSystem::EnemyShoot(GameManager& gm, float x, float y) {
@@ -372,7 +391,7 @@ void PhysicsSystem::UpdateKamikaze(GameManager& gm, float dt) {
         if (CheckCollisionRecs(k.rect, gm.player.GetRect())) {
             GameEvent ev;
             ev.position = EnemyCenter(k.rect);
-            ev.color = RED;
+            ev.color = Palette::Kamikaze;
             ev.particleCount = 16;
             ev.sfx = SfxType::Explosion;
             ev.shakeDuration = 0.2f;
@@ -539,15 +558,17 @@ void PhysicsSystem::UpdateBoss(GameManager& gm, float dt) {
         if (boss.phaseTimer <= 0.0f) {
             boss.shieldActive = !boss.shieldActive;
             boss.phaseTimer = boss.shieldActive ? (*desc.shieldDuration) : (*desc.shieldInterval);
-            // Goi am thanh/particle/rung man hinh TRUC TIEP (khong qua gm.pendingEvents)
-            // - UpdateBoss() chay TRUOC CheckCollisions() trong UpdatePlaying(), von xoa
-            // sach pendingEvents ngay dau ham (xem events.h: hang doi chi danh cho hieu
-            // ung PHAT SINH TU va cham). Day vao hang doi o day se bi CheckCollisions()
-            // xoa mat truoc khi ProcessEvents() kip xu ly - dung idiom giong het
-            // audio.PlayShoot() duoc goi truc tiep tu ket qua Player::Update() trong
-            // GameManager::UpdatePlaying(), khong qua event queue.
+            // Goi am thanh/particle/rung man hinh TRUC TIEP (khong qua gm.pendingEvents) -
+            // dung idiom giong het audio.PlayShoot() duoc goi truc tiep tu ket qua
+            // Player::Update() trong GameManager::UpdatePlaying(): day khong phai he qua cua
+            // 1 va cham nen khong nhat thiet phai di qua hang doi.
+            //
+            // LUU Y: ly do GHI TRONG COMMENT CU ("day vao hang doi se bi CheckCollisions()
+            // xoa mat") gio khong con dung - CheckCollisions() khong con clear() hang doi
+            // nua (xem giai thich dau ham do). Chuyen khoi nay sang push GameEvent la hoan
+            // toan an toan neu sau nay muon dong nhat, chi la chua can thiet.
             gm.audio.PlayBossPhase();
-            gm.particles.Burst(EnemyCenter(boss.rect), 20, boss.shieldActive ? SKYBLUE : GRAY);
+            gm.particles.Burst(EnemyCenter(boss.rect), 20, boss.shieldActive ? SKYBLUE : Palette::UiDim);
             gm.screenShake.Trigger(0.15f, 4.0f);
         }
     }
@@ -614,9 +635,18 @@ void PhysicsSystem::UpdateBoss(GameManager& gm, float dt) {
 // VA CHAM
 // ==========================================
 void PhysicsSystem::CheckCollisions(GameManager& gm) {
-    // Hang doi hieu ung cho frame nay - se duoc GameManager::ProcessEvents() xu ly
-    // ngay sau khi ham nay tra ve (xem UpdatePlaying()).
-    gm.pendingEvents.clear();
+    // BUG FIX: truoc day dong dau tien cua ham nay la `gm.pendingEvents.clear()`, dua tren
+    // gia dinh "CheckCollisions() la NOI DUY NHAT sinh event, nen no duoc quyen mo dau hang
+    // doi cua frame". Gia dinh do SAI: UpdateKamikaze() chay TRUOC ham nay trong cung 1 frame
+    // (xem thu tu goi trong GameManager::UpdatePlaying()) va cung day event vao hang doi -
+    // no + sfx + rung man hinh khi 1 Kamikaze lao trung player. Clear o day nuot sach chung
+    // truoc khi ProcessEvents() kip nhin thay: nguoi choi mat 1 mang ma man hinh IM LANG
+    // hoan toan (da do bang probe: lives 3->2, pendingEvents.size()==0 sau UpdatePlaying).
+    //
+    // Gio hang doi co DUNG 1 diem xa: cuoi GameManager::ProcessEvents(). Moi ai chay truoc
+    // ProcessEvents() trong frame deu duoc quyen ghi vao, khong ai bi nuot. Vi ProcessEvents()
+    // duoc goi moi frame ngay sau ham nay, hang doi van luon rong khi frame moi bat dau -
+    // khong tich luy xuyen frame, dung nhu ARCHITECTURE.md §4 mo ta.
 
     // Bam lai enemy dang song vao luoi khong gian moi frame (O(M)) - doi lai moi vien
     // dan chi can test va cham voi enemy nam trong (cac) o no phu toi, thay vi toan bo
@@ -818,10 +848,19 @@ void PhysicsSystem::CheckCollisions(GameManager& gm) {
                 Boss& boss = gm.bossPool[0];
                 if (!CheckCollisionRecs(bulletRect, boss.rect)) continue;
 
-                // KHIEN SENTINEL: bat kha xam pham HOAN TOAN trong luc active (khong tru
-                // hp, khong bi pierce xuyen qua - dan bi khien "hap thu" het) - buoc
-                // nguoi choi phai cho khien tat thay vi chi dung DPS de vuot qua.
-                bool shielded = (boss.type == BossType::Sentinel && boss.shieldActive);
+                // KHIEN: bat kha xam pham HOAN TOAN trong luc active (khong tru hp, khong bi
+                // pierce xuyen qua - dan bi khien "hap thu" het) - buoc nguoi choi phai cho
+                // khien tat thay vi chi dung DPS de vuot qua.
+                //
+                // BUG FIX: dieu kien cu la `boss.type == BossType::Sentinel && boss.shieldActive`
+                // - hardcode lai DUNG cai switch(boss.type) ma B4 dung BossTypeDescriptor de
+                // xoa bo, ngay tai cho quan trong nhat. Hau qua: mot BossType MOI khai bao
+                // hasShieldMechanic=true trong g_bossTypeDescriptors[] se co khien CHI DE NHIN
+                // (UpdateBoss() van bat/tat no, van keu, van no particle) trong khi dan cu the
+                // xuyen qua tru mau binh thuong. Chi can doc `boss.shieldActive`: co nay CHI
+                // duoc UpdateBoss() set duoi nhanh desc.hasShieldMechanic, nen no da la cau
+                // tra loi dung cho MOI loai boss, hien tai lan sau nay.
+                bool shielded = boss.shieldActive;
                 if (!shielded && boss.hp > 0) boss.hp--;
 
                 // BUG FIX: truoc day co 1 "placeholder" GameEvent thua o day, vo tinh
@@ -831,7 +870,7 @@ void PhysicsSystem::CheckCollisions(GameManager& gm) {
                 // that, dat dung vi tri bulletRect.
                 GameEvent hitEv;
                 hitEv.position = { bulletRect.x, bulletRect.y };
-                hitEv.color = shielded ? SKYBLUE : RED;
+                hitEv.color = shielded ? SKYBLUE : Palette::BossEnrage2;
                 hitEv.particleCount = shielded ? 3 : 6; // Khien: bat lai it hat hon - cam giac "va be mat cung" thay vi "trung don"
                 if (!shielded && boss.hp > 0) {
                     hitEv.sfx = SfxType::Hit;
@@ -937,7 +976,7 @@ void PhysicsSystem::CheckCollisions(GameManager& gm) {
             if (gm.player.TakeDamage()) { // false neu dang bat tu/co khien -> khong hieu ung thua
                 GameEvent ev;
                 ev.position = gm.player.GetCenter();
-                ev.color = RED;
+                ev.color = Palette::EnemyBullet;
                 ev.particleCount = 18;
                 ev.sfx = SfxType::Hit;
                 ev.shakeDuration = 0.22f;
@@ -960,7 +999,7 @@ void PhysicsSystem::CheckCollisions(GameManager& gm) {
 
                 GameEvent ev;
                 ev.position = EnemyCenter(gm.ufoRect);
-                ev.color = RED;
+                ev.color = Palette::Ufo;
                 ev.particleCount = 20;
                 ev.sfx = SfxType::UfoHit;
                 ev.shakeDuration = 0.18f;
@@ -1000,7 +1039,7 @@ void PhysicsSystem::CheckCollisions(GameManager& gm) {
                     // hinh ngay luc nhat - "bom cuu nan" giua tinh huong nguy cap.
                     gm.enemyBullets.Reset();
                     ev.position = gm.player.GetCenter();
-                    ev.color = LIME;
+                    ev.color = Palette::UiSuccess;
                     ev.particleCount = 30;
                     ev.sfx = SfxType::Cleanser;
                     ev.shakeDuration = 0.25f;

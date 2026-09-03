@@ -39,7 +39,7 @@ struct UIBar {
     Color borderColor;
 };
 
-// PANEL/ICON (Nguoi 3 - Audio & UI, xem TASK_DIVISION.md): 2 widget THEM MOI, dung
+// PANEL/ICON (Nguoi 3 - Audio & UI): 2 widget THEM MOI, dung
 // CHUNG khuon Text/Bar o tren (khai bao qua Panel()/Icon() -> Draw() 1 lan), khong sua
 // UIText/UIBar/API cu nao - hoan toan cong them, an toan tuyet doi voi moi noi dang goi
 // canvas.Text()/Bar() san co.

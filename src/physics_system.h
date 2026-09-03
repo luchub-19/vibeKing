@@ -33,16 +33,18 @@ class GameManager; // Forward declare - PhysicsSystem thao tac truc tiep tren du
 // ==========================================
 class PhysicsSystem {
 public:
-    static void UpdateEnemies(GameManager& gm, float dt);   // Doi hinh Basic/Tanky/Zigzag + chon dich ban
-    // Warden/Medic (Phase 1a, Nguoi 1): HAM RIENG (khong chung UpdateEnemies() o tren) -
-    // van dung khuon doi hinh Basic/Tanky (ApplyFormationMoveX/DescendRowAndCheckGameOver)
-    // nhung KHONG tham gia activeCount/frontline-shooting cua UpdateEnemies(). `alreadyFlipped`:
-    // true neu UpdateEnemies() da tu doi huong doi hinh trong CHINH frame nay roi (xem
-    // GameManager::UpdatePlaying()) - khi do ham nay CHI di chuyen + tut hang (neu can),
-    // KHONG doi huong/tang toc THEM lan nua (tranh doi huong 2 lan = coi nhu khong doi,
-    // tang toc gap doi ngoai y muon).
-    static void UpdateWardenEnemies(GameManager& gm, float dt, bool alreadyFlipped);
-    static void UpdateMedicEnemies(GameManager& gm, float dt, bool alreadyFlipped);
+    // TOAN BO doi hinh: Basic/Tanky/Zigzag + Warden/Medic. Di chuyen, doi huong/tut hang khi
+    // cham bien, kiem tra don sach wave, chon dich ban - tat ca trong 1 ham vi tat ca deu la
+    // 1 KHOI DUY NHAT ve mat luat choi (xem giai thich dai o dinh nghia trong .cpp).
+    static void UpdateEnemies(GameManager& gm, float dt);
+
+    // Warden/Medic (Phase 1a, Nguoi 1): 2 ham nay CHI DI CHUYEN (Medic them phan hoi mau) va
+    // TRA VE true neu co it nhat 1 con cham bien man hinh trong frame nay. Chung KHONG con tu
+    // doi huong/tang toc/tut hang nua - UpdateEnemies() gom `hitEdge` cua ca 5 pool roi moi
+    // quyet dinh MOT LAN cho ca doi hinh (xem lich su bug o dinh nghia UpdateEnemies()).
+    // Van de public (khong private) de test goi thang duoc phan hoi mau cua Medic.
+    static bool UpdateWardenEnemies(GameManager& gm, float dt);
+    static bool UpdateMedicEnemies(GameManager& gm, float dt);
     static void UpdateKamikaze(GameManager& gm, float dt);
     static void UpdateUfo(GameManager& gm, float dt);
     // Weaver/Bomber (Phase 2, Nguoi 1): dung khuon UpdateKamikaze/UpdateUfo o tren (khong
