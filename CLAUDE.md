@@ -178,13 +178,28 @@ cho cả 2 nhóm trong `test_game_manager.cpp` (`[summary]`, `[banner]`).
 
 ## Trước khi sửa UpdatePlaying()/CheckCollisions()
 
-`metaProgress.AwardCurrency()` HIỆN TẠI chỉ được gọi ở nhánh `player.GetLives()<=0`
-cuối `UpdatePlaying()` - KHÔNG gọi khi WAVE_CLEAR (dọn sạch đội hình hay hạ boss), và
-KHÔNG gọi khi GAME_OVER qua đường đội hình chạm đáy
-(`PhysicsSystem::DescendRowAndCheckGameOver`). Có thể cố ý, có thể là gap chưa ai để ý
-- `tests/test_game_manager.cpp` khóa lại đúng hành vi hiện tại ở cả 2 nhánh GAME_OVER
-để bất kỳ thay đổi nào (cố ý hay không) đều hiện thành test đỏ thay vì trôi qua âm
-thầm. `tests/test_game_manager.cpp` + `tests/test_physics_system.cpp` là lưới an toàn
+**Mọi đường thua cuộc phải đi qua `GameManager::TriggerGameOver()`** - đó là điểm vào duy
+nhất, lo cả 4 việc: phát âm thanh, nộp leaderboard, cộng currency, mở màn hình tổng kết.
+Thêm một đường thua cuộc thứ ba (ví dụ hết giờ) thì gọi hàm đó, đừng chép lại từng bước.
+Hàm này **idempotent** (cờ `gameOverTriggered`): `RequestTransition()` không đổi `state`
+ngay, nên guard `if (state != PLAYING) return` trong `UpdatePlaying()` KHÔNG chặn được
+trường hợp đội hình chạm đáy và người chơi hết mạng trong cùng một frame - thiếu cờ đó thì
+currency bị cộng 2 lần.
+
+Lịch sử: trước 2026-09-03 có 2 đường GAME_OVER làm 2 việc khác nhau - hết mạng thì được
+CR, đội hình chạm đáy thì không. `AwardCurrency()` vẫn KHÔNG được gọi khi WAVE_CLEAR (dọn
+sạch đội hình hay hạ boss) - đó vẫn là hành vi hiện tại và có test khoá.
+
+### Bài học: một test có thể xanh mà không kiểm tra gì cả
+
+Test khoá nhánh "đội hình chạm đáy KHÔNG cộng currency" đặt `score = 0` (player vừa
+`Reset()`). Mà `AwardCurrency(0)` = 0 CR - nên khẳng định "currency không đổi" **đúng cả
+khi đã cộng currency**. Lúc gộp 2 đường lại, test đó vẫn xanh thay vì đỏ lên như thiết kế:
+lưới an toàn tưởng là có thật hoá ra rỗng.
+
+Khi viết test kiểu "X không xảy ra", luôn tự hỏi: **nếu X xảy ra thật thì test này có đỏ
+không?** Nếu giá trị đang dùng làm cho cả 2 nhánh cho cùng kết quả (0, chuỗi rỗng, list
+rỗng...) thì phải đổi sang giá trị phân biệt được. `tests/test_game_manager.cpp` + `tests/test_physics_system.cpp` là lưới an toàn
 cho refactor UpdatePlaying()/boss (stage/shield) - chạy 2 file này
 (`./unit_tests "[game_manager],[physics]"`) trước/sau khi sửa 2 file src đó.
 

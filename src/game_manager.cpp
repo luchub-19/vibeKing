@@ -37,6 +37,21 @@ float GameManager::GetTransitionAlpha() const {
 }
 
 // ==========================================
+// GAME OVER - xem giai thich day du (lich su 2 duong lech nhau + ly do idempotent) o cho
+// khai bao trong game_manager.h.
+// ==========================================
+void GameManager::TriggerGameOver() {
+    if (gameOverTriggered) return;
+    gameOverTriggered = true;
+
+    audio.PlayGameOver();
+    lastSubmitResult = leaderboard.TrySubmit(player.GetScore(), wave);
+    runCurrencyEarned = metaProgress.AwardCurrency(player.GetScore()); // Giu lai de bang tong ket hien "+N CR"
+    endScreenTimer = 0.0f; // Bat dau lai hieu ung chay so cua bang tong ket
+    RequestTransition(GameState::GAME_OVER);
+}
+
+// ==========================================
 // SETTINGS
 // ==========================================
 void GameManager::SaveSettings() {
@@ -71,6 +86,7 @@ void GameManager::InitLevel(bool newGame) {
         runKills = 0;
         runBestCombo = 0;
         runCurrencyEarned = 0;
+        gameOverTriggered = false; // Van MOI - mo lai "cong" GAME_OVER (xem TriggerGameOver)
     } else {
         player.ResetForNewWave();
     }
@@ -648,13 +664,7 @@ void GameManager::UpdatePlaying(float dt) {
     musicCtx.comboCount = comboCount;
     audio.UpdateMusic(dt, musicCtx);
 
-    if (player.GetLives() <= 0) {
-        audio.PlayGameOver();
-        lastSubmitResult = leaderboard.TrySubmit(player.GetScore(), wave);
-        runCurrencyEarned = metaProgress.AwardCurrency(player.GetScore()); // Giu lai de bang tong ket hien "+N CR"
-        endScreenTimer = 0.0f; // Bat dau lai hieu ung chay so cua bang tong ket
-        RequestTransition(GameState::GAME_OVER);
-    }
+    if (player.GetLives() <= 0) TriggerGameOver();
 }
 
 // ==========================================

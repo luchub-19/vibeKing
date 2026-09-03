@@ -42,9 +42,10 @@ bool PhysicsSystem::DescendRowAndCheckGameOver(GameManager& gm, Rectangle& r) {
     if (r.x < 0) r.x = 0;
     if (r.x + r.width > Config::SCREEN_W) r.x = Config::SCREEN_W - r.width;
     if (EnemyBottom(r) >= gm.player.GetY()) {
-        gm.audio.PlayGameOver();
-        gm.lastSubmitResult = gm.leaderboard.TrySubmit(gm.player.GetScore(), gm.wave);
-        gm.RequestTransition(GameState::GAME_OVER);
+        // Di qua DIEM VAO CHUNG thay vi tu lam 3 viec rieng - truoc day nhanh nay quen mat
+        // buoc cong currency, tao ra bat doi xung "chet kieu nay duoc CR, chet kieu kia
+        // thi khong" (xem GameManager::TriggerGameOver).
+        gm.TriggerGameOver();
         return true;
     }
     return false;

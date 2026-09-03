@@ -283,15 +283,17 @@ TEST_CASE("PLAYING, player het mang (lives<=0): UpdatePlaying yeu cau chuyen GAM
     REQUIRE(GTA::MetaProgressRef(gm).GetCurrency() == currencyBefore + expectedCurrencyGain);
 }
 
-TEST_CASE("PLAYING, doi hinh cham day man hinh (DescendRowAndCheckGameOver) cung dan toi GAME_OVER nhung KHONG cong currency - khac voi duong het mang o tren", "[game_manager][state_machine][currency]") {
-    // Ghi chu quan trong cho Track B2: UpdatePlaying() hien co 2 duong rieng biet dan toi
-    // GAME_OVER - (1) player.GetLives()<=0 o cuoi UpdatePlaying() (CO cong currency, xem
-    // test o tren), va (2) doi hinh dich cham xuong toi hang player qua
-    // PhysicsSystem::DescendRowAndCheckGameOver() (KHONG cong currency - xem
-    // physics_system.cpp, nhanh nay tra ve truoc khi UpdatePlaying() kip chay toi dong
-    // AwardCurrency()). Test nay CHI xac nhan hanh vi HIEN TAI (co the la bat doi xung co
-    // chu dich, cung co the la 1 gap chua ai de y) - khong tu y "sua" cho giong nhau, vi do
-    // la quyet dinh thuoc ve Track B, khong phai Track C.
+TEST_CASE("PLAYING, doi hinh cham day man hinh (DescendRowAndCheckGameOver) cung cong currency y het duong het mang", "[game_manager][state_machine][currency]") {
+    // LICH SU: ban dau test nay khoa lai hanh vi NGUOC LAI - "duong nay KHONG cong
+    // currency" - vi UpdatePlaying() co 2 duong GAME_OVER lam 2 viec khac nhau. Nguoi dung
+    // da chot (2026-09-03): duong nao cung duoc CR. Gio ca 2 di chung
+    // GameManager::TriggerGameOver().
+    //
+    // BAI HOC VE CHINH TEST NAY: ban cu dat scoreBefore = 0 (player vua Reset()), ma
+    // AwardCurrency(0) = 0 CR - nen khang dinh "currency khong doi" DUNG ca khi da cong
+    // currency! Luoi an toan tuong la co that hoa ra rong: luc gop 2 duong lai, test nay
+    // van XANH thay vi do len nhu ky vong. Phai co diem > 0 thi phep kiem tra moi co y
+    // nghia - do la ly do co doan AddScore() ben duoi.
     GameManager gm;
     QuarantinePersistence(gm);
     GTA::SetState(gm, GameState::PLAYING);
@@ -314,11 +316,53 @@ TEST_CASE("PLAYING, doi hinh cham day man hinh (DescendRowAndCheckGameOver) cung
     GTA::BasicEnemies(gm).Clear();
     GTA::BasicEnemies(gm).Spawn(e);
 
+    // Diem PHAI > 0, va phai du lon de quy doi ra it nhat 1 CR - neu khong phep kiem tra
+    // ben duoi khong phan biet duoc "co cong" va "khong cong" (xem ghi chu dau test).
+    const int score = Config::META_SCORE_TO_CURRENCY_RATE * 3;
+    p.AddScore(score);
+    const int expectedGain = score / Config::META_SCORE_TO_CURRENCY_RATE;
+    REQUIRE(expectedGain > 0);
+
     int currencyBefore = GTA::MetaProgressRef(gm).GetCurrency();
     PhysicsSystem::UpdateEnemies(gm, 0.016f);
 
     REQUIRE(GTA::PendingState(gm) == GameState::GAME_OVER);
-    REQUIRE(GTA::MetaProgressRef(gm).GetCurrency() == currencyBefore); // KHONG cong currency o duong nay
+    REQUIRE(GTA::MetaProgressRef(gm).GetCurrency() == currencyBefore + expectedGain);
+    REQUIRE(GTA::RunCurrencyEarned(gm) == expectedGain); // bang tong ket hien dung con so nay
+}
+
+TEST_CASE("TriggerGameOver idempotent: 2 duong thua cuoc cung 1 frame chi cong currency VA nop leaderboard DUNG 1 LAN", "[game_manager][state_machine][currency]") {
+    // RequestTransition() KHONG doi `state` ngay (chi dat pendingState), nen cac guard
+    // `if (state != PLAYING) return` trong UpdatePlaying() KHONG chan duoc truong hop doi
+    // hinh cham day O UpdateEnemies() VA player het mang o cuoi CUNG 1 frame. Neu
+    // TriggerGameOver() khong idempotent thi currency bi cong 2 lan.
+    GameManager gm;
+    QuarantinePersistence(gm);
+    GTA::SetState(gm, GameState::PLAYING);
+
+    Player& p = GTA::PlayerRef(gm);
+    const int score = Config::META_SCORE_TO_CURRENCY_RATE * 4;
+    p.AddScore(score);
+    const int expectedGain = score / Config::META_SCORE_TO_CURRENCY_RATE;
+    int currencyBefore = GTA::MetaProgressRef(gm).GetCurrency();
+    // Doc SO LUONG entry hien co thay vi gia dinh bang rong: CleanupGuard la bien static
+    // (chi xoa 2 file tam luc process thoat) nen cac TEST_CASE truoc trong cung 1 lan chay
+    // da co the ghi entry vao dung file nay roi. Kiem tra do TANG, khong kiem tra so tuyet doi.
+    size_t entriesBefore = GTA::LeaderboardRef(gm).GetEntries().size();
+
+    GTA::CallTriggerGameOver(gm);
+    GTA::CallTriggerGameOver(gm); // lan 2 trong cung 1 frame - phai la no-op hoan toan
+    GTA::CallTriggerGameOver(gm);
+
+    REQUIRE(GTA::MetaProgressRef(gm).GetCurrency() == currencyBefore + expectedGain);
+    REQUIRE(GTA::RunCurrencyEarned(gm) == expectedGain);
+    REQUIRE(GTA::LeaderboardRef(gm).GetEntries().size() == entriesBefore + 1); // nop DUNG 1 lan, khong phai 3
+
+    // Van MOI mo lai "cong" - neu khong, choi lai lan 2 se khong bao gio duoc GAME_OVER nua.
+    GTA::CallInitLevel(gm, /*newGame=*/true);
+    p.AddScore(score);
+    GTA::CallTriggerGameOver(gm);
+    REQUIRE(GTA::MetaProgressRef(gm).GetCurrency() == currencyBefore + expectedGain * 2);
 }
 
 // ==========================================

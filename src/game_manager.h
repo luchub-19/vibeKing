@@ -267,6 +267,29 @@ private:
     void UpdateTransition(float dt);
     float GetTransitionAlpha() const;
 
+    // ==========================================
+    // DIEM VAO DUY NHAT cua GAME OVER - moi duong thua cuoc deu phai di qua day.
+    //
+    // TRUOC DAY co 2 duong RIENG BIET va lam 2 viec KHAC NHAU: (1) het mang o cuoi
+    // UpdatePlaying() - phat am thanh, nop leaderboard, VA cong currency; (2) doi hinh cham
+    // day man hinh qua PhysicsSystem::DescendRowAndCheckGameOver() - phat am thanh, nop
+    // leaderboard, NHUNG khong cong currency. Bat doi xung nay khong ai de y suot mot thoi
+    // gian dai vi no vo hinh; den khi co bang tong ket run thi no hien thang len man hinh
+    // ("+0 CR" du vua choi ca mot van), va nguoi dung da chot: duong nao cung duoc CR.
+    //
+    // Gop lam 1 ham thay vi chep them loi goi AwardCurrency() sang nhanh con lai - de lan
+    // sau them 1 duong thua cuoc thu ba (vd het gio) thi no khong the lai quen mat 1 buoc.
+    //
+    // IDEMPOTENT: `gameOverTriggered` chan kich hoat 2 lan trong CUNG 1 frame. Truong hop
+    // that: doi hinh cham day o UpdateEnemies() VA vien dan cuoi cung giet player o
+    // CheckCollisions() cung frame do. Luu y RequestTransition() KHONG doi `state` ngay
+    // (chi dat pendingState) nen cac guard `if (state != PLAYING) return` trong
+    // UpdatePlaying() KHONG chan duoc truong hop nay - neu khong co co nay, currency se
+    // duoc cong 2 lan va diem duoc nop leaderboard 2 lan.
+    // ==========================================
+    bool gameOverTriggered = false;
+    void TriggerGameOver();
+
     void SaveSettings(); // Ghi lai settings.cfg moi khi doi do kho/am luong trong menu/pause
 
     // Man hinh KEYBIND (vao tu Paused, phim K) - xem GetRebindableActions() o dau file.

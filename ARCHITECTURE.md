@@ -209,7 +209,7 @@ nâng cấp thành hàng đợi có timestamp — chưa cần ở quy mô hiện
 | `text_utils.h` | `TextUtils::Trim`/`IEquals` — tiện ích `string_view` dùng chung bởi 2 parser KEY=VALUE (`level_config.cpp`, `settings.cpp`), không copy chuỗi | — |
 | `save_checksum.h` | Checksum FNV-1a cho file save | — |
 | `leaderboard.h/.cpp` | Top 10 điểm cao, có xác thực checksum | — |
-| `meta_progress.h/.cpp` | `MetaProgress` — currency tích luỹ xuyên nhiều lượt chơi, ghi file có checksum cùng khuôn Leaderboard | `AwardCurrency()` HIỆN chỉ được gọi ở đúng 1 nhánh của `UpdatePlaying()` (lives<=0) — xem lưu ý currency ở CLAUDE.md trước khi thêm nhánh gọi mới |
+| `meta_progress.h/.cpp` | `MetaProgress` — currency tích luỹ xuyên nhiều lượt chơi, ghi file có checksum cùng khuôn Leaderboard; `AwardCurrency()` trả về số CR vừa cộng để màn hình tổng kết khỏi tính lại công thức quy đổi | Không gọi `AwardCurrency()` trực tiếp — mọi đường thua cuộc đi qua `GameManager::TriggerGameOver()` (điểm vào duy nhất, idempotent) |
 | `file_logger.h/.cpp` | Hook `SetTraceLogCallback` → ghi mọi `TraceLog` ra file xoay vòng | — |
 | `culling.h` | `Culling::IsVisible()` — bỏ lệnh vẽ cho thực thể ngoài camera | — |
 | `wave_generator.h/.cpp` | `WaveGenerator::Generate()` — quyết định "ô nào có địch loại gì" theo wave; hàm THUẦN, không biết `GameManager` tồn tại | Không đọc/ghi `GameManager` ở đây — `InitLevel()` mới là nơi biến `FormationSpawn` thành `EnemyPool::Spawn()` |

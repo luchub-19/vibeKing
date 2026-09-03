@@ -71,6 +71,9 @@ public:
     // vua ghi nhan vao pendingEvents - dung khi test can kiem tra HE QUA THAT SU (vd
     // power-up thuc su xuat hien trong powerUps) ma khong can chay lai toan bo UpdatePlaying().
     static void CallProcessEvents(GameManager& gm) { gm.ProcessEvents(); }
+    // Diem vao DUY NHAT cua GAME OVER - test goi thang de kiem tinh idempotent ma khong
+    // phai dung san 2 duong thua cuoc that su xay ra cung 1 frame.
+    static void CallTriggerGameOver(GameManager& gm) { gm.TriggerGameOver(); }
 
     // ----- Du lieu the gioi (giong het tinh than friend PhysicsSystem/RenderSystem) -----
     static Player& PlayerRef(GameManager& gm) { return gm.player; }
