@@ -210,6 +210,27 @@ rỗng...) thì phải đổi sang giá trị phân biệt được. `tests/test
 cho refactor UpdatePlaying()/boss (stage/shield) - chạy 2 file này
 (`./unit_tests "[game_manager],[physics]"`) trước/sau khi sửa 2 file src đó.
 
+## Sprite: tìm ảnh thật TRƯỚC, viết `BuildXxx()` sau
+
+Đường mặc định để thêm/đổi một sprite là **1 dòng toạ độ trong `assets/sprites/atlas.cfg`**,
+không phải hàm vẽ hình bằng `ImageDrawRectangle` trong `sprites.cpp`. Hiện 18/19 tên dùng ảnh
+thật; `iconSpreadShot` là ngoại lệ duy nhất và có ghi lý do tại chỗ.
+
+Ba niềm tin sai từng khiến 8 sprite phải vẽ bằng code - đừng lặp lại:
+
+1. *"atlas.png đã kín chỗ"* - không có gì hardcode kích thước atlas, `LoadAtlasEntry()` đọc
+   `atlasImg.width/height` lúc chạy. Hết chỗ thì làm ảnh to hơn.
+2. *"pack Kenney không còn dáng nào"* - kết luận đó rút ra từ ĐÚNG MỘT thư mục
+   (`Enemies` của bản Remastered). Bản Extension có `Sprites/Ships` với 9 tàu vẽ liền, chưa
+   ai mở. **Kiểm hết mọi thư mục của mọi pack trước khi kết luận "không còn gì".**
+3. *"tăng tương phản là cải thiện"* - `sigmoidal-contrast` đẩy chỉ số độ lệch chuẩn lên
+   thật nhưng xoá sạch cấu trúc thành khối đặc. Đo `sd` là biến quan sát, không phải mục
+   tiêu tối ưu.
+
+Quy tắc xử lý ảnh + bảng tint đầy đủ ở `docs/ASSET_INTEGRATION.md`. Lưu ý cơ chế fallback
+diễn ra ÂM THẦM: gõ sai tên trong `atlas.cfg` không báo lỗi, chỉ lộ ra ở dòng log
+`SpriteSheet: ... n/19 ten hop le` lúc khởi động - đọc dòng đó sau mỗi lần sửa atlas.
+
 ## Hàm VẼ thuần: không có test, phải chụp ảnh mới biết đúng/sai
 
 `Bullet::Draw()`, `Bunker::Draw()`, `Player::Draw()`, `RenderSystem::*` không trả về giá

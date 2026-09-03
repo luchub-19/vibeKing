@@ -138,3 +138,13 @@ Có hỗ trợ tay cầm (gamepad) nếu cắm sẵn - hoạt động ở cả l
 chuyển, A/Cross bắn) lẫn menu/pause/end-screen (D-pad đổi độ khó/âm lượng, A/Cross xác
 nhận, X/Square chơi lại, Start tạm dừng). Màn hình đổi phím bàn phím ở trên và `F11`
 (fullscreen) là 2 chỗ còn giới hạn bàn phím.
+
+## Tài nguyên
+
+- **Đồ hoạ**: [Kenney](https://kenney.nl) — *Space Shooter Remastered* và *Space Shooter
+  Extension* (CC0). Ảnh được khử màu rồi nhuộm màu lúc vẽ, nên `atlas.png` là ảnh xám; xem
+  `docs/ASSET_INTEGRATION.md` nếu muốn thay pack khác.
+- **Font**: DejaVu Sans Mono (`assets/fonts/LICENSE-DejaVuSansMono.txt`).
+- **Âm thanh**: không dùng file `.wav` nào — toàn bộ hiệu ứng và nhạc nền được tổng hợp
+  bằng code lúc chạy (`src/audio_system.cpp`).
+- **Mã nguồn**: MIT (xem `LICENSE`).

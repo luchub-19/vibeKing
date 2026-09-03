@@ -191,7 +191,7 @@ nâng cấp thành hàng đợi có timestamp — chưa cần ở quy mô hiện
 | `render_system.h/.cpp` | Vẽ mọi màn hình qua `UICanvas`; hàm `const`, chỉ đọc | Không sửa bất kỳ field nào của `GameManager` |
 | `audio_system.h/.cpp` | Tổng hợp & phát âm thanh procedural (không file `.wav`) | — |
 | `voice_pool.h` | `VoicePool<N>` — luân phiên N bản `LoadSoundAlias()` của 1 `Sound` gốc để SFX bắn/trúng liên tiếp không cắt ngang nhau; dùng nội bộ bởi `AudioSystem` | Không gọi trực tiếp từ ngoài `AudioSystem` |
-| `sprites.h/.cpp` | `SpriteSheet` — texture sinh bằng thao tác `Image` trong RAM lúc `Load()`, không cần file `.png` rời | `Load()` phải gọi SAU `InitWindow()`, `Unload()` phải TRƯỚC `CloseWindow()` |
+| `sprites.h/.cpp` | `SpriteSheet` — cắt texture từ `assets/sprites/atlas.png` theo toạ độ trong `atlas.cfg`; tên nào thiếu/sai toạ độ thì **fallback** sang `BuildXxx()` vẽ bằng `Image` trong RAM (18/19 tên hiện dùng atlas) | `Load()` phải gọi SAU `InitWindow()`, `Unload()` phải TRƯỚC `CloseWindow()`. Fallback diễn ra ÂM THẦM — gõ sai tên không báo lỗi, chỉ thấy qua dòng log `n/19 ten hop le` |
 | `ui_system.h` | `UICanvas`/`UIText`/`UIBar` — widget chế độ immediate | Không gọi `DrawTextEx` rải rác ngoài file này |
 | `events.h` | Định nghĩa `GameEvent`/`SfxType` — "hợp đồng" giữa PhysicsSystem và ProcessEvents | — |
 | `enemy_types.h` | Struct dữ liệu thuần cho từng loại địch + `EnemyPool<T,N>` + `BossStage()` (1-nguồn-duy-nhất suy giai đoạn Boss từ %HP) | Không thêm hàm `Update()`/hành vi vào các struct Enemy (xem §2) |
@@ -337,9 +337,15 @@ cùng đội hình vì làm sai bước 4).
    trong `CheckCollisions()`, giảm theo `dt` trong hàm Update tương ứng, và bọc tint bằng
    `HitFlashTint()` ở bước vẽ. Loại 1 máu không cần — chúng chết ngay nên không có gì để
    chớp.
-6. Vòng vẽ + `Culling::IsVisible()` trong `RenderSystem::DrawPlaying()`. Màu lấy từ
+6. **Sprite**: thêm `Texture2D` mới vào `SpriteSheet` (`sprites.h`) rồi **thử tìm ảnh thật
+   trước khi viết `BuildXxx()`** — đường mặc định là 1 dòng toạ độ trong `atlas.cfg`, không
+   phải code vẽ hình. Xem `docs/ASSET_INTEGRATION.md` để biết chỗ lấy ảnh và 3 quy tắc xử
+   lý (lấp đầy khung / khớp dải độ sáng / không dùng filter tương phản). Chỉ viết
+   `BuildXxx()` khi thật sự không ảnh nào diễn đạt được ý — và ghi rõ lý do đó vào
+   `atlas.cfg`, như `iconSpreadShot` đang làm.
+7. Vòng vẽ + `Culling::IsVisible()` trong `RenderSystem::DrawPlaying()`. Màu lấy từ
    `Palette::` — thêm 1 hằng số mới vào `palette.h` cho loại địch này, đặt trong dải
    **LẠNH** trừ khi nó lao thẳng vào người chơi (xem luật ở đầu `palette.h`). Không gọi
    thẳng hằng số màu của raylib.
-7. Hằng số cân bằng: `inline` trong `config.h`/struct + dòng `Assign()` trong
+8. Hằng số cân bằng: `inline` trong `config.h`/struct + dòng `Assign()` trong
    `config.cpp` + field tương ứng trong `assets/balance.json`.
