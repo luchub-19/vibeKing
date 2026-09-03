@@ -47,11 +47,18 @@ Nhiều hơn bạn nghĩ. `atlas.cfg` từng ghi *"atlas.png đã kín chỗ"* �
    `LoadAtlasEntry()` (`sprites.cpp`) đọc `atlasImg.width/height` lúc chạy. Cứ làm ảnh to
    hơn rồi thêm dòng toạ độ là xong, không sửa một dòng C++ nào.
 
-Ràng buộc THẬT không phải chỗ trống mà là **pack không còn dáng địch nào**: Kenney "Space
-Shooter Remastered" có đúng 5 dáng (`enemyBlack1..5`) và cả 5 đã dùng hết cho
-`basicAlien`/`tankyAlien`/`zigzagAlien`/`kamikaze`/`boss` — đã đối chiếu từng pixel kênh
-alpha, khác 0. Mọi sprite địch MỚI đều phải lắp ráp từ `PNG/Parts`, hoặc chấp nhận
-procedural.
+**Đính chính (2026-09-03):** đoạn này từng khẳng định "pack không còn dáng địch nào — mọi
+sprite địch mới đều phải lắp ráp từ `PNG/Parts`". Sai, và suýt dẫn tới việc tự vẽ 6 con
+địch bằng cách ghép bộ phận. Sự thật:
+
+- Kenney **Space Shooter Remastered** có đúng 5 dáng địch (`PNG/Enemies/enemyBlack1..5`) và
+  cả 5 đã dùng hết cho `basicAlien`/`tankyAlien`/`zigzagAlien`/`kamikaze`/`boss` — đối chiếu
+  từng pixel kênh alpha, khác 0.
+- Nhưng Kenney **Space Shooter Extension** có thư mục `PNG/Sprites/Ships` với **9 con tàu vẽ
+  liền hoàn chỉnh** chưa đụng tới. Thư mục đó chưa hề được kiểm khi kết luận trên được viết.
+
+Bài học: kiểm **hết mọi thư mục của mọi pack** trước khi kết luận "không còn gì". 6 sprite ở
+hàng 2-3 của atlas hiện tại đều là ảnh vẽ liền lấy từ đó, không phải hàng ghép.
 
 ## ⚠️ Toàn bộ texture PHẢI là ảnh khử màu (gray/desaturated)
 
@@ -72,6 +79,7 @@ chỉ cho đạn / đe doạ lao thẳng vào người chơi / phần thưởng 
 | `zigzagAlien` | `Palette::Zigzag` | `game_manager.cpp::InitLevel` |
 | `warden` / `medic` | `Palette::Warden` / `Palette::Medic` | `game_manager.cpp::InitLevel` |
 | `weaver` / `bomber` | `Palette::Weaver` / `Palette::Bomber` | `game_manager.cpp::SpawnWeaver`/`SpawnBomber` |
+| `bossSentinel` / `bossSwarmer` | cùng thang `Palette::Boss` → `BossEnrage1` → `BossEnrage2` theo stage HP như `boss` | `render_system.cpp::DrawPlaying` |
 | `kamikaze` | `Palette::Kamikaze` (dải NÓNG — loại duy nhất lao thẳng vào người chơi) | `game_manager.cpp::SpawnKamikaze` |
 | `ufo` | `Palette::Ufo` (dải NÓNG — mục tiêu thưởng điểm) | `render_system.cpp::DrawPlaying` |
 | `boss`/`bossSentinel`/`bossSwarmer` | `Palette::Boss` → `BossEnrage1` → `BossEnrage2` theo stage HP (lạnh → nóng dần = "enrage") | `render_system.cpp::DrawPlaying` |

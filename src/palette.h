@@ -42,7 +42,11 @@ constexpr Color BasicA       = { 123, 91, 214, 255 };  // #7B5BD6 - hang chan
 constexpr Color BasicB       = { 156, 130, 232, 255 }; // #9C82E8 - hang le (xen ke nhu truoc)
 constexpr Color Zigzag       = { 69, 169, 214, 255 };  // #45A9D6
 constexpr Color Tanky        = { 74, 111, 184, 255 };  // #4A6FB8 - TRUOC DAY la MAROON (do); doi vi do gio danh rieng cho nguy hiem tuc thi
-constexpr Color Warden       = { 47, 76, 140, 255 };   // #2F4C8C - navy dam, "day mau" doc ra tu do TOI
+// #3A5FA8 - navy, van TOI hon Tanky (luma 92 vs 108) de giu quy uoc "day mau = mau tram
+// hon", nhung da duoc nang tu #2F4C8C. Ly do: mau cu chon luc sprite Warden con la khoi
+// phang 16px, khi do chi can bong la du. Tu khi Warden dung anh Kenney ve lien (co khoi
+// sang/toi that), luma 74 lam moi chi tiet chim het vao nen den - do bang anh chup.
+constexpr Color Warden       = { 58, 95, 168, 255 };
 constexpr Color Medic        = { 63, 201, 160, 255 };  // #3FC9A0 - xanh ngoc, SANG nhat trong dai lanh -> de nham, dung y "diet healer truoc"
 constexpr Color Weaver       = { 127, 227, 240, 255 }; // #7FE3F0 - xanh bang rat sang, duong bay lac nen can de bam mat
 constexpr Color Bomber       = { 110, 143, 168, 255 }; // #6E8FA8 - xam thep tram; ban than no khong nguy hiem, BOM cua no moi nguy hiem (va bom la dan dich = mau nong)
