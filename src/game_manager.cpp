@@ -107,6 +107,8 @@ void GameManager::InitLevel(bool newGame) {
     powerUps.Reset();
     comboTimer = 0.0f;
     comboCount = 0;
+    hitStop.Reset();      // Dong bang con sot lai tu wave truoc se lam frame dau cua wave moi bi dung hinh
+    selectedUpgrade = 0;  // Con tro chon nang cap luon bat dau tu muc dau, khong nho lua chon cua wave truoc
     ufoActive = false;
     RollNextUfoTimer();
     RollNextKamikazeTimer();
@@ -557,7 +559,13 @@ void GameManager::UpdatePlaying(float dt) {
 
     MenuInput menuInput = InputSystem::PollMenu(settings);
     if (menuInput.PauseToggle) { state = GameState::PAUSED; return; }
-    if (menuInput.Restart) { InitLevel(true); return; }
+    if (menuInput.Restart) {
+        // Qua fade nhu MOI chuyen canh khac trong game (xem RequestTransition) - truoc day
+        // rieng duong nay doi canh giat cuc, la ngoai le duy nhat.
+        InitLevel(true);
+        RequestTransition(GameState::PLAYING);
+        return;
+    }
     if (menuInput.ToggleFullscreen) ToggleFullscreen();
 
     if (hintTimer > 0.0f) hintTimer -= dt;             // Goi y phim tu tat sau Config::HUD_HINT_DURATION giay
@@ -781,7 +789,7 @@ void GameManager::Run() {
     audio.Init();
     sprites.Load();
     leaderboard.Load(Config::LeaderboardFilePath());
-    metaProgress.Load("meta_progress.dat");
+    metaProgress.Load(Config::MetaProgressFilePath());
     levelGrid = LevelGridConfig::LoadFromFile(Config::LevelConfigFilePath());
 
     // FONT: LoadFontEx rasterize toan bo glyph thanh 1 texture atlas duy nhat NGAY LUC
@@ -805,6 +813,20 @@ void GameManager::Run() {
     // len window that voi toa do co dinh 800x600 thi Fullscreen tren monitor ty le khac
     // se bi stretch bien dang).
     renderTarget = LoadRenderTexture(Config::SCREEN_W, Config::SCREEN_H);
+    // Cung triet ly voi IsWindowReady()/IsFontValid() o tren: kiem tra ket qua thay vi gia
+    // dinh thanh cong. Neu GPU khong cap duoc framebuffer (het VRAM, driver gioi han kich
+    // thuoc FBO...), MOI BeginTextureMode() trong vong lap chinh se ve vao 1 target khong
+    // hop le - man hinh den kin, khong 1 thong bao loi nao. Thoat co thong bao ro rang van
+    // hon la de nguoi dung nhin man den doan xem hong o dau.
+    if (!IsRenderTextureValid(renderTarget)) {
+        TraceLog(LOG_FATAL, "Khong tao duoc render target %dx%d - GPU tu choi cap framebuffer, thoat.",
+                 Config::SCREEN_W, Config::SCREEN_H);
+        sprites.Unload();
+        audio.Shutdown();
+        CloseWindow();
+        FileLogger::Shutdown();
+        return;
+    }
     SetTextureFilter(renderTarget.texture, TEXTURE_FILTER_BILINEAR);
     postProcess.Init(); // Bloom/CRT (Config::BLOOM_ENABLED/CRT_ENABLED) - xem post_process.h
     background.Init();  // Starfield - xem parallax.h

@@ -676,8 +676,13 @@ void PhysicsSystem::CheckCollisions(GameManager& gm) {
     // Boss: chi la 1 pool nua (Capacity=1) - khong co nhanh rieng nao kiem tra
     // "isBossWave"; Size()==0 tu dong khong dang ky gi vao grid, y het cach 1 pool rong
     // (vd Tanky khi wave hien tai khong co Tanky nao) tu dong khong dang ky gi ca.
+    // Clear() nam NGOAI dieu kien, khac 8 grid o tren chi vi Boss la pool duy nhat thuong
+    // xuyen rong. Truoc day ca Clear() lan Insert() deu nam trong `if (Size() > 0)`, nen sau
+    // khi ha Boss thi bossGrid giu nguyen entry cu vinh vien. Hien khong gay loi vi moi cho
+    // doc grid nay deu kiem tra Size() > 0 truoc - nhung do la 1 bat bien ngam, ai them 1
+    // duong doc moi ma khong biet se doc phai du lieu ma.
+    gm.bossGrid.Clear();
     if (gm.bossPool.Size() > 0) {
-        gm.bossGrid.Clear();
         gm.bossGrid.Insert(0, gm.bossPool[0].rect); // Rect lon hon 1 o -> tu dong dang ky vao NHIEU o (xem SpatialGrid::Insert)
     }
 

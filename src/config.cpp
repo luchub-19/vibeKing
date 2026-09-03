@@ -97,6 +97,22 @@ namespace {
         Assign(s, "bomber_spawn_max_interval", Config::BOMBER_SPAWN_MAX_INTERVAL);
         Assign(s, "bomber_speed_x", Config::BOMBER_SPEED_X);
         Assign(s, "bomber_bomb_interval", Config::BOMBER_BOMB_INTERVAL);
+
+        // KICH THUOC + DO CAO SPAWN. Truoc day 17 hang so `inline` (trong do co ca nhom
+        // nay) KHONG he co mat trong LoadBalance() - tuc quy uoc "inline = du lieu can bang,
+        // bi balance.json ghi de" (xem dau config.h + ARCHITECTURE.md §6) SAI voi 14% so
+        // hang so inline. Kich thuoc dich khong phai chi la tham my: no CHINH LA hitbox, tuc
+        // do kho ngam ban - dung nghia du lieu can bang. Nap luon o day thay vi doi sang
+        // constexpr, de quy uoc tro thanh dung thay vi phai them ngoai le vao tai lieu.
+        Assign(s, "kamikaze_width", Config::KAMIKAZE_WIDTH);
+        Assign(s, "kamikaze_height", Config::KAMIKAZE_HEIGHT);
+        Assign(s, "weaver_width", Config::WEAVER_WIDTH);
+        Assign(s, "weaver_height", Config::WEAVER_HEIGHT);
+        Assign(s, "weaver_base_y_min", Config::WEAVER_BASE_Y_MIN);
+        Assign(s, "weaver_base_y_max", Config::WEAVER_BASE_Y_MAX);
+        Assign(s, "bomber_width", Config::BOMBER_WIDTH);
+        Assign(s, "bomber_height", Config::BOMBER_HEIGHT);
+        Assign(s, "bomber_y", Config::BOMBER_Y);
     }
 
     void LoadUfo(const json& root) {
@@ -107,6 +123,9 @@ namespace {
         Assign(s, "speed", Config::UFO_SPEED);
         Assign(s, "score_min", Config::UFO_SCORE_MIN);
         Assign(s, "score_max", Config::UFO_SCORE_MAX);
+        Assign(s, "width", Config::UFO_WIDTH);
+        Assign(s, "height", Config::UFO_HEIGHT);
+        Assign(s, "y", Config::UFO_Y);
     }
 
     void LoadBoss(const json& root) {
@@ -125,6 +144,9 @@ namespace {
         Assign(s, "radial_chance_stage3", Config::BOSS_RADIAL_CHANCE_STAGE3);
         Assign(s, "bullet_speed", Config::BOSS_BULLET_SPEED);
         Assign(s, "score_value", Config::BOSS_SCORE_VALUE);
+        Assign(s, "width", Config::BOSS_WIDTH);
+        Assign(s, "height", Config::BOSS_HEIGHT);
+        Assign(s, "y", Config::BOSS_Y);
 
         // SENTINEL / SWARMER: cung nam trong muc "boss" (khong tach section rieng) - ve
         // ban chat van la du lieu can bang hanh vi Boss, chi la cho 2 loai xoay vong moi
@@ -143,6 +165,7 @@ namespace {
     void LoadPowerup(const json& root) {
         if (!root.contains("powerup")) return;
         const json& s = root.at("powerup");
+        Assign(s, "size", Config::POWERUP_SIZE); // Kich thuoc vien pickup = vung nhat duoc, la du lieu can bang chu khong chi la hinh ve
         Assign(s, "drop_chance", Config::POWERUP_DROP_CHANCE);
         Assign(s, "fall_speed", Config::POWERUP_FALL_SPEED);
         Assign(s, "rapidfire_duration", Config::POWERUP_RAPIDFIRE_DURATION);
@@ -185,6 +208,7 @@ namespace {
     void LoadAnim(const json& root) {
         if (!root.contains("anim")) return;
         const json& s = root.at("anim");
+        Assign(s, "particle_gravity", Config::PARTICLE_GRAVITY);
         Assign(s, "idle_bob_amplitude", Config::ANIM_IDLE_BOB_AMPLITUDE);
         Assign(s, "idle_bob_frequency", Config::ANIM_IDLE_BOB_FREQUENCY);
         Assign(s, "idle_scale_amplitude", Config::ANIM_IDLE_SCALE_AMPLITUDE);

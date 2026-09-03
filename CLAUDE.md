@@ -123,6 +123,13 @@ cmake --build build-strict -j"$(nproc)"
   định, vd `SCREEN_W`) và `inline` (dữ liệu cân bằng - HP/tốc độ/wave pattern... - bị
   `Config::LoadBalance()` ghi đè từ `assets/balance.json` lúc `Run()`). Đừng đổi
   `inline` thành `constexpr` chỉ vì gọn hơn - sẽ làm `balance.json` hết tác dụng.
+  **`inline` là một LỜI HỨA, không phải cách viết**: mỗi hằng `inline` phải có 1 dòng
+  `Assign()` trong `config.cpp` VÀ 1 key trong `balance.json`, nếu không quy ước trên chỉ
+  đúng trên giấy. Từng có 17/118 hằng `inline` (kích thước Kamikaze/Weaver/Bomber/UFO/Boss,
+  `POWERUP_SIZE`, `PARTICLE_GRAVITY`, dải độ cao spawn của Weaver) chưa bao giờ được nạp -
+  designer chỉnh `balance.json` thì không có gì xảy ra, không báo lỗi. Kiểm nhanh bằng cách
+  đối chiếu tên `inline` trong `config.h` với các tên `Config::XXX` xuất hiện trong
+  `config.cpp`; hiện đang 118/118.
 - **Ghi file atomic + checksum**: `Leaderboard`/`MetaProgress`/`Settings` đều ghi ra
   `<path>.tmp` rồi `rename()`; 2 cái đầu có checksum chống sửa tay (xem
   save_checksum.h). Theo mẫu này nếu thêm hệ thống lưu file mới.

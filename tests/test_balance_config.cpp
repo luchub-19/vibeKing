@@ -135,3 +135,45 @@ TEST_CASE("Config::LoadBalance: ghi de dung muc 'upgrades', khong dung toi muc k
     Config::UPGRADE_MOVE_SPEED_MUL = originalMoveSpeedMul;
     Config::UPGRADE_BONUS_SCORE = originalBonusScore;
 }
+
+// ==========================================
+// KICH THUOC / DO CAO SPAWN - nhom hang so `inline` truoc day KHONG he co mat trong
+// LoadBalance(), tuc quy uoc "inline = du lieu can bang, bi balance.json ghi de" (xem dau
+// config.h + ARCHITECTURE.md §6) SAI voi 17/118 hang so. Kich thuoc dich khong phai chi la
+// tham my - no CHINH LA hitbox, tuc do kho ngam ban. Test nay khoa lai rang chung that su
+// nap duoc, de nhom do khong am tham roi ra khoi LoadBalance() lan nua.
+// ==========================================
+TEST_CASE("Config::LoadBalance: kich thuoc/do cao spawn (hitbox) nap duoc tu JSON", "[balance]") {
+    CleanupGuard guard;
+    const float origUfoW = Config::UFO_WIDTH;
+    const float origBossY = Config::BOSS_Y;
+    const float origPowerupSize = Config::POWERUP_SIZE;
+    const float origWeaverMin = Config::WEAVER_BASE_Y_MIN;
+    const float origKamikazeW = Config::KAMIKAZE_WIDTH;
+    const float origGravity = Config::PARTICLE_GRAVITY;
+
+    WriteFile(R"({
+        "ufo":         { "width": 123.0 },
+        "boss":        { "y": 45.0 },
+        "powerup":     { "size": 33.0 },
+        "enemy_stats": { "weaver_base_y_min": 77.0, "kamikaze_width": 11.0 },
+        "anim":        { "particle_gravity": 500.0 }
+    })");
+    Config::LoadBalance(TestJsonPath());
+
+    REQUIRE(Config::UFO_WIDTH == Approx(123.0f));
+    REQUIRE(Config::BOSS_Y == Approx(45.0f));
+    REQUIRE(Config::POWERUP_SIZE == Approx(33.0f));
+    REQUIRE(Config::WEAVER_BASE_Y_MIN == Approx(77.0f));
+    REQUIRE(Config::KAMIKAZE_WIDTH == Approx(11.0f));
+    REQUIRE(Config::PARTICLE_GRAVITY == Approx(500.0f));
+
+    // Phuc hoi - cac hang so `inline` la bien toan cuc dung chung ca binary test, de lech
+    // se lam cac TEST_CASE chay sau doc phai gia tri la (xem quy uoc o CLAUDE.md).
+    Config::UFO_WIDTH = origUfoW;
+    Config::BOSS_Y = origBossY;
+    Config::POWERUP_SIZE = origPowerupSize;
+    Config::WEAVER_BASE_Y_MIN = origWeaverMin;
+    Config::KAMIKAZE_WIDTH = origKamikazeW;
+    Config::PARTICLE_GRAVITY = origGravity;
+}

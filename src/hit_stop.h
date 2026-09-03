@@ -20,6 +20,10 @@ struct HitStop {
     float timer = 0.0f;
 
     void Trigger(float d) { timer = d; }
+    // Huy dong bang dang chay. Can khi bat dau 1 wave/van moi (GameManager::InitLevel):
+    // hit-stop cua don ha guc CUOI CUNG o wave truoc con sot lai se lam frame dau tien cua
+    // wave moi bi dung hinh vo co.
+    void Reset() { timer = 0.0f; }
     void Update(float dt) { timer = fmaxf(0.0f, timer - dt); }
     bool IsActive() const { return timer > 0.0f; }
 };

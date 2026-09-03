@@ -83,6 +83,10 @@ namespace Config {
     constexpr int META_SCORE_TO_CURRENCY_RATE = 50;
 
     inline const char* LeaderboardFilePath() { return "leaderboard.dat"; }
+    // Truoc day duong dan nay bi hardcode thang trong GameManager::Run() ("meta_progress.dat")
+    // - la file save DUY NHAT khong di qua nhom ham nay, nen test/tooling muon doi cho no
+    // ghi ra khong co diem bam nao.
+    inline const char* MetaProgressFilePath() { return "meta_progress.dat"; }
     inline const char* LevelConfigFilePath() { return "level.cfg"; }
     inline const char* SettingsFilePath() { return "settings.cfg"; }
     inline const char* FontFilePath() { return "assets/fonts/DejaVuSansMono.ttf"; }

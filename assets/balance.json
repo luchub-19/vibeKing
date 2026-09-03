@@ -1,6 +1,5 @@
 {
   "_comment": "Du lieu can bang game - sua file nay va khoi dong lai game de ap dung, KHONG can build lai code C++. Thieu field/muc nao thi game dung gia tri mac dinh trong config.h cho field do (khong loi, khong crash).",
-
   "player": {
     "speed": 400.0,
     "fire_rate": 0.2,
@@ -9,7 +8,6 @@
     "extra_life_score_threshold": 5000,
     "max_lives": 5
   },
-
   "enemy": {
     "speed_inc": 15.0,
     "bullet_speed": 600.0,
@@ -17,20 +15,29 @@
     "aimed_shot_chance": 0.35,
     "radial_burst_count": 12
   },
-
   "difficulty": {
-    "easy":   { "base_speed": 40.0, "max_speed": 180.0, "fire_rate": 1.4 },
-    "normal": { "base_speed": 50.0, "max_speed": 260.0, "fire_rate": 1.0 },
-    "hard":   { "base_speed": 65.0, "max_speed": 340.0, "fire_rate": 0.6 }
+    "easy": {
+      "base_speed": 40.0,
+      "max_speed": 180.0,
+      "fire_rate": 1.4
+    },
+    "normal": {
+      "base_speed": 50.0,
+      "max_speed": 260.0,
+      "fire_rate": 1.0
+    },
+    "hard": {
+      "base_speed": 65.0,
+      "max_speed": 340.0,
+      "fire_rate": 0.6
+    }
   },
-
   "wave_progression": {
     "extra_row_every": 3,
     "speed_bonus_per": 7.5,
     "fire_rate_step": 0.08,
     "fire_rate_min_mul": 0.35
   },
-
   "enemy_stats": {
     "basic_score": 10,
     "tanky_hp": 3,
@@ -42,7 +49,6 @@
     "kamikaze_speed": 220.0,
     "kamikaze_spawn_min_interval": 6.0,
     "kamikaze_spawn_max_interval": 12.0,
-
     "warden_hp": 2,
     "warden_score": 40,
     "warden_reinforcement_count": 2,
@@ -55,7 +61,6 @@
     "medic_spawn_chance_base": 0.05,
     "medic_spawn_chance_max": 0.12,
     "medic_spawn_chance_wave_step": 0.007,
-
     "weaver_score": 60,
     "weaver_spawn_min_interval": 10.0,
     "weaver_spawn_max_interval": 18.0,
@@ -66,17 +71,27 @@
     "bomber_spawn_min_interval": 11.0,
     "bomber_spawn_max_interval": 20.0,
     "bomber_speed_x": 100.0,
-    "bomber_bomb_interval": 1.6
+    "bomber_bomb_interval": 1.6,
+    "kamikaze_width": 28.0,
+    "kamikaze_height": 28.0,
+    "weaver_width": 32.0,
+    "weaver_height": 22.0,
+    "weaver_base_y_min": 60.0,
+    "weaver_base_y_max": 160.0,
+    "bomber_width": 34.0,
+    "bomber_height": 24.0,
+    "bomber_y": 70.0
   },
-
   "ufo": {
     "spawn_min_interval": 12.0,
     "spawn_max_interval": 22.0,
     "speed": 160.0,
     "score_min": 50,
-    "score_max": 300
+    "score_max": 300,
+    "width": 44.0,
+    "height": 22.0,
+    "y": 20.0
   },
-
   "boss": {
     "wave_interval": 5,
     "max_hp": 40,
@@ -91,19 +106,19 @@
     "radial_chance_stage3": 0.8,
     "bullet_speed": 260.0,
     "score_value": 1000,
-
     "sentinel_sway_amplitude": 90.0,
     "sentinel_sway_frequency": 0.6,
     "sentinel_shield_interval": 6.0,
     "sentinel_shield_duration": 2.5,
     "sentinel_shield_fire_interval": 0.35,
-
     "swarmer_sway_amplitude": 220.0,
     "swarmer_sway_frequency": 1.8,
     "swarmer_summon_interval": 5.0,
-    "swarmer_summon_count": 2
+    "swarmer_summon_count": 2,
+    "width": 180.0,
+    "height": 90.0,
+    "y": 60.0
   },
-
   "powerup": {
     "drop_chance": 0.12,
     "fall_speed": 90.0,
@@ -121,22 +136,20 @@
     "weight_piercing": 1.0,
     "weight_cleanser": 1.0,
     "weight_spreadshot": 0.75,
-    "weight_overdrive": 0.5
+    "weight_overdrive": 0.5,
+    "size": 20.0
   },
-
   "combo": {
     "window": 1.5,
     "bonus_per_step": 0.1,
     "max_steps": 9
   },
-
   "bunker": {
     "regen_interval": 4.0,
     "regen_per_tick": 3,
     "patrol_amplitude": 14.0,
     "patrol_speed": 0.8
   },
-
   "anim": {
     "idle_bob_amplitude": 2.5,
     "idle_bob_frequency": 2.2,
@@ -144,9 +157,9 @@
     "idle_phase_step": 0.4,
     "boss_idle_bob_amplitude": 4.0,
     "boss_idle_bob_frequency": 1.2,
-    "boss_idle_scale_amplitude": 0.03
+    "boss_idle_scale_amplitude": 0.03,
+    "particle_gravity": 260.0
   },
-
   "dda": {
     "step_up": 0.04,
     "step_down": 0.12,
@@ -154,7 +167,6 @@
     "max_mul": 1.3,
     "struggle_threshold": 2
   },
-
   "upgrades": {
     "move_speed_mul": 1.08,
     "bonus_score": 1000

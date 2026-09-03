@@ -222,6 +222,13 @@ nâng cấp thành hàng đợi có timestamp — chưa cần ở quy mô hiện
 
 ## 6. Data-Driven: ranh giới `constexpr` vs `inline`
 
+Bất biến của phía `inline`: **mọi** hằng `inline` đều phải nạp được từ `balance.json` -
+tức có 1 dòng `Assign()` trong `config.cpp` và 1 key trong file JSON. Từng có 17/118 hằng
+không thoả (kích thước/hitbox của Kamikaze/Weaver/Bomber/UFO/Boss, `POWERUP_SIZE`,
+`PARTICLE_GRAVITY`, dải độ cao spawn Weaver), nên quy ước ở mục này chỉ đúng trên giấy với
+14% số hằng. Hiện là 118/118; `test_balance_config.cpp` khoá lại nhóm kích thước để nó
+không âm thầm rơi ra lần nữa.
+
 `Palette::` (`palette.h`) nằm hẳn ở phía `constexpr`: màu là dữ liệu **trình bày**, không
 phải dữ liệu cân bằng, nên có chủ đích KHÔNG có mặt trong `assets/balance.json` /
 `Config::LoadBalance()`. Đổi màu = sửa `palette.h` rồi build lại, giống `SCREEN_W` hay
