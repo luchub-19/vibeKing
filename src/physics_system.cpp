@@ -167,6 +167,7 @@ void PhysicsSystem::UpdateEnemies(GameManager& gm, float dt) {
         gm.audio.PlayWaveClear();
         gm.wave++;
         gm.lastSubmitResult = gm.leaderboard.TrySubmit(gm.player.GetScore(), gm.wave);
+        gm.OnWaveCleared(false);
         gm.RequestTransition(GameState::WAVE_CLEAR);
         return;
     }

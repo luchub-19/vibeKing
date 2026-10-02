@@ -87,6 +87,7 @@ namespace Config {
     // - la file save DUY NHAT khong di qua nhom ham nay, nen test/tooling muon doi cho no
     // ghi ra khong co diem bam nao.
     inline const char* MetaProgressFilePath() { return "meta_progress.dat"; }
+    inline const char* AchievementsFilePath() { return "achievements.dat"; }
     inline const char* LevelConfigFilePath() { return "level.cfg"; }
     inline const char* SettingsFilePath() { return "settings.cfg"; }
     inline const char* FontFilePath() { return "assets/fonts/DejaVuSansMono.ttf"; }
@@ -391,6 +392,12 @@ namespace Config {
     constexpr float WAVE_BANNER_DURATION = 1.8f;
     constexpr float WAVE_BANNER_FADE     = 0.7f;
     constexpr float HUD_HINT_FADE     = 1.5f; // Giay CUOI trong so tren duoc dung de mo dan ve 0 thay vi bien mat dot ngot
+
+    // TOAST THANH TUU: thoi luong hien 1 thong bao "ACHIEVEMENT UNLOCKED", va so giay o 2 dau
+    // dung de truot vao/ra. Nhieu thanh tuu mo cung luc (vd frame dau ha boss: GIANT SLAYER
+    // + UNTOUCHABLE) xep hang hien LAN LUOT, khong chong len nhau - xem GameManager::toastQueue.
+    constexpr float ACHIEVEMENT_TOAST_DURATION = 3.0f;
+    constexpr float ACHIEVEMENT_TOAST_SLIDE    = 0.25f;
 
     // Chieu cao TOI DA cua cum HUD goc tren-trai. PHAI nho hon LevelGridConfig::startY
     // (level.cfg, mac dinh 50) - neu khong, panel se de len hang dich TREN CUNG cua doi

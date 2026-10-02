@@ -91,6 +91,12 @@ public:
     // noi, neu khong doi RATE hay them lam tron/bonus sau nay se lam 2 cho lech nhau.
     int AwardCurrency(int scoreThisRun);
 
+    // Cong thang `amount` CR (khong qua cong thuc quy doi diem) roi luu file ngay - dung cho
+    // phan thuong thanh tuu (achievements.h). Chi goi tu GameManager::PayOutAchievementBonus(),
+    // tai cung thoi diem ket thuc van voi AwardCurrency() - xem ly do o achievements.h.
+    // amount <= 0 -> khong lam gi, ke ca khong ghi file.
+    void AddBonusCurrency(int amount);
+
     // Thu mo khoa 1 loadout: neu CHUA mo khoa truoc do VA du currency thi tru currency +
     // bat co unlocked tuong ung + luu file ngay (giong TrySubmit cua Leaderboard - moi
     // thay doi trang thai deu duoc ghi xuong dia ngay lap tuc, khong dem den lan Save()

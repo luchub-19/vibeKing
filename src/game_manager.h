@@ -12,6 +12,7 @@
 #include "audio_system.h"
 #include "leaderboard.h"
 #include "meta_progress.h"
+#include "achievements.h"
 #include "settings.h"
 #include "player.h"
 #include "enemy_types.h"
@@ -24,7 +25,7 @@
 #include "events.h"
 #include "localization.h"
 
-enum class GameState { MENU, PLAYING, PAUSED, GAME_OVER, WAVE_CLEAR, KEYBIND };
+enum class GameState { MENU, PLAYING, PAUSED, GAME_OVER, WAVE_CLEAR, KEYBIND, ACHIEVEMENTS };
 enum class TransitionPhase { NONE, FADE_OUT, FADE_IN };
 
 // ==========================================
@@ -182,6 +183,40 @@ private:
     int runBestCombo = 0;        // Bac combo cao nhat dat duoc, cap nhat trong ApplyComboAndScore()
     int runCurrencyEarned = 0;   // Gia tri TRA VE cua metaProgress.AwardCurrency() - khong tu tinh lai cong thuc quy doi
     float endScreenTimer = 0.0f; // Dem LEN tu 0 khi vao GAME_OVER - dung cho hieu ung chay so cua bang tong ket
+
+    // ==========================================
+    // THANH TUU - xem achievements.h. 3 nhom field, moi nhom reset o 1 cho khac nhau (xem
+    // muc "Trang thai chi song trong 1 van vs 1 wave" trong CLAUDE.md):
+    //   - `achievements`: XUYEN VAN, nap/luu file nhu metaProgress, khong bao gio reset.
+    //   - `runAchievementBonus`: theo VAN. CR thuong cua thanh tuu vua mo trong van nay,
+    //     CHUA cong vao metaProgress - tra 1 lan qua PayOutAchievementBonus() luc ket thuc
+    //     van, vi currency chi duoc vao vi tai DUNG 1 thoi diem (co test khoa "WAVE_CLEAR
+    //     khong cong currency").
+    //   - `waveLivesLost`: theo WAVE. So mang mat trong wave hien tai, de xet UNTOUCHABLE.
+    //     KHONG dung lai ddaLivesLostSinceCheck - bien do reset theo chu ky BOSS (5 wave),
+    //     dung no thi wave 2-4 khong bao gio "sach" neu wave 1 da mat mang.
+    // ==========================================
+    AchievementProgress achievements;
+    int runAchievementBonus = 0;
+    int waveLivesLost = 0;
+    // Thanh tuu vua mo, cho hien toast LAN LUOT (phan tu dau la cai dang hien). toastTimer
+    // dem LEN tu 0 cho phan tu dau, du Config::ACHIEVEMENT_TOAST_DURATION thi bo no di.
+    std::vector<AchievementId> toastQueue;
+    float toastTimer = 0.0f;
+
+    // Gom so lieu hien tai thanh AchievementSnapshot, mo khoa cai nao dat, xep toast + cong
+    // don thuong vao runAchievementBonus. Goi moi frame tu UpdatePlaying() (2 co = false), va
+    // tu OnWaveCleared() voi 2 co su kien that su.
+    void CheckAchievements(bool bossDefeated, bool flawlessClear);
+    // DIEM CHUNG cua ca 2 duong WAVE_CLEAR (doi hinh sach o PhysicsSystem::UpdateEnemies(),
+    // boss guc o UpdatePlaying()) - goi SAU wave++ de waveReached la wave sap choi, giong
+    // dung quy uoc leaderboard.TrySubmit() ngay truoc no.
+    void OnWaveCleared(bool bossDefeated);
+    void SyncLivesLost(); // Cong mang vua mat vao ddaLivesLostSinceCheck + waveLivesLost - xem game_manager.cpp
+    // Chuyen runAchievementBonus vao metaProgress (luu file), tra ve so CR vua chuyen, dat ve 0.
+    int PayOutAchievementBonus();
+    void UpdateToasts(float dt);
+    void UpdateAchievementsScreen(); // Man ACHIEVEMENTS - vao/ra tu MENU bang TAB
 
     // COMBO SCORE: ha guc lien tiep trong Config::COMBO_WINDOW giay se duoc nhan diem.
     float comboTimer = 0.0f;

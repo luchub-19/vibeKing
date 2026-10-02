@@ -43,6 +43,7 @@ struct MenuInput {
     bool OpenKeybinds = false;         // KEY_K - chi co y nghia luc dang PAUSED (xem UpdateKeybindScreen)
     bool CycleLoadoutLeft = false;     // KEY_Q - chi co y nghia luc dang MENU (xem UpdateMenu/DrawLoadoutSelect)
     bool CycleLoadoutRight = false;    // KEY_E - chi co y nghia luc dang MENU
+    bool OpenAchievements = false;     // KEY_TAB / gamepad SELECT - mo/dong man ACHIEVEMENTS tu MENU (xem UpdateAchievementsScreen)
 };
 
 class InputSystem {
@@ -102,6 +103,7 @@ public:
         m.OpenKeybinds          = IsKeyPressed(KEY_K);
         m.CycleLoadoutLeft      = IsKeyPressed(KEY_Q);
         m.CycleLoadoutRight     = IsKeyPressed(KEY_E);
+        m.OpenAchievements      = IsKeyPressed(KEY_TAB);
 
         if (IsGamepadAvailable(0)) {
             if (IsGamepadButtonPressed(0, GAMEPAD_BUTTON_LEFT_FACE_LEFT))   m.CycleDifficultyLeft  = true;
@@ -111,6 +113,7 @@ public:
             if (IsGamepadButtonPressed(0, GAMEPAD_BUTTON_RIGHT_FACE_DOWN))  m.Confirm    = true;
             if (IsGamepadButtonPressed(0, GAMEPAD_BUTTON_RIGHT_FACE_LEFT))  m.Restart    = true;
             if (IsGamepadButtonPressed(0, GAMEPAD_BUTTON_MIDDLE_RIGHT))     m.PauseToggle = true;
+            if (IsGamepadButtonPressed(0, GAMEPAD_BUTTON_MIDDLE_LEFT))      m.OpenAchievements = true; // Select/Back
         }
         return m;
     }

@@ -55,8 +55,8 @@ chạy từ gốc repo là 2 bộ save/asset khác nhau:
 
 Cần `assets/` (font/sprite/shader/balance.json) và `level.cfg` ở cwd; thiếu thì game vẫn
 chạy được với giá trị mặc định (fallback có chủ đích, không crash) nhưng khác hẳn cấu hình
-thật. `settings.cfg`/`leaderboard.dat`/`meta_progress.dat` được ghi ra chính cwd đó và đều
-nằm trong `.gitignore`.
+thật. `settings.cfg`/`leaderboard.dat`/`meta_progress.dat`/`achievements.dat` được ghi ra chính
+cwd đó và đều nằm trong `.gitignore`.
 
 ## Test
 
@@ -135,8 +135,8 @@ cmake --build build-strict -j"$(nproc)"
   designer chỉnh `balance.json` thì không có gì xảy ra, không báo lỗi. Kiểm nhanh bằng cách
   đối chiếu tên `inline` trong `config.h` với các tên `Config::XXX` xuất hiện trong
   `config.cpp`; hiện đang 118/118.
-- **Ghi file atomic + checksum**: `Leaderboard`/`MetaProgress`/`Settings` đều ghi ra
-  `<path>.tmp` rồi `AtomicFile::Replace()` (atomic_file.h); 2 cái đầu có checksum chống
+- **Ghi file atomic + checksum**: `Leaderboard`/`MetaProgress`/`AchievementProgress`/`Settings`
+  đều ghi ra `<path>.tmp` rồi `AtomicFile::Replace()` (atomic_file.h); 3 cái đầu có checksum chống
   sửa tay (xem save_checksum.h). Theo mẫu này nếu thêm hệ thống lưu file mới. **Đừng gọi
   thẳng `std::rename()`**: trên Windows nó từ chối ghi đè file đã tồn tại, nên mọi lần lưu
   sau lần đầu thất bại im lặng (đã xảy ra với cả 3 file save).
@@ -188,9 +188,12 @@ cũng tự no-op (raylib tự kiểm tra `IsSoundValid()` nội bộ), không cr
 
 - **Theo VÁN** - chỉ reset ở nhánh `newGame == true`: `runKills`/`runBestCombo`/
   `runCurrencyEarned` (bảng tổng kết Game Over), `hintTimer` (gợi ý phím, chỉ hiện cho
-  người chơi mới), và bộ DDA (`ddaSpeedMul`/`ddaLivesLostSinceCheck`/`ddaLastKnownLives`).
+  người chơi mới), bộ DDA (`ddaSpeedMul`/`ddaLivesLostSinceCheck`/`ddaLastKnownLives`), và
+  `runAchievementBonus` (CR thưởng thành tựu chờ trả - được TRẢ chứ không chỉ xoá: xem dưới).
 - **Theo WAVE** - reset ở CẢ 2 nhánh: mọi pool địch, bullet/particle/power-up, combo,
-  `waveBannerTimer` (banner phải hiện lại mỗi wave), `enemySpeed`/`waveFireRateMul`.
+  `waveBannerTimer` (banner phải hiện lại mỗi wave), `enemySpeed`/`waveFireRateMul`,
+  `waveLivesLost` (xét thành tựu UNTOUCHABLE - KHÔNG dùng lại `ddaLivesLostSinceCheck`, biến
+  đó reset theo chu kỳ boss 5 wave).
 
 Đặt nhầm nhóm không gây lỗi build và test cũ vẫn xanh - nó chỉ hiện ra dưới dạng "sao
 banner không hiện lại ở wave 2" hoặc "sao tổng kết đếm cả ván trước". Có test khoá riêng
@@ -205,6 +208,18 @@ Hàm này **idempotent** (cờ `gameOverTriggered`): `RequestTransition()` khôn
 ngay, nên guard `if (state != PLAYING) return` trong `UpdatePlaying()` KHÔNG chặn được
 trường hợp đội hình chạm đáy và người chơi hết mạng trong cùng một frame - thiếu cờ đó thì
 currency bị cộng 2 lần.
+
+**Mọi đường WAVE_CLEAR phải gọi `GameManager::OnWaveCleared()`** (sau `wave++`): hiện có 2
+đường (đội hình sạch trong `PhysicsSystem::UpdateEnemies()`, boss gục trong
+`UpdatePlaying()`). Hàm đó xét thành tựu theo sự kiện (GIANT SLAYER/UNTOUCHABLE) và tự gọi
+`SyncLivesLost()` trước - đường của `UpdateEnemies()` chạy TRƯỚC điểm ghi nhận mạng mất
+thường lệ trong frame, thiếu bước này thì mạng vừa mất lọt qua và UNTOUCHABLE mở sai.
+
+**CR vào ví ở ĐÚNG 1 nhịp - kết thúc ván.** Thưởng thành tựu mở giữa ván dồn vào
+`runAchievementBonus`, trả qua `PayOutAchievementBonus()` tại `TriggerGameOver()` (cộng vào
+`runCurrencyEarned`), ở `InitLevel(true)` (bỏ ván giữa chừng bằng R) và lúc đóng cửa sổ.
+Đừng gọi `metaProgress.AddBonusCurrency()` ngay lúc mở khoá - sẽ phá test khoá "WAVE_CLEAR
+không cộng currency".
 
 Lịch sử: trước 2026-09-03 có 2 đường GAME_OVER làm 2 việc khác nhau - hết mạng thì được
 CR, đội hình chạm đáy thì không. `AwardCurrency()` vẫn KHÔNG được gọi khi WAVE_CLEAR (dọn

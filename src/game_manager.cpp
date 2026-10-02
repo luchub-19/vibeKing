@@ -46,9 +46,80 @@ void GameManager::TriggerGameOver() {
 
     audio.PlayGameOver();
     lastSubmitResult = leaderboard.TrySubmit(player.GetScore(), wave);
-    runCurrencyEarned = metaProgress.AwardCurrency(player.GetScore()); // Giu lai de bang tong ket hien "+N CR"
+    // Giu lai de bang tong ket hien "+N CR" - gom CA thuong thanh tuu dong trong van, de con
+    // so "CURRENCY EARNED" khop dung so CR vua vao vi (xem runAchievementBonus).
+    runCurrencyEarned = metaProgress.AwardCurrency(player.GetScore()) + PayOutAchievementBonus();
+    achievements.Flush(); // Luu lifetimeKills cua van vua xong
     endScreenTimer = 0.0f; // Bat dau lai hieu ung chay so cua bang tong ket
     RequestTransition(GameState::GAME_OVER);
+}
+
+// ==========================================
+// THANH TUU - xem achievements.h (danh sach + ly do thuong CR tra cuoi van) va khoi field
+// trong game_manager.h (3 pham vi reset khac nhau).
+// ==========================================
+void GameManager::CheckAchievements(bool bossDefeated, bool flawlessClear) {
+    AchievementSnapshot snap;
+    snap.lifetimeKills = achievements.GetLifetimeKills();
+    snap.runBestCombo = runBestCombo;
+    snap.waveReached = wave;
+    snap.score = player.GetScore();
+    snap.bossDefeated = bossDefeated;
+    snap.flawlessClear = flawlessClear;
+
+    for (AchievementId id : achievements.Evaluate(snap)) {
+        runAchievementBonus += GetAchievementDescriptor(id).rewardCurrency;
+        if (toastQueue.empty()) toastTimer = 0.0f; // Toast dau tien cua 1 dot moi - bat dau tu dau hieu ung truot vao
+        toastQueue.push_back(id);
+        audio.PlayPickup(); // Tai dung tieng nhat do - cung ngu nghia "vua nhan duoc phan thuong"
+    }
+}
+
+void GameManager::OnWaveCleared(bool bossDefeated) {
+    // Dong bo mang mat TRUOC khi xet UNTOUCHABLE: duong WAVE_CLEAR cua PhysicsSystem::
+    // UpdateEnemies() chay TRUOC diem SyncLivesLost() thuong le trong UpdatePlaying(), nen
+    // mang vua mat ma chua kip ghi nhan se lot qua - wave "sach" voi 0 mang con lai. Goi lai
+    // o day an toan vi SyncLivesLost() chi cong phan CHENH LECH (lan goi sau trong frame = 0).
+    SyncLivesLost();
+    CheckAchievements(bossDefeated, waveLivesLost == 0);
+}
+
+// DYNAMIC DIFFICULTY ADJUSTMENT + UNTOUCHABLE: cong don so mang mat ke tu lan goi truoc vao
+// chu ky Boss hien tai (DDA) va wave hien tai (thanh tuu). So sanh CHENH LECH voi
+// ddaLastKnownLives thay vi moc vao tung diem va cham rieng le trong PhysicsSystem
+// (TakeDamage() duoc goi tu ca CheckCollisions lan UpdateKamikaze) - 1 diem ghi nhan DUY
+// NHAT gon hon nhieu. Chi cong don khi GIAM (mat mang) - tang (vd +1 mang tu moc diem, xem
+// Player::AddScore) khong bi tinh nham la "mat mang".
+void GameManager::SyncLivesLost() {
+    int currentLives = player.GetLives();
+    if (currentLives < ddaLastKnownLives) {
+        ddaLivesLostSinceCheck += (ddaLastKnownLives - currentLives);
+        waveLivesLost += (ddaLastKnownLives - currentLives); // Cung 1 diem ghi nhan, khac pham vi reset (wave vs chu ky boss)
+    }
+    ddaLastKnownLives = currentLives;
+}
+
+int GameManager::PayOutAchievementBonus() {
+    int paid = runAchievementBonus;
+    runAchievementBonus = 0;
+    metaProgress.AddBonusCurrency(paid); // Tu no-op khi paid <= 0
+    return paid;
+}
+
+void GameManager::UpdateToasts(float dt) {
+    if (toastQueue.empty()) return;
+    toastTimer += dt;
+    if (toastTimer >= Config::ACHIEVEMENT_TOAST_DURATION) {
+        toastQueue.erase(toastQueue.begin()); // Toi da vai phan tu - erase dau vector la re
+        toastTimer = 0.0f;
+    }
+}
+
+// Vao tu MENU (TAB), ra bang TAB/ESC/ENTER - doi `state` thang khong qua fade, giong cap
+// PAUSED <-> KEYBIND: day la 1 trang "xem thong tin" cung boi canh menu, khong phai chuyen canh.
+void GameManager::UpdateAchievementsScreen() {
+    MenuInput input = InputSystem::PollMenu(settings);
+    if (input.OpenAchievements || input.PauseToggle || input.Confirm) state = GameState::MENU;
 }
 
 // ==========================================
@@ -65,6 +136,10 @@ void GameManager::SaveSettings() {
 // ==========================================
 void GameManager::InitLevel(bool newGame) {
     if (newGame) {
+        // Van truoc bi bo giua chung (R) thi chua di qua TriggerGameOver(): thuong thanh tuu
+        // da mo van phai duoc tra, khong mat theo van. Sau GAME_OVER thi bonus da = 0, no-op.
+        PayOutAchievementBonus();
+        achievements.Flush();
         wave = 1;
         player.Reset();
         // DDA (Track B2): dong bo lai theo mang THAT SU cua player vua Reset(), khong dung
@@ -108,6 +183,7 @@ void GameManager::InitLevel(bool newGame) {
     powerUps.Reset();
     comboTimer = 0.0f;
     comboCount = 0;
+    waveLivesLost = 0;    // UNTOUCHABLE xet tung wave rieng - xem game_manager.h
     hitStop.Reset();      // Dong bang con sot lai tu wave truoc se lam frame dau cua wave moi bi dung hinh
     selectedUpgrade = 0;  // Con tro chon nang cap luon bat dau tu muc dau, khong nho lua chon cua wave truoc
     ufoActive = false;
@@ -432,6 +508,7 @@ void GameManager::UpdateMenu() {
     }
 
     if (input.ToggleFullscreen) ToggleFullscreen();
+    if (input.OpenAchievements) { state = GameState::ACHIEVEMENTS; return; }
 
     if (input.Confirm) {
         InitLevel(true);
@@ -612,15 +689,8 @@ void GameManager::UpdatePlaying(float dt) {
     PhysicsSystem::CheckCollisions(*this);
     ProcessEvents(); // Xu ly tach biet moi hieu ung/he qua ma CheckCollisions() vua ghi nhan
 
-    // DYNAMIC DIFFICULTY ADJUSTMENT: cong don so mang mat trong frame nay (neu co) vao
-    // chu ky Boss hien tai. So sanh CHENH LECH voi ddaLastKnownLives thay vi moc vao tung
-    // diem va cham rieng le trong PhysicsSystem (TakeDamage() duoc goi tu ca
-    // CheckCollisions lan UpdateKamikaze) - 1 diem ghi nhan DUY NHAT o day gon hon nhieu.
-    // Chi cong don khi GIAM (mat mang) - tang (vd +1 mang tu moc diem, xem Player::AddScore)
-    // khong bi tinh nham la "mat mang".
-    int currentLives = player.GetLives();
-    if (currentLives < ddaLastKnownLives) ddaLivesLostSinceCheck += (ddaLastKnownLives - currentLives);
-    ddaLastKnownLives = currentLives;
+    SyncLivesLost();
+    CheckAchievements(false, false); // Kill/combo/diem/wave - re (vai phep so sanh), chi ghi dia khi co cai moi mo
 
     // BOSS DEFEAT: dung CHUNG dinh nghia "con song" voi moi pool khac (Size()>0) - khong
     // con bool `bossActive` rieng phai kiem tra dong bo voi hp.
@@ -644,6 +714,7 @@ void GameManager::UpdatePlaying(float dt) {
 
         wave++;
         lastSubmitResult = leaderboard.TrySubmit(player.GetScore(), wave);
+        OnWaveCleared(true);
 
         // DYNAMIC DIFFICULTY ADJUSTMENT: CHECKPOINT moi chu ky Boss (khong phai moi wave
         // thuong) - doc lai ddaLivesLostSinceCheck vua cong don o tren de dieu chinh
@@ -730,6 +801,7 @@ void GameManager::ProcessEvents() {
         if (ev.shakeDuration > 0.0f) screenShake.Trigger(ev.shakeDuration, ev.shakeIntensity);
         if (ev.scoreValue > 0) {
             runKills++; // Moi event co diem la 1 lan ha guc (gom ca UFO/Boss) - xem bang tong ket Game Over
+            achievements.AddKills(1); // Cung dinh nghia "ha guc" voi runKills, cong don tron doi (FIRST CONTACT/EXTERMINATOR)
             ApplyComboAndScore(ev.scoreValue, ev.position);
         }
         if (ev.dropPowerUp) MaybeDropPowerUp(ev.position);
@@ -801,6 +873,7 @@ void GameManager::Run() {
     sprites.Load();
     leaderboard.Load(Config::LeaderboardFilePath());
     metaProgress.Load(Config::MetaProgressFilePath());
+    achievements.Load(Config::AchievementsFilePath());
     levelGrid = LevelGridConfig::LoadFromFile(Config::LevelConfigFilePath());
 
     // FONT: LoadFontEx rasterize toan bo glyph thanh 1 texture atlas duy nhat NGAY LUC
@@ -853,6 +926,7 @@ void GameManager::Run() {
         if (InputSystem::PollDebugOverlayToggle()) showDebugOverlay = !showDebugOverlay;
 
         UpdateTransition(dt);
+        UpdateToasts(dt); // Ngoai `frozen`: toast la lop phu doc lap voi state, van chay het qua fade/chuyen canh
         // Khi dang fade, dong bang gameplay de khong update/collision trong luc man hinh dang mo dan
         bool frozen = (transitionPhase != TransitionPhase::NONE);
 
@@ -863,6 +937,7 @@ void GameManager::Run() {
                 case GameState::WAVE_CLEAR: UpdateEndScreen(); break;
                 case GameState::PAUSED:     UpdatePaused(); break;
                 case GameState::KEYBIND:    UpdateKeybindScreen(); break;
+                case GameState::ACHIEVEMENTS: UpdateAchievementsScreen(); break;
                 case GameState::PLAYING:    UpdatePlaying(dt); break;
             }
         }
@@ -881,7 +956,10 @@ void GameManager::Run() {
             case GameState::PLAYING:
             case GameState::PAUSED:
             case GameState::KEYBIND: RenderSystem::DrawPlaying(*this); break;
+            case GameState::ACHIEVEMENTS: RenderSystem::DrawAchievements(*this); break;
         }
+        RenderSystem::DrawAchievementToast(*this); // Tren noi dung moi state, duoi lop fade
+
 
         float alpha = GetTransitionAlpha();
         if (alpha > 0.0f) {
@@ -917,6 +995,11 @@ void GameManager::Run() {
 
         EndDrawing();
     }
+
+    // Dong cua so giua van: van tra thuong thanh tuu da mo + luu lifetimeKills, cung ly do
+    // voi nhanh newGame cua InitLevel() - phan thuong da "kiem duoc", khong mat theo van bo do.
+    PayOutAchievementBonus();
+    achievements.Flush();
 
     UnloadRenderTexture(renderTarget);
     postProcess.Shutdown();

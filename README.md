@@ -40,6 +40,12 @@ Rapid Fire sẵn). Bảng **Top 10** lưu kèm wave đạt được. Kết thúc
 kết**: điểm, wave, số địch hạ, combo cao nhất, CR vừa kiếm được, tổng CR, và thanh tiến độ
 tới lần mở khoá kế tiếp.
 
+**Thành tựu.** 8 thành tựu (hạ địch đầu tiên, combo x10, tới wave 5/10, hạ boss, dọn sạch
+1 wave không mất mạng, 25.000 điểm, 1.000 địch trọn đời) - mỗi cái thưởng thêm CR. Mở khoá
+giữa ván thì hiện thông báo trượt xuống đầu màn hình; phần CR thưởng được trả cùng lúc với
+CR quy đổi từ điểm khi ván kết thúc (nên con số "CURRENCY EARNED" ở bảng tổng kết đã gồm
+cả hai). Xem danh sách + tiến độ bằng `Tab` trong menu.
+
 **Độ khó.** Chọn EASY/NORMAL/HARD trong menu, và bên trên đó còn một tầng **DDA** (dynamic
 difficulty adjustment) tự điều chỉnh: mỗi lần hạ Boss, game xem bạn mất bao nhiêu mạng
 trong chu kỳ vừa rồi rồi nhích tốc độ/nhịp bắn của địch lên hoặc xuống.
@@ -108,9 +114,9 @@ Nếu muốn chạy từ trong `build/` thì phải copy `assets/` (font, sprite
 cd build && cp -r ../assets ../level.cfg . && ./space_invaders
 ```
 
-Các file save (`settings.cfg`, `leaderboard.dat`, `meta_progress.dat`) được **ghi ra chính
-thư mục đang chạy** — nên chạy từ gốc repo và chạy từ `build/` là hai bộ save khác nhau.
-Cả ba đều tuỳ chọn và đều nằm trong `.gitignore`; thiếu thì game bắt đầu từ trạng thái
+Các file save (`settings.cfg`, `leaderboard.dat`, `meta_progress.dat`, `achievements.dat`)
+được **ghi ra chính thư mục đang chạy** — nên chạy từ gốc repo và chạy từ `build/` là hai
+bộ save khác nhau. Cả bốn đều tuỳ chọn và đều nằm trong `.gitignore`; thiếu thì game bắt đầu từ trạng thái
 trắng, không crash.
 
 ## Điều khiển
@@ -128,6 +134,7 @@ trắng, không crash.
 | Trái/Phải | Trong MENU: đổi độ khó. Ở màn hình WAVE CLEAR: chọn nâng cấp |
 | `Q` / `E` | Trong MENU: đổi loadout (dừng trên loadout đang khoá mà đủ currency thì tự mở khoá luôn) |
 | Lên/Xuống | Tăng/giảm âm lượng (menu và lúc Pause) |
+| `Tab` | Trong MENU: mở/đóng màn hình thành tựu (`Esc`/`Enter` cũng quay lại) |
 
 Màn hình đổi phím (`K` lúc Pause): bấm `1`-`4` để chọn hành động, rồi bấm phím mới muốn
 gán. `0` hoặc `R` khôi phục cả 4 về mặc định. `Esc` để huỷ/quay lại. Phím hệ thống
@@ -136,7 +143,7 @@ khỏi menu. Lưu lại vào `settings.cfg`, còn nguyên sau khi tắt/mở l�
 
 Có hỗ trợ tay cầm (gamepad) nếu cắm sẵn - hoạt động ở cả lúc chơi (stick trái/D-pad di
 chuyển, A/Cross bắn) lẫn menu/pause/end-screen (D-pad đổi độ khó/âm lượng, A/Cross xác
-nhận, X/Square chơi lại, Start tạm dừng). Màn hình đổi phím bàn phím ở trên và `F11`
+nhận, X/Square chơi lại, Start tạm dừng, Select mở màn hình thành tựu). Màn hình đổi phím bàn phím ở trên và `F11`
 (fullscreen) là 2 chỗ còn giới hạn bàn phím.
 
 ## Tài nguyên

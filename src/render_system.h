@@ -30,6 +30,11 @@ public:
     static void DrawEndScreen(const GameManager& gm);
     static void DrawPlaying(const GameManager& gm);
     static void DrawHUD(const GameManager& gm);
+    // Man ACHIEVEMENTS (vao tu Menu bang TAB) va toast "ACHIEVEMENT UNLOCKED" - toast ve o
+    // MOI state (goi rieng trong GameManager::Run(), ngoai switch-case state) vi thanh tuu co
+    // the mo dung luc chuyen canh sang WAVE_CLEAR/GAME_OVER.
+    static void DrawAchievements(const GameManager& gm);
+    static void DrawAchievementToast(const GameManager& gm);
 
     // OBSERVABILITY / PROFILING OVERLAY: FPS, frame time, RAM tien trinh thuc te (xem
     // process_metrics.h), va so luong entity dang song trong tung pool - bat/tat bang

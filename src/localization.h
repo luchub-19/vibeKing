@@ -67,6 +67,17 @@ namespace Loc {
     constexpr const char* RebindPromptFmt = "Press new key for '%s'... (ESC to cancel)";
     constexpr const char* KeybindHelp = "Press 1-4 to rebind a key.  0 or R: reset to default.  ESC: back";
 
+    // --- Thanh tuu (RenderSystem::DrawAchievements / DrawAchievementToast / DrawMenu).
+    // Ten + mo ta tung thanh tuu KHONG o day ma o GetAchievementDescriptor() (achievements.cpp),
+    // canh nguong/phan thuong cua chinh no - xem ly do 1-nguon o achievements.h. ---
+    constexpr const char* AchievementsTitle = "ACHIEVEMENTS";
+    constexpr const char* AchievementsSummaryFmt = "%d/%d UNLOCKED   LIFETIME KILLS: %d";
+    constexpr const char* AchievementsBackHint = "TAB / ESC / ENTER: BACK";
+    constexpr const char* AchievementUnlockedTag = "ACHIEVEMENT UNLOCKED";
+    constexpr const char* AchievementUnlockedState = "UNLOCKED";
+    // %d/%d = thanh tuu da mo / tong so
+    constexpr const char* MenuAchievementsHintFmt = "TAB: ACHIEVEMENTS (%d/%d)";
+
     // --- HUD (RenderSystem::DrawHUD) ---
     constexpr const char* ShieldTag = "SHIELD!";
     constexpr const char* BossIncomingHint = "INCOMING";

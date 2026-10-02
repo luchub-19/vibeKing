@@ -155,7 +155,9 @@ void RenderSystem::DrawMenu(const GameManager& gm) {
     canvas.Panel(startRect, Color{ 16, 16, 26, 180 }, Fade(YELLOW, 0.6f + 0.4f * startPulse), 2.0f + startPulse);
     canvas.CenteredText(Config::SCREEN_W / 2, 496, 20, WHITE, "PRESS ENTER TO START");
 
-    canvas.CenteredText(Config::SCREEN_W / 2, 548, 14, GRAY, "ARROWS / Q,E: ADJUST");
+    canvas.CenteredText(Config::SCREEN_W / 2, 548, 14, GRAY,
+                        std::string("ARROWS / Q,E: ADJUST   ")
+                        + TextFormat(Loc::MenuAchievementsHintFmt, gm.achievements.UnlockedCount(), ACHIEVEMENT_COUNT));
     canvas.CenteredText(Config::SCREEN_W / 2, 568, 14, GRAY, Loc::MenuFullscreenHint);
 
     canvas.Draw(gm.gameFont);
@@ -680,6 +682,87 @@ void RenderSystem::DrawHUD(const GameManager& gm) {
         }
     }
 
+    canvas.Draw(gm.gameFont);
+}
+
+// ==========================================
+// MAN ACHIEVEMENTS - 1 the (card) moi thanh tuu, xep doc. Mau theo dung luat LANH/NONG cua
+// palette.h: the da mo dung vien UiSuccess (giong "da mo khoa" o loadout), phan thuong CR
+// dung UiAccent (vang = phan thuong). The chua mo de mo (UiDim) nhung VAN hien ten + mo ta -
+// thanh tuu an thi nguoi choi khong biet phai nham toi dau, mat muc dich "cho 1 muc tieu".
+// ==========================================
+void RenderSystem::DrawAchievements(const GameManager& gm) {
+    UICanvas canvas;
+    const int centerX = Config::SCREEN_W / 2;
+    canvas.CenteredText(centerX, 34, 34, Palette::UiAccent, Loc::AchievementsTitle);
+    canvas.CenteredText(centerX, 76, 15, Palette::UiDim,
+                        TextFormat(Loc::AchievementsSummaryFmt, gm.achievements.UnlockedCount(),
+                                   ACHIEVEMENT_COUNT, gm.achievements.GetLifetimeKills()));
+
+    Color panelFill = Palette::UiPanelFill;
+    panelFill.a = (unsigned char)(255.0f * Config::HUD_PANEL_ALPHA);
+    const float cardX = 90.0f, cardW = (float)Config::SCREEN_W - 180.0f, cardH = 48.0f, gap = 6.0f;
+    float y = 106.0f; // 8 the x (48+6) = 432 -> ket thuc ~538, chua cho dong huong dan o 560
+
+    for (int i = 0; i < ACHIEVEMENT_COUNT; i++) {
+        AchievementId id = (AchievementId)i;
+        const AchievementDescriptor& d = GetAchievementDescriptor(id);
+        bool done = gm.achievements.IsUnlocked(id);
+
+        canvas.Panel({ cardX, y, cardW, cardH }, panelFill, done ? Palette::UiSuccess : Palette::UiPanelEdge,
+                     done ? 2.0f : Config::HUD_PANEL_BORDER_THICKNESS);
+        canvas.Text((int)cardX + 14, (int)y + 7, 17, done ? Palette::UiText : Palette::UiDim, d.name);
+        canvas.Text((int)cardX + 14, (int)y + 28, 13, Palette::UiDim, TextFormat(d.descriptionFmt, d.threshold));
+
+        // Cot phai: trang thai. 2 thanh tuu dem tron doi hien tien do that (vd 340/1000) - con
+        // lai la su kien "co/khong" trong 1 khoanh khac, khong co tien do nao de hien.
+        const int rightX = (int)(cardX + cardW - 70.0f);
+        if (done) {
+            canvas.CenteredText(rightX, (int)y + 8, 13, Palette::UiSuccess, Loc::AchievementUnlockedState);
+        } else if (id == AchievementId::FirstContact || id == AchievementId::Exterminator) {
+            int have = gm.achievements.GetLifetimeKills();
+            canvas.CenteredText(rightX, (int)y + 8, 13, Palette::UiDim, TextFormat("%d/%d", have < d.threshold ? have : d.threshold, d.threshold));
+        }
+        canvas.CenteredText(rightX, (int)y + 27, 14, done ? Fade(Palette::UiAccent, 0.5f) : Palette::UiAccent,
+                            TextFormat("+%d CR", d.rewardCurrency));
+        y += cardH + gap;
+    }
+
+    canvas.CenteredText(centerX, 562, 14, GRAY, Loc::AchievementsBackHint);
+    canvas.Draw(gm.gameFont);
+}
+
+// TOAST "ACHIEVEMENT UNLOCKED": the nho giua-tren, truot xuong tu ngoai man hinh roi truot
+// len lai. Nam DUOI dai HUD tren cung (y >= HUD_TOP_BAND_H + 6) nen khong che diem/mang/thanh
+// mau boss; co de len hang dich dau trong vai giay - chap nhan, nen panel ban trong suot.
+void RenderSystem::DrawAchievementToast(const GameManager& gm) {
+    if (gm.toastQueue.empty()) return;
+    const AchievementDescriptor& d = GetAchievementDescriptor(gm.toastQueue.front());
+
+    // 0..1 - do "da truot vao": tang dan o ACHIEVEMENT_TOAST_SLIDE giay dau, giam o cuoi.
+    float t = gm.toastTimer;
+    float remaining = Config::ACHIEVEMENT_TOAST_DURATION - t;
+    float slide = 1.0f;
+    if (t < Config::ACHIEVEMENT_TOAST_SLIDE) slide = t / Config::ACHIEVEMENT_TOAST_SLIDE;
+    else if (remaining < Config::ACHIEVEMENT_TOAST_SLIDE) slide = remaining / Config::ACHIEVEMENT_TOAST_SLIDE;
+    if (slide < 0.0f) slide = 0.0f;
+    slide = 1.0f - (1.0f - slide) * (1.0f - slide); // Ease-out: vao nhanh, cham dan khi toi cho
+
+    const float w = 360.0f, h = 50.0f;
+    const float restY = Config::HUD_TOP_BAND_H + 10.0f;
+    float y = -h + (restY + h) * slide;
+    float x = ((float)Config::SCREEN_W - w) / 2.0f;
+
+    UICanvas canvas;
+    Color fill = Palette::UiPanelFill;
+    // Alpha vua du doc chu (chu sang, vien vang) nhung VAN thay hang dich phia sau: toast de
+    // len hang dich tren cung 3 giay - ban dau de 230 thi che gan kin ca hang (thay ro trong
+    // anh chup), voi game "hardcore" do la bat loi that cho nguoi choi, khong chi tham my.
+    fill.a = 170;
+    canvas.Panel({ x, y, w, h }, fill, Palette::UiAccent, 2.0f);
+    canvas.Text((int)x + 14, (int)y + 7, 12, Palette::UiAccent, Loc::AchievementUnlockedTag);
+    canvas.Text((int)x + 14, (int)y + 24, 18, Palette::UiText, d.name);
+    canvas.CenteredText((int)(x + w - 50.0f), (int)y + 17, 16, Palette::UiAccent, TextFormat("+%d CR", d.rewardCurrency));
     canvas.Draw(gm.gameFont);
 }
 

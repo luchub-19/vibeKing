@@ -96,6 +96,14 @@ public:
     static int RunBestCombo(const GameManager& gm) { return gm.runBestCombo; }
     static int RunCurrencyEarned(const GameManager& gm) { return gm.runCurrencyEarned; }
 
+    // Thanh tuu - xem khoi field THANH TUU trong game_manager.h.
+    static AchievementProgress& AchievementsRef(GameManager& gm) { return gm.achievements; }
+    static int RunAchievementBonus(const GameManager& gm) { return gm.runAchievementBonus; }
+    static int WaveLivesLost(const GameManager& gm) { return gm.waveLivesLost; }
+    static const std::vector<AchievementId>& ToastQueue(const GameManager& gm) { return gm.toastQueue; }
+    static void CallUpdateToasts(GameManager& gm, float dt) { gm.UpdateToasts(dt); }
+    static void CallUpdateAchievementsScreen(GameManager& gm) { gm.UpdateAchievementsScreen(); }
+
     static BulletPool<Config::MAX_PLAYER_BULLETS>& PlayerBullets(GameManager& gm) { return gm.playerBullets; }
     static BulletPool<Config::MAX_ENEMY_BULLETS>& EnemyBullets(GameManager& gm) { return gm.enemyBullets; }
 

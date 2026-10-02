@@ -96,6 +96,12 @@ int MetaProgress::AwardCurrency(int scoreThisRun) {
     return earned;
 }
 
+void MetaProgress::AddBonusCurrency(int amount) {
+    if (amount <= 0) return;
+    totalCurrency += amount;
+    Save(filePath);
+}
+
 bool MetaProgress::TryUnlock(LoadoutType type, int cost) {
     if (type == LoadoutType::Standard || IsUnlocked(type)) return false; // Mien phi san / da mo khoa - khong lam gi
     if (totalCurrency < cost) return false; // Chua du currency

@@ -19,7 +19,7 @@ flowchart TB
     subgraph DATA["TẦNG DỮ LIỆU (DOD — Data-Oriented Design)"]
         Pools["EnemyPool / BulletPool / ParticlePool / PowerUpPool<br/>mảng tĩnh liền khối, KHÔNG hàm ảo"]
         Balance["assets/balance.json<br/>HP, tốc độ, wave pattern, hành vi Boss"]
-        Saves["settings.cfg · level.cfg · leaderboard.dat · meta_progress.dat<br/>(2 file sau có checksum)"]
+        Saves["settings.cfg · level.cfg · leaderboard.dat · meta_progress.dat · achievements.dat<br/>(3 file sau có checksum)"]
     end
 
     subgraph SYSTEMS["TẦNG SYSTEM (hành vi — GameManager là friend, không sở hữu logic)"]
@@ -211,6 +211,7 @@ nâng cấp thành hàng đợi có timestamp — chưa cần ở quy mô hiện
 | `atomic_file.h/.cpp` | `AtomicFile::Replace()` — bước "đổi tên `.tmp` đè lên file thật" của cả 3 file save; `rename(2)` trên POSIX, `MoveFileEx(REPLACE_EXISTING)` trên Windows (`std::rename()` của Windows không ghi đè được). Tách `.cpp` riêng để `<windows.h>` không đụng `raylib.h` | — |
 | `leaderboard.h/.cpp` | Top 10 điểm cao, có xác thực checksum | — |
 | `meta_progress.h/.cpp` | `MetaProgress` — currency tích luỹ xuyên nhiều lượt chơi, ghi file có checksum cùng khuôn Leaderboard; `AwardCurrency()` trả về số CR vừa cộng để màn hình tổng kết khỏi tính lại công thức quy đổi | Không gọi `AwardCurrency()` trực tiếp — mọi đường thua cuộc đi qua `GameManager::TriggerGameOver()` (điểm vào duy nhất, idempotent) |
+| `achievements.h/.cpp` | `AchievementProgress` — 8 thành tựu + số địch hạ trọn đời, ghi file có checksum cùng khuôn MetaProgress (`Save()` no-op khi chưa `Load()`). `GetAchievementDescriptor()` là 1-nguồn cho tên/mô tả/ngưỡng/thưởng; `IsAchievementMet()` thuần, test được không cần GameManager | CR thưởng KHÔNG cộng thẳng vào MetaProgress lúc mở khoá - dồn vào `runAchievementBonus`, trả qua `GameManager::PayOutAchievementBonus()` khi ván kết thúc (có test khoá "WAVE_CLEAR không cộng currency"). Thêm đường WAVE_CLEAR mới thì phải gọi `GameManager::OnWaveCleared()` |
 | `file_logger.h/.cpp` | Hook `SetTraceLogCallback` → ghi mọi `TraceLog` ra file xoay vòng | — |
 | `culling.h` | `Culling::IsVisible()` — bỏ lệnh vẽ cho thực thể ngoài camera | — |
 | `wave_generator.h/.cpp` | `WaveGenerator::Generate()` — quyết định "ô nào có địch loại gì" theo wave; hàm THUẦN, không biết `GameManager` tồn tại | Không đọc/ghi `GameManager` ở đây — `InitLevel()` mới là nơi biến `FormationSpawn` thành `EnemyPool::Spawn()` |
@@ -268,7 +269,8 @@ mạng lúc build). 2 nhóm:
   (`test_player.cpp`), `Settings` (`test_settings.cpp`), hành vi tĩnh của
   Boss (`test_boss.cpp` — hành vi ĐỘNG như dao động/triệu hồi được xác minh
   thủ công qua Xvfb, không có test tự động, xem comment đầu file đó),
-  `MetaProgress` (`test_meta_progress.cpp`).
+  `MetaProgress` (`test_meta_progress.cpp`). `test_achievements.cpp` nằm ở CẢ 2 nhóm:
+  nửa đầu thuần (`AchievementProgress`), nửa sau tích hợp qua `GameManagerTestAccess`.
 - **`GameManager`/`PhysicsSystem`** (`test_game_manager.cpp`,
   `test_physics_system.cpp`): state machine (MENU/PLAYING/GAME_OVER/
   WAVE_CLEAR + thời điểm cộng currency) và `CheckCollisions()` (1 phát chết,
