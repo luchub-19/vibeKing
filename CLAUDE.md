@@ -23,6 +23,11 @@ cmake -S raylib -B raylib/build -DCMAKE_BUILD_TYPE=Release -DBUILD_EXAMPLES=OFF 
 cmake --build raylib/build -j"$(nproc)" && cmake --install raylib/build
 ```
 
+**CI ghim đúng 5.5 - đừng chỉ build với raylib mới hơn trên máy mình.** Vài API đổi chữ ký
+giữa 5.5 và 5.6-dev (vd `DrawCircleGradient`: `(int, int, ...)` -> `(Vector2, ...)`); code
+viết theo bản mới build xanh tại máy nhưng đỏ trên CI. Từng xảy ra ở `player.cpp` - giờ rẽ
+nhánh theo `RAYLIB_VERSION_MAJOR/MINOR`. Dùng API vẽ mới thì kiểm lại header của bản 5.5.
+
 Cần thêm gói dev X11/GL (Ubuntu): `libxrandr-dev libxinerama-dev libxcursor-dev
 libxi-dev libgl1-mesa-dev libglu1-mesa-dev`. Cần GCC >= 11 (std::from_chars<float> -
 xem comment đầu CMakeLists.txt, lỗi thiếu bản GCC sẽ khó hiểu nếu không biết trước).
@@ -131,8 +136,16 @@ cmake --build build-strict -j"$(nproc)"
   đối chiếu tên `inline` trong `config.h` với các tên `Config::XXX` xuất hiện trong
   `config.cpp`; hiện đang 118/118.
 - **Ghi file atomic + checksum**: `Leaderboard`/`MetaProgress`/`Settings` đều ghi ra
-  `<path>.tmp` rồi `rename()`; 2 cái đầu có checksum chống sửa tay (xem
-  save_checksum.h). Theo mẫu này nếu thêm hệ thống lưu file mới.
+  `<path>.tmp` rồi `AtomicFile::Replace()` (atomic_file.h); 2 cái đầu có checksum chống
+  sửa tay (xem save_checksum.h). Theo mẫu này nếu thêm hệ thống lưu file mới. **Đừng gọi
+  thẳng `std::rename()`**: trên Windows nó từ chối ghi đè file đã tồn tại, nên mọi lần lưu
+  sau lần đầu thất bại im lặng (đã xảy ra với cả 3 file save).
+- **Leaderboard: 1 ván = 1 dòng**: điểm được nộp ở MỖI WAVE_CLEAR (checkpoint) và ở
+  GAME_OVER, nhưng `Leaderboard::BeginRun()` (gọi trong `InitLevel(true)`) làm các lần nộp
+  trong cùng ván cập nhật CHUNG 1 dòng. Trước đó 1 ván tới wave 10 tự lấp kín Top 10.
+- **Đạn xuyên nhớ mục tiêu đã đi qua** (`Bullet::HasPierced`, UID từ `EnemyPool::UidAt`):
+  đạn xuyên nằm chồng lên 1 địch nhiều máu thêm vài frame; không nhớ thì mỗi frame đó là 1
+  lần trúng mới. Thêm loại địch nhiều máu mới thì áp cùng mẫu như Tanky/Warden/Boss.
 
 ## Quy ước code
 

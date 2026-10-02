@@ -15,6 +15,16 @@ private:
                        // duoc theo truc Y. GIO: vel co ca 2 truc -> ho tro dan nham (aimed),
                        // dan toa tron (radial burst), hoac bat ky huong nao khac.
     int pierceRemaining = 0; // 0 = dan thuong (huy ngay khi trung 1 muc tieu)
+    // DAN XUYEN NHO "DA DI QUA CON NAO": dan xuyen qua 1 dich NHIEU MAU (Tanky/Warden/Boss)
+    // ma dich chua chet thi dan van nam CHONG LEN no them vai frame (dan 600px/s = 10px/frame,
+    // Tanky cao 30px, Boss 90px). Truoc day moi frame chong len do lai la 1 lan trung MOI:
+    // tru them 1 mau VA tieu them 1 luot xuyen - 1 vien dan xuyen ha guc Tanky 3 mau mot
+    // minh, va gay ~4 sat thuong len Boss. "Xuyen" tro thanh "nhan sat thuong" tren 1 muc
+    // tieu thay vi "di tiep toi muc tieu KHAC". Luu UID (xem NextEnemyUid, enemy_types.h) cua
+    // vai muc tieu gan nhat - du cho so luot xuyen toi da thuc te.
+    static constexpr int PIERCE_MEMORY = 4;
+    uint32_t piercedUids[PIERCE_MEMORY] = {};
+    int piercedNext = 0;
     bool active;
     uint32_t spawnSeq = 0; // Thu tu sinh ra - dung de tim "vien dan cu nhat" khi pool day
 
@@ -27,6 +37,8 @@ public:
         prevPos = { x, y }; // Frame dau tien: chua di chuyen, swept rect = rect thuong
         vel = velocity;
         pierceRemaining = pierceHits;
+        for (uint32_t& u : piercedUids) u = 0;
+        piercedNext = 0;
         active = true;
         spawnSeq = seq;
     }
@@ -119,6 +131,17 @@ public:
             return true;
         }
         return false;
+    }
+
+    // Xem giai thich piercedUids o tren. uid=0 nghia la "khong co" - khong bao gio khop.
+    bool HasPierced(uint32_t uid) const {
+        if (uid == 0) return false;
+        for (uint32_t u : piercedUids) if (u == uid) return true;
+        return false;
+    }
+    void RememberPierced(uint32_t uid) {
+        piercedUids[piercedNext] = uid;
+        piercedNext = (piercedNext + 1) % PIERCE_MEMORY;
     }
 
     // CCD (Continuous Collision Detection) tong quat cho MOI huong bay (truoc day chi

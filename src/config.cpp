@@ -236,6 +236,29 @@ namespace {
         Assign(s, "move_speed_mul", Config::UPGRADE_MOVE_SPEED_MUL);
         Assign(s, "bonus_score", Config::UPGRADE_BONUS_SCORE);
     }
+
+    // CHAN GIA TRI LAM SAP GAME. Assign() nhan moi con so dung KIEU, nhung vai hang so duoc
+    // dung lam SO CHIA/SO MODULO - designer go 0 la game chet ngay wave dau (chia nguyen
+    // cho 0 = SIGFPE, khong phai exception, try/catch o tren khong bat duoc). Trai voi triet
+    // ly "file cau hinh hong thi fallback, khong bao gio crash" cua ca he thong nay. Chi chan
+    // dung nhung gia tri gay CRASH/UB/vo cuc - con lai (vd toc do am) la quyen designer.
+    template <typename T>
+    void ClampMin(const char* name, T& target, T minValue) {
+        if (target < minValue) {
+            TraceLog(LOG_WARNING, "Balance: '%s' = %g khong hop le (toi thieu %g) - dung %g",
+                      name, (double)target, (double)minValue, (double)minValue);
+            target = minValue;
+        }
+    }
+
+    void SanitizeBalance() {
+        ClampMin("wave_progression.extra_row_every", Config::WAVE_EXTRA_ROW_EVERY, 1); // So chia trong WaveGenerator
+        ClampMin("boss.wave_interval", Config::BOSS_WAVE_INTERVAL, 1);                  // wave % x trong InitLevel(), wave / x trong SpawnBoss()
+        // ddaSpeedMul la SO CHIA cua nhip ban (stats.enemyFireRate /= ddaSpeedMul, Bomber cung
+        // vay) - san 0 thi nhip ban thanh vo cuc ngay checkpoint DDA dau tien.
+        ClampMin("dda.min_mul", Config::DDA_MIN_MUL, 0.05f);
+        ClampMin("dda.max_mul", Config::DDA_MAX_MUL, Config::DDA_MIN_MUL);
+    }
 }
 
 void Config::LoadBalance(const char* path) {
@@ -287,6 +310,7 @@ void Config::LoadBalance(const char* path) {
     safeLoad("anim", LoadAnim);
     safeLoad("dda", LoadDda);
     safeLoad("upgrades", LoadUpgrades);
+    SanitizeBalance();
 
     TraceLog(LOG_INFO, "Balance: da nap du lieu can bang tu '%s'", actualPath);
 }

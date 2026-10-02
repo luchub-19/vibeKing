@@ -752,6 +752,8 @@ void PhysicsSystem::CheckCollisions(GameManager& gm) {
             gm.tankyGrid.QueryIndices(bulletRect, candidates);
             for (int idx : candidates) {
                 if (tankyPendingKill[idx]) continue;
+                uint32_t uid = gm.tankyEnemies.UidAt(idx);
+                if (bullet.HasPierced(uid)) continue; // Dan xuyen dang di QUA con nay - khong phai 1 lan trung moi (xem bullet_pool.h)
                 TankyEnemy& e = gm.tankyEnemies[idx];
                 if (!CheckCollisionRecs(bulletRect, e.rect)) continue;
 
@@ -779,6 +781,7 @@ void PhysicsSystem::CheckCollisions(GameManager& gm) {
 
                 removed = !bullet.ConsumePierce();
                 if (removed) gm.playerBullets.Destroy(i);
+                else bullet.RememberPierced(uid);
                 consumed = true;
                 break;
             }
@@ -793,6 +796,8 @@ void PhysicsSystem::CheckCollisions(GameManager& gm) {
             gm.wardenGrid.QueryIndices(bulletRect, candidates);
             for (int idx : candidates) {
                 if (wardenPendingKill[idx]) continue;
+                uint32_t uid = gm.wardenEnemies.UidAt(idx);
+                if (bullet.HasPierced(uid)) continue; // Cung ly do voi Tanky o tren
                 WardenEnemy& e = gm.wardenEnemies[idx];
                 if (!CheckCollisionRecs(bulletRect, e.rect)) continue;
 
@@ -816,6 +821,7 @@ void PhysicsSystem::CheckCollisions(GameManager& gm) {
 
                 removed = !bullet.ConsumePierce();
                 if (removed) gm.playerBullets.Destroy(i);
+                else bullet.RememberPierced(uid);
                 consumed = true;
                 break;
             }
@@ -856,6 +862,8 @@ void PhysicsSystem::CheckCollisions(GameManager& gm) {
             gm.bossGrid.QueryIndices(bulletRect, candidates);
             for (int idx : candidates) {
                 (void)idx; // Boss luon la index 0 duy nhat, chi dung candidates de biet co trung o nao khong
+                uint32_t uid = gm.bossPool.UidAt(0);
+                if (bullet.HasPierced(uid)) continue; // Cung ly do voi Tanky - Boss cao 90px, dan xuyen tung gay ~4 sat thuong/vien
                 Boss& boss = gm.bossPool[0];
                 if (!CheckCollisionRecs(bulletRect, boss.rect)) continue;
 
@@ -896,6 +904,7 @@ void PhysicsSystem::CheckCollisions(GameManager& gm) {
 
                 removed = shielded ? true : !bullet.ConsumePierce();
                 if (removed) gm.playerBullets.Destroy(i);
+                else bullet.RememberPierced(uid);
                 consumed = true;
                 break;
             }

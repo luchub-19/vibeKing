@@ -2,6 +2,7 @@
 #include "settings.h"
 #include <cstdio>
 #include <fstream>
+#include <cmath>
 
 // ==========================================
 // SETTINGS - truoc ban sua nay chua co test nao (chi HighScore/Leaderboard co). Tap
@@ -98,4 +99,15 @@ TEST_CASE("Settings::ResetKeyBindingsToDefault() dua ca 4 phim ve dung mac dinh"
     REQUIRE(cfg.keyMoveRight == KEY_D);
     REQUIRE(cfg.keyShoot == KEY_SPACE);
     REQUIRE(cfg.keyPause == KEY_P);
+}
+
+TEST_CASE("Settings: VOLUME=nan -> ve mac dinh, khong lot qua clamp", "[settings]") {
+    CleanupGuard guard;
+    {
+        std::ofstream file(TestPath(), std::ios::trunc);
+        file << "VOLUME=nan\n";
+    }
+    Settings loaded = Settings::LoadFromFile(TestPath());
+    REQUIRE_FALSE(std::isnan(loaded.volume));
+    REQUIRE(loaded.volume == Approx(Settings{}.volume));
 }

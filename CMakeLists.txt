@@ -34,6 +34,7 @@ find_package(raylib REQUIRED)
 # incremental sau khi them file moi se ÂM THẦM thiếu file do neu khong tu tay chay lai
 # cmake configure. Them file .cpp moi -> nho them dong tuong ung vao day.
 set(SOURCES
+    src/atomic_file.cpp
     src/audio_system.cpp
     src/bunker.cpp
     src/config.cpp
@@ -99,6 +100,7 @@ if(BUILD_TESTS)
         tests/test_physics_system.cpp
         tests/test_upgrades.cpp
         tests/test_parallax.cpp
+        src/atomic_file.cpp
         src/leaderboard.cpp
         src/config.cpp
         src/bunker.cpp

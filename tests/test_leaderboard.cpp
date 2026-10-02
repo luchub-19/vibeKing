@@ -147,3 +147,65 @@ TEST_CASE("Leaderboard: van 0 diem KHONG duoc coi la ky luc va KHONG duoc ghi va
     REQUIRE(lb.TrySubmit(10, 1) == SubmitResult::NewRecord);
     REQUIRE(lb.GetEntries().size() == 1);
 }
+
+// ==========================================
+// 1 VAN = 1 DONG. Game nop diem o MOI WAVE_CLEAR roi nop lan cuoi o GAME_OVER - truoc day
+// moi lan nop la 1 dong moi, 1 van toi wave 10 tu lap kin Top 10.
+// ==========================================
+TEST_CASE("Leaderboard: nhieu lan nop trong CUNG 1 van chi giu 1 dong - dong cuoi cung", "[leaderboard][run]") {
+    CleanupGuard guard;
+    std::remove(TestPath());
+
+    Leaderboard lb;
+    lb.Load(TestPath());
+    lb.BeginRun();
+    REQUIRE(lb.TrySubmit(100, 2) == SubmitResult::NewRecord);
+    REQUIRE(lb.TrySubmit(250, 3) == SubmitResult::NewRecord);
+    REQUIRE(lb.TrySubmit(400, 3) == SubmitResult::NewRecord);
+
+    REQUIRE(lb.GetEntries().size() == 1);
+    REQUIRE(lb.GetEntries()[0].score == 400);
+    REQUIRE(lb.GetEntries()[0].wave == 3);
+
+    // File tren dia cung chi co 1 dong
+    Leaderboard reloaded;
+    reloaded.Load(TestPath());
+    REQUIRE(reloaded.GetEntries().size() == 1);
+    REQUIRE(reloaded.GetEntries()[0].score == 400);
+}
+
+TEST_CASE("Leaderboard: BeginRun() moi -> van moi co dong rieng, khong de len dong cua van truoc", "[leaderboard][run]") {
+    CleanupGuard guard;
+    std::remove(TestPath());
+
+    Leaderboard lb;
+    lb.Load(TestPath());
+    lb.BeginRun();
+    lb.TrySubmit(500, 4);
+    lb.BeginRun();
+    REQUIRE(lb.TrySubmit(300, 2) == SubmitResult::MadeTop10);
+    REQUIRE(lb.TrySubmit(350, 3) == SubmitResult::MadeTop10);
+
+    const auto& entries = lb.GetEntries();
+    REQUIRE(entries.size() == 2);
+    REQUIRE(entries[0].score == 500); // Van truoc con nguyen
+    REQUIRE(entries[1].score == 350); // Van nay: chi dong moi nhat
+}
+
+TEST_CASE("Leaderboard: van dang choi o bang DAY van cap nhat dong cua minh, khong day dong khac ra", "[leaderboard][run]") {
+    CleanupGuard guard;
+    std::remove(TestPath());
+
+    Leaderboard lb;
+    lb.Load(TestPath());
+    for (int i = 0; i < Config::LEADERBOARD_MAX_ENTRIES; i++) lb.TrySubmit((i + 1) * 100, 1); // 100..1000, khong thuoc van nao
+
+    lb.BeginRun();
+    REQUIRE(lb.TrySubmit(150, 1) == SubmitResult::MadeTop10); // Day 100 ra
+    REQUIRE(lb.TrySubmit(160, 2) == SubmitResult::MadeTop10); // Thay CHINH dong 150, khong day 200 ra
+
+    const auto& entries = lb.GetEntries();
+    REQUIRE((int)entries.size() == Config::LEADERBOARD_MAX_ENTRIES);
+    REQUIRE(entries.back().score == 160);
+    REQUIRE(entries[entries.size() - 2].score == 200);
+}

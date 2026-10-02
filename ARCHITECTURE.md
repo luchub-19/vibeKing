@@ -208,6 +208,7 @@ nâng cấp thành hàng đợi có timestamp — chưa cần ở quy mô hiện
 | `settings.h/.cpp` | `Settings` — độ khó/âm lượng/4 phím rebind, đọc/ghi `settings.cfg` (KEY=VALUE) | — |
 | `text_utils.h` | `TextUtils::Trim`/`IEquals` — tiện ích `string_view` dùng chung bởi 2 parser KEY=VALUE (`level_config.cpp`, `settings.cpp`), không copy chuỗi | — |
 | `save_checksum.h` | Checksum FNV-1a cho file save | — |
+| `atomic_file.h/.cpp` | `AtomicFile::Replace()` — bước "đổi tên `.tmp` đè lên file thật" của cả 3 file save; `rename(2)` trên POSIX, `MoveFileEx(REPLACE_EXISTING)` trên Windows (`std::rename()` của Windows không ghi đè được). Tách `.cpp` riêng để `<windows.h>` không đụng `raylib.h` | — |
 | `leaderboard.h/.cpp` | Top 10 điểm cao, có xác thực checksum | — |
 | `meta_progress.h/.cpp` | `MetaProgress` — currency tích luỹ xuyên nhiều lượt chơi, ghi file có checksum cùng khuôn Leaderboard; `AwardCurrency()` trả về số CR vừa cộng để màn hình tổng kết khỏi tính lại công thức quy đổi | Không gọi `AwardCurrency()` trực tiếp — mọi đường thua cuộc đi qua `GameManager::TriggerGameOver()` (điểm vào duy nhất, idempotent) |
 | `file_logger.h/.cpp` | Hook `SetTraceLogCallback` → ghi mọi `TraceLog` ra file xoay vòng | — |

@@ -3,7 +3,8 @@
 #include "text_utils.h"
 #include <fstream>
 #include <charconv>
-#include <cstdio> // std::rename
+#include <cmath>
+#include "atomic_file.h"
 
 using TextUtils::Trim;
 using TextUtils::IEquals;
@@ -68,6 +69,9 @@ Settings Settings::LoadFromFile(const std::string& path) {
         }
     }
 
+    // from_chars chap nhan ca "nan", va moi phep so sanh voi NaN deu false - 2 dong clamp ben
+    // duoi de NaN lot qua, roi di thang vao SetMasterVolume(). NaN = gia tri vo nghia -> mac dinh.
+    if (std::isnan(cfg.volume)) cfg.volume = Settings{}.volume;
     if (cfg.volume < 0.0f) cfg.volume = 0.0f;
     if (cfg.volume > 1.0f) cfg.volume = 1.0f;
 
@@ -85,9 +89,9 @@ Settings Settings::LoadFromFile(const std::string& path) {
 }
 
 void Settings::SaveToFile(const std::string& path) const {
-    // GHI ATOMIC: ghi ra file .tmp truoc, roi rename() de len file that. rename() la
-    // thao tac ATOMIC tren he thong file cua ca POSIX (rename(2)) lan Windows (cung 1
-    // lenh MoveFileEx tuong duong) - hoac file .tmp thay the HOAN TOAN file goc, hoac
+    // GHI ATOMIC: ghi ra file .tmp truoc, roi AtomicFile::Replace() de len file that - la
+    // rename(2) tren POSIX va MoveFileEx(REPLACE_EXISTING) tren Windows (std::rename() thuan
+    // cua Windows tu choi ghi de file da ton tai - xem atomic_file.h) - hoac file .tmp thay the HOAN TOAN file goc, hoac
     // khong co gi xay ra ca. Neu ghi truc tiep de len `path` va process bi kill giua
     // chung (mat dien, crash, force-quit) thi file settings.cfg co the bi cat cut nua
     // dong, lan sau doc len parse loi/mat du lieu - cach nay loai bo hoan toan kha nang
@@ -108,7 +112,7 @@ void Settings::SaveToFile(const std::string& path) const {
         file << "KEY_PAUSE=" << keyPause << "\n";
     } // Dong scope -> ofstream flush + dong file truoc khi rename ben duoi
 
-    if (std::rename(tmpPath.c_str(), path.c_str()) != 0) {
+    if (!AtomicFile::Replace(tmpPath, path)) {
         TraceLog(LOG_WARNING, "Settings: rename '%s' -> '%s' that bai, giu nguyen file cu",
                   tmpPath.c_str(), path.c_str());
     }

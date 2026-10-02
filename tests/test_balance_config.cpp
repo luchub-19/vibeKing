@@ -177,3 +177,28 @@ TEST_CASE("Config::LoadBalance: kich thuoc/do cao spawn (hitbox) nap duoc tu JSO
     Config::KAMIKAZE_WIDTH = origKamikazeW;
     Config::PARTICLE_GRAVITY = origGravity;
 }
+
+TEST_CASE("Config::LoadBalance: so chia = 0 trong JSON bi chan lai (khong de game chia cho 0 o wave dau)", "[balance]") {
+    CleanupGuard guard;
+    const int origRowEvery = Config::WAVE_EXTRA_ROW_EVERY;
+    const int origBossInterval = Config::BOSS_WAVE_INTERVAL;
+    const float origDdaMin = Config::DDA_MIN_MUL;
+    const float origDdaMax = Config::DDA_MAX_MUL;
+
+    WriteFile(R"({
+        "wave_progression": { "extra_row_every": 0 },
+        "boss":             { "wave_interval": 0 },
+        "dda":              { "min_mul": 0.0, "max_mul": -1.0 }
+    })");
+    Config::LoadBalance(TestJsonPath());
+
+    REQUIRE(Config::WAVE_EXTRA_ROW_EVERY >= 1);
+    REQUIRE(Config::BOSS_WAVE_INTERVAL >= 1);
+    REQUIRE(Config::DDA_MIN_MUL > 0.0f);
+    REQUIRE(Config::DDA_MAX_MUL >= Config::DDA_MIN_MUL);
+
+    Config::WAVE_EXTRA_ROW_EVERY = origRowEvery;
+    Config::BOSS_WAVE_INTERVAL = origBossInterval;
+    Config::DDA_MIN_MUL = origDdaMin;
+    Config::DDA_MAX_MUL = origDdaMax;
+}

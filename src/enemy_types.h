@@ -318,10 +318,22 @@ inline const BossTypeDescriptor& GetBossTypeDescriptor(BossType type) {
 // phần tử cuối cùng rồi rút gọn count - không để lại xác chết mục nát cho vòng lặp
 // Update/Draw phải bước qua mỗi frame.
 // ==========================================
+// UID cấp cho MỌI con địch lúc Spawn(), duy nhất xuyên suốt mọi pool (0 = "không có").
+// Index trong pool KHÔNG dùng làm danh tính được: swap-and-pop đổi index của con cuối mỗi
+// lần Destroy(). Cần cho đạn xuyên (Bullet::HasPierced) nhớ "đã đi qua con nào" - xem
+// physics_system.cpp. Hàm inline + biến static cục bộ: 1 bộ đếm duy nhất cho cả chương
+// trình dù header được include ở nhiều .cpp (C++17).
+inline uint32_t NextEnemyUid() {
+    static uint32_t next = 0;
+    if (++next == 0) next = 1; // Tràn 2^32 (không thực tế) vẫn không bao giờ cấp 0
+    return next;
+}
+
 template <typename T, size_t Capacity>
 class EnemyPool {
 private:
     T items[Capacity];
+    uint32_t uids[Capacity] = {}; // Mảng song song với items - di chuyển cùng nhau khi swap-and-pop
     size_t count = 0;
 
 public:
@@ -331,6 +343,7 @@ public:
     // đúng theo giới hạn lưới tối đa - nhưng vẫn chặn tràn mảng để an toàn).
     bool Spawn(const T& item) {
         if (count >= Capacity) return false;
+        uids[count] = NextEnemyUid();
         items[count++] = item;
         return true;
     }
@@ -341,9 +354,11 @@ public:
         if (index >= count) return;
         count--;
         items[index] = items[count];
+        uids[index] = uids[count];
     }
 
     size_t Size() const { return count; }
+    uint32_t UidAt(size_t index) const { return uids[index]; }
     static constexpr size_t MaxCapacity() { return Capacity; }
 
     T& operator[](size_t index) { return items[index]; }

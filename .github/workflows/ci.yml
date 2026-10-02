@@ -63,6 +63,18 @@ jobs:
       # Bo sung: build lai voi canh bao nghiem ngat lam RAY LOI (-Werror) - chi de PHAT
       # HIEN SOM neu code sau nay vo tinh dua warning moi vao, khong phai build de dung.
       # Hien tai toan bo codebase dang 0 warning duoi cac co nay.
+      # Bo test chay duoi AddressSanitizer + UndefinedBehaviorSanitizer. heap-use-after-free
+      # trong ProcessEvents() (xem CLAUDE.md) chi bat duoc bang ASan - ban Release o tren chay
+      # xanh du bug van con. -fno-sanitize-recover: UB dau tien la test DO, khong chi in log.
+      - name: Chay bo test duoi ASan + UBSan
+        run: |
+          cmake -B build-asan -DCMAKE_BUILD_TYPE=Debug \
+                -DCMAKE_PREFIX_PATH="${{ github.workspace }}/raylib-install" \
+                -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -fno-sanitize-recover=undefined" \
+                -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined"
+          cmake --build build-asan -j"$(nproc)" --target unit_tests
+          cd build-asan && ./unit_tests
+
       - name: Build kiem tra voi canh bao nghiem ngat (-Wall -Wextra -Wpedantic -Wshadow -Werror)
         run: |
           cmake -B build-strict -DCMAKE_BUILD_TYPE=Release \

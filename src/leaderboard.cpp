@@ -4,11 +4,13 @@
 #include <fstream>
 #include <sstream>
 #include <algorithm>
-#include <cstdio> // std::rename
+#include "atomic_file.h"
 
 void Leaderboard::Load(const std::string& path) {
     filePath = path;
     entries.clear();
+    inRun = false;
+    runHasEntry = false;
 
     std::ifstream file(path);
     if (!file.is_open()) {
@@ -63,6 +65,20 @@ SubmitResult Leaderboard::TrySubmit(int score, int wave) {
     // va de danh sach khong bao gio chua ban ghi rac.
     if (score <= 0) return SubmitResult::NotQualified;
 
+    // CUNG 1 VAN da co dong trong bang -> go dong cu ra truoc, dong moi se thay vao cho no
+    // (xem giai thich `inRun` trong leaderboard.h). Diem trong 1 van chi tang, nen dong moi
+    // luon du dieu kien lot top khi dong cu da lot - khong co truong hop "go ra roi mat luon".
+    // Chan rieng truong hop diem GIAM (khong xay ra trong game) de khong bao gio danh mat
+    // thanh tich da ghi.
+    if (inRun && runHasEntry) {
+        if (score < runEntry.score) return SubmitResult::NotQualified;
+        auto it = std::find_if(entries.begin(), entries.end(), [&](const LeaderboardEntry& e) {
+            return e.score == runEntry.score && e.wave == runEntry.wave;
+        });
+        if (it != entries.end()) entries.erase(it);
+        runHasEntry = false;
+    }
+
     bool isNewRecord = entries.empty() || score > entries[0].score;
     bool hasRoom = (int)entries.size() < Config::LEADERBOARD_MAX_ENTRIES;
     bool beatsWeakest = !entries.empty() && score > entries.back().score;
@@ -76,14 +92,19 @@ SubmitResult Leaderboard::TrySubmit(int score, int wave) {
     if ((int)entries.size() > Config::LEADERBOARD_MAX_ENTRIES) {
         entries.resize(Config::LEADERBOARD_MAX_ENTRIES);
     }
+    if (inRun) {
+        runEntry = { score, wave };
+        runHasEntry = true;
+    }
 
     SaveToFile(filePath);
     return isNewRecord ? SubmitResult::NewRecord : SubmitResult::MadeTop10;
 }
 
 void Leaderboard::SaveToFile(const std::string& path) const {
-    // GHI ATOMIC: cùng cơ chế .tmp + rename() như Settings::SaveToFile() - rename() là
-    // thao tác ATOMIC ở cả POSIX lẫn Windows, nên crash giữa chừng không bao giờ để lại
+    // GHI ATOMIC: cùng cơ chế .tmp + AtomicFile::Replace() như Settings::SaveToFile() - thay
+    // thế ATOMIC ở cả POSIX lẫn Windows (xem atomic_file.h: std::rename() thuần KHÔNG làm được
+    // việc này trên Windows), nên crash giữa chừng không bao giờ để lại
     // 1 file leaderboard.dat bị cắt cụt/nửa dòng (mất sạch cả 10 điểm cao thay vì chỉ 1
     // giá trị như HighScore cũ, nên atomic ở đây quan trọng hơn trước).
     std::string tmpPath = path + ".tmp";
@@ -107,7 +128,7 @@ void Leaderboard::SaveToFile(const std::string& path) const {
         file << "SIG " << sigHex << "\n" << body;
     } // Đóng scope -> ofstream flush + đóng file trước khi rename bên dưới
 
-    if (std::rename(tmpPath.c_str(), path.c_str()) != 0) {
+    if (!AtomicFile::Replace(tmpPath, path)) {
         TraceLog(LOG_WARNING, "Leaderboard: rename '%s' -> '%s' that bai, giu nguyen file cu",
                   tmpPath.c_str(), path.c_str());
     }

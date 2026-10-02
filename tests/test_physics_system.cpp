@@ -833,3 +833,83 @@ TEST_CASE("hitFlash: Boss chop khi trung, nhung KHONG chop khi dan bi khien chan
     REQUIRE(GTA::BossPool(gm)[0].hp == 49);
     REQUIRE(GTA::BossPool(gm)[0].hitFlash == Config::HIT_FLASH_DURATION);
 }
+
+// ==========================================
+// DAN XUYEN + DICH NHIEU MAU. Dan xuyen khong bi Destroy() sau khi trung, nen frame sau no
+// VAN chong len chinh con vua trung (dan 600px/s = 10px/frame, Tanky cao 30px, Boss 90px).
+// Truoc ban sua, moi frame chong len do la 1 lan trung MOI: tru them mau VA tieu them luot
+// xuyen - 1 vien xuyen ha guc Tanky 3 mau mot minh. Test giu dan dung yen (vel 0) de no chong
+// len muc tieu qua NHIEU lan CheckCollisions() lien tiep, mo phong vai frame dan con nam
+// trong than dich.
+// ==========================================
+TEST_CASE("EnemyPool: UID di theo phan tu qua swap-and-pop, khong di theo index", "[physics][pierce]") {
+    EnemyPool<BasicEnemy, 4> pool;
+    pool.Spawn(BasicEnemy{});
+    pool.Spawn(BasicEnemy{});
+    pool.Spawn(BasicEnemy{});
+    uint32_t lastUid = pool.UidAt(2);
+    REQUIRE(pool.UidAt(0) != 0);
+    REQUIRE(pool.UidAt(0) != pool.UidAt(1));
+
+    pool.Destroy(0); // phan tu cuoi bi doi vao index 0
+    REQUIRE(pool.UidAt(0) == lastUid);
+}
+
+TEST_CASE("CheckCollisions: dan xuyen nam chong len 1 Tanky qua nhieu frame chi gay DUNG 1 sat thuong va tieu DUNG 1 luot xuyen", "[physics][collision][tanky][pierce]") {
+    GameManager gm;
+    TankyEnemy t{};
+    t.rect = { 200.0f, 150.0f, 44.0f, 30.0f };
+    t.hp = TankyEnemy::HP;
+    GTA::TankyEnemies(gm).Clear();
+    GTA::TankyEnemies(gm).Spawn(t);
+    REQUIRE(TankyEnemy::HP >= 3); // De "nhieu frame" co the giet han no neu bug con
+
+    FireBulletAt(GTA::PlayerBullets(gm), t.rect, /*pierceHits=*/5);
+    for (int frame = 0; frame < 3; frame++) {
+        GTA::PendingEvents(gm).clear();
+        PhysicsSystem::CheckCollisions(gm);
+    }
+
+    REQUIRE(GTA::TankyEnemies(gm).Size() == 1);
+    REQUIRE(GTA::TankyEnemies(gm)[0].hp == TankyEnemy::HP - 1);
+    REQUIRE(GTA::PlayerBullets(gm).GetActiveCount() == 1); // 5 luot -> con 4, van bay tiep
+}
+
+TEST_CASE("CheckCollisions: dan xuyen VAN trung con Tanky THU HAI chong cung cho - chi bo qua con da di qua", "[physics][collision][tanky][pierce]") {
+    GameManager gm;
+    TankyEnemy t{};
+    t.rect = { 200.0f, 150.0f, 44.0f, 30.0f };
+    t.hp = TankyEnemy::HP;
+    GTA::TankyEnemies(gm).Clear();
+    GTA::TankyEnemies(gm).Spawn(t);
+    GTA::TankyEnemies(gm).Spawn(t);
+
+    FireBulletAt(GTA::PlayerBullets(gm), t.rect, /*pierceHits=*/5);
+    for (int frame = 0; frame < 4; frame++) {
+        GTA::PendingEvents(gm).clear();
+        PhysicsSystem::CheckCollisions(gm);
+    }
+
+    REQUIRE(GTA::TankyEnemies(gm).Size() == 2);
+    REQUIRE(GTA::TankyEnemies(gm)[0].hp == TankyEnemy::HP - 1);
+    REQUIRE(GTA::TankyEnemies(gm)[1].hp == TankyEnemy::HP - 1);
+}
+
+TEST_CASE("CheckCollisions: dan xuyen nam chong len Boss qua nhieu frame chi tru DUNG 1 mau", "[physics][collision][boss][pierce]") {
+    GameManager gm;
+    Boss b{};
+    b.rect = { 300.0f, 60.0f, 180.0f, 90.0f };
+    b.hp = 50;
+    b.maxHp = 50;
+    b.type = BossType::Vanguard;
+    GTA::BossPool(gm).Clear();
+    GTA::BossPool(gm).Spawn(b);
+
+    FireBulletAt(GTA::PlayerBullets(gm), b.rect, /*pierceHits=*/5);
+    for (int frame = 0; frame < 5; frame++) {
+        GTA::PendingEvents(gm).clear();
+        PhysicsSystem::CheckCollisions(gm);
+    }
+
+    REQUIRE(GTA::BossPool(gm)[0].hp == 49);
+}

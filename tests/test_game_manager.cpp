@@ -771,3 +771,61 @@ TEST_CASE("Banner dau wave: hien o MOI wave (ca wave dau lan wave sau) roi tu ta
     GTA::CallInitLevel(gm, /*newGame=*/false);
     REQUIRE(GTA::WaveBannerTimer(gm) == Config::WAVE_BANNER_DURATION);
 }
+
+// ==========================================
+// BOSS CHET + PLAYER HET MANG CUNG 1 FRAME. Nhanh BOSS DEFEAT trong UpdatePlaying() tung
+// `return` (sang WAVE_CLEAR) TRUOC dong kiem tra lives<=0 cuoi ham - player 0 mang van vao
+// man hinh nang cap, chon "+1 mang" la song lai.
+// ==========================================
+TEST_CASE("Boss bi ha DUNG frame player mat mang cuoi -> GAME_OVER (khong phai WAVE_CLEAR), diem ha boss van duoc cong", "[game_manager][state_machine][boss]") {
+    GameManager gm;
+    QuarantinePersistence(gm);
+    GTA::SetState(gm, GameState::PLAYING);
+    GTA::SetIsBossWave(gm, true);
+    GTA::SetWave(gm, Config::BOSS_WAVE_INTERVAL);
+    SpawnDefeatedBossFor(gm);
+    InflictLives(gm, GTA::PlayerRef(gm).GetLives());
+    REQUIRE(GTA::PlayerRef(gm).GetLives() == 0);
+    const int scoreBefore = GTA::PlayerRef(gm).GetScore();
+
+    GTA::CallUpdatePlaying(gm, 0.016f);
+
+    REQUIRE(GTA::PendingState(gm) == GameState::GAME_OVER);
+    REQUIRE(GTA::Wave(gm) == Config::BOSS_WAVE_INTERVAL); // Khong wave++ nhu 1 lan clear
+    REQUIRE(GTA::PlayerRef(gm).GetScore() > scoreBefore);  // Ha boss van tinh diem
+}
+
+// ==========================================
+// 1 VAN = 1 DONG LEADERBOARD qua dung duong game that: WAVE_CLEAR (UpdateEnemies nop diem)
+// 2 lan roi GAME_OVER (TriggerGameOver nop diem) - truoc day la 3 dong.
+// ==========================================
+TEST_CASE("Leaderboard: 1 van qua 2 lan WAVE_CLEAR roi GAME_OVER chi de lai DUNG 1 dong, mang diem cuoi", "[game_manager][leaderboard]") {
+    GameManager gm;
+    QuarantinePersistence(gm);
+    // Bang RONG: file tam dung chung voi cac TEST_CASE khac co the da DAY 10 dong, luc do
+    // "so dong tang 1" khong con kiem tra duoc gi (dong moi day dong cu ra).
+    std::remove(LeaderboardTestPath());
+    GTA::LeaderboardRef(gm).Load(LeaderboardTestPath());
+    GTA::CallInitLevel(gm, /*newGame=*/true);
+    Player& p = GTA::PlayerRef(gm);
+
+    auto clearFormationAndUpdate = [&]() {
+        GTA::BasicEnemies(gm).Clear();
+        GTA::TankyEnemies(gm).Clear();
+        GTA::ZigzagEnemies(gm).Clear();
+        GTA::WardenEnemies(gm).Clear();
+        GTA::MedicEnemies(gm).Clear();
+        PhysicsSystem::UpdateEnemies(gm, 0.016f); // activeCount==0 -> nhanh WAVE_CLEAR nop diem
+    };
+
+    p.AddScore(1237);
+    clearFormationAndUpdate();
+    REQUIRE(GTA::PendingState(gm) == GameState::WAVE_CLEAR);
+    p.AddScore(1224); // tong 2461
+    clearFormationAndUpdate();
+    GTA::CallTriggerGameOver(gm);
+
+    const auto& entries = GTA::LeaderboardRef(gm).GetEntries();
+    REQUIRE(entries.size() == 1);
+    REQUIRE(entries[0].score == 2461);
+}

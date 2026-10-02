@@ -4,7 +4,7 @@
 #include "save_checksum.h"
 #include <fstream>
 #include <sstream>
-#include <cstdio> // std::rename
+#include "atomic_file.h"
 
 void MetaProgress::Load(const std::string& path) {
     filePath = path;
@@ -61,8 +61,8 @@ void MetaProgress::Load(const std::string& path) {
 }
 
 void MetaProgress::Save(const std::string& path) const {
-    // Ghi ATOMIC: cung co che .tmp + rename() nhu Leaderboard::SaveToFile()/Settings::
-    // SaveToFile() - rename() la thao tac ATOMIC ca POSIX lan Windows, crash giua chung
+    // Ghi ATOMIC: cung co che .tmp + AtomicFile::Replace() nhu Leaderboard::SaveToFile()/
+    // Settings::SaveToFile() - thay the ATOMIC ca POSIX lan Windows (xem atomic_file.h), crash giua chung
     // khong bao gio de lai 1 file meta_progress.dat bi cat cut/nua dong.
     std::string tmpPath = path + ".tmp";
 
@@ -83,7 +83,7 @@ void MetaProgress::Save(const std::string& path) const {
         file << "SIG " << sigHex << "\n" << body;
     } // Dong scope -> ofstream flush + dong file truoc khi rename ben duoi
 
-    if (std::rename(tmpPath.c_str(), path.c_str()) != 0) {
+    if (!AtomicFile::Replace(tmpPath, path)) {
         TraceLog(LOG_WARNING, "MetaProgress: rename '%s' -> '%s' that bai, giu nguyen file cu",
                   tmpPath.c_str(), path.c_str());
     }

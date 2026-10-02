@@ -87,6 +87,7 @@ void GameManager::InitLevel(bool newGame) {
         runBestCombo = 0;
         runCurrencyEarned = 0;
         gameOverTriggered = false; // Van MOI - mo lai "cong" GAME_OVER (xem TriggerGameOver)
+        leaderboard.BeginRun();    // Van MOI = 1 dong MOI tren bang; moi lan nop sau do trong van nay chi cap nhat dong do
     } else {
         player.ResetForNewWave();
     }
@@ -631,6 +632,16 @@ void GameManager::UpdatePlaying(float dt) {
         screenShake.Trigger(0.4f, 12.0f);
         hitStop.Trigger(0.1f); // Nang do hon dong bang thuong (0.04f) - xem physics_system.cpp
         ApplyComboAndScore(Config::BOSS_SCORE_VALUE, bossCenter);
+
+        // Boss chet VA player mat mang cuoi CUNG 1 frame (dan boss bay toi truoc khi boss
+        // guc): nhanh nay tung `return` truoc dong `if (lives <= 0) TriggerGameOver()` cuoi
+        // ham -> sang WAVE_CLEAR voi 0 mang, chon nang cap +1 mang la "song lai". Diem ha boss
+        // van duoc cong (dong tren), nhung ket cuc la GAME_OVER.
+        if (player.GetLives() <= 0) {
+            TriggerGameOver();
+            return;
+        }
+
         wave++;
         lastSubmitResult = leaderboard.TrySubmit(player.GetScore(), wave);
 

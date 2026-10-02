@@ -219,8 +219,18 @@ void Player::Draw(const Texture2D& sprite) const {
         // co gi. Gradient tron co do roi mem nen mat doc thanh "anh sang", dung y ban dau.
         Color halo = Palette::PlayerShip;
         halo.a = 70;
-        DrawCircleGradient({ cx, rect.y + rect.height / 2.0f },
+        // Chu ky DrawCircleGradient DOI giua 2 ban raylib: 5.5 (ban CI/README ghim) nhan
+        // (int centerX, int centerY, ...), con 5.6-dev nhan (Vector2 center, ...). Goi kieu
+        // Vector2 tron thi build tren may dev (raylib moi) xanh nhung CI 5.5 do - da xay ra
+        // that. Re nhanh theo macro version de 1 source build duoc ca 2.
+        Vector2 haloCenter{ cx, rect.y + rect.height / 2.0f };
+#if RAYLIB_VERSION_MAJOR > 5 || (RAYLIB_VERSION_MAJOR == 5 && RAYLIB_VERSION_MINOR >= 6)
+        DrawCircleGradient(haloCenter,
                             rect.width * 0.75f, halo, Fade(Palette::PlayerShip, 0.0f));
+#else
+        DrawCircleGradient((int)haloCenter.x, (int)haloCenter.y,
+                            rect.width * 0.75f, halo, Fade(Palette::PlayerShip, 0.0f));
+#endif
         EndBlendMode();
     }
 

@@ -4,11 +4,20 @@
 #include "text_utils.h"
 #include <fstream>
 #include <charconv>
+#include <cmath>
 
 using TextUtils::Trim;
 using TextUtils::IEquals;
 
 void LevelGridConfig::Clamp() {
+    // NaN ("START_X=nan" - from_chars chap nhan) lot qua MOI phep so sanh ben duoi vi so sanh
+    // voi NaN luon false -> ca doi hinh nhan toa do NaN. Ve lai mac dinh truoc khi clamp.
+    const LevelGridConfig defaults;
+    if (std::isnan(startX))   startX = defaults.startX;
+    if (std::isnan(startY))   startY = defaults.startY;
+    if (std::isnan(spacingX)) spacingX = defaults.spacingX;
+    if (std::isnan(spacingY)) spacingY = defaults.spacingY;
+
     if (rows < 1) rows = 1;
     if (rows > Config::MAX_GRID_ROWS) rows = Config::MAX_GRID_ROWS;
     if (cols < 1) cols = 1;
