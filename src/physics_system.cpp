@@ -605,7 +605,7 @@ void PhysicsSystem::UpdateBoss(GameManager& gm, float dt) {
             }
             boss.summonTimer = *desc.summonInterval;
             gm.audio.PlayBossPhase();
-            gm.particles.Burst(EnemyCenter(boss.rect), 14, ORANGE);
+            gm.particles.Burst(EnemyCenter(boss.rect), 14, Palette::BossEnrage1); // Trieu hoi = sap co them de doa -> dai NONG
         }
     }
 
@@ -896,7 +896,7 @@ void PhysicsSystem::CheckCollisions(GameManager& gm) {
                 // that, dat dung vi tri bulletRect.
                 GameEvent hitEv;
                 hitEv.position = { bulletRect.x, bulletRect.y };
-                hitEv.color = shielded ? SKYBLUE : Palette::BossEnrage2;
+                hitEv.color = shielded ? Palette::ShieldBarrier : Palette::BossEnrage2;
                 hitEv.particleCount = shielded ? 3 : 6; // Khien: bat lai it hat hon - cam giac "va be mat cung" thay vi "trung don"
                 if (!shielded && boss.hp > 0) {
                     hitEv.sfx = SfxType::Hit;

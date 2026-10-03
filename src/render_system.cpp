@@ -50,9 +50,9 @@ static void DrawTitleLogo(const Texture2D& alienTex) {
 // la affordance.
 static void DrawSelectPill(UICanvas& canvas, Rectangle rect, const char* label, bool selected) {
     Color fill = selected ? Color{ 40, 36, 12, 200 } : Color{ 16, 16, 26, 140 };
-    Color border = selected ? YELLOW : GRAY;
+    Color border = selected ? Palette::UiAccent : Palette::UiDim;
     canvas.Panel(rect, fill, border, selected ? 2.0f : 1.0f);
-    Color textColor = selected ? WHITE : Fade(WHITE, 0.45f);
+    Color textColor = selected ? Palette::UiText : Fade(Palette::UiText, 0.45f);
     canvas.CenteredText((int)(rect.x + rect.width / 2.0f), (int)(rect.y + rect.height / 2.0f - 8.0f), 15, textColor, label);
 }
 
@@ -62,17 +62,17 @@ static void DrawSelectPill(UICanvas& canvas, Rectangle rect, const char* label, 
 // mau GRAY = khoa da co tu DrawLoadoutSelect() ban cu.
 static void DrawLoadoutCard(UICanvas& canvas, Rectangle rect, LoadoutType type, bool selected, bool available, int currency, int cost) {
     Color fill = selected ? Color{ 40, 36, 12, 200 } : Color{ 16, 16, 26, 140 };
-    Color border = selected ? YELLOW : GRAY;
+    Color border = selected ? Palette::UiAccent : Palette::UiDim;
     canvas.Panel(rect, fill, border, selected ? 2.0f : 1.0f);
 
-    Color nameColor = available ? (selected ? WHITE : Fade(WHITE, 0.6f)) : GRAY;
+    Color nameColor = available ? (selected ? Palette::UiText : Fade(Palette::UiText, 0.6f)) : Palette::UiDim;
     canvas.CenteredText((int)(rect.x + rect.width / 2.0f), (int)rect.y + 8, 13, nameColor, GetLoadoutName(type));
 
     std::string status;
     Color statusColor;
-    if (type == LoadoutType::Standard)   { status = "FREE";  statusColor = Fade(WHITE, 0.6f); }
-    else if (available)                  { status = "READY"; statusColor = LIME; }
-    else                                 { status = TextFormat("%d/%d", currency, cost); statusColor = GRAY; }
+    if (type == LoadoutType::Standard)   { status = "FREE";  statusColor = Fade(Palette::UiText, 0.6f); }
+    else if (available)                  { status = "READY"; statusColor = Palette::UiSuccess; }
+    else                                 { status = TextFormat("%d/%d", currency, cost); statusColor = Palette::UiDim; }
     canvas.CenteredText((int)(rect.x + rect.width / 2.0f), (int)rect.y + 28, 11, statusColor, status.c_str());
 }
 
@@ -109,19 +109,20 @@ void RenderSystem::DrawMenu(const GameManager& gm) {
     const float leftX = 40.0f, rightX = 415.0f, panelW = 345.0f, panelY = 165.0f, panelH = 290.0f;
 
     // --- Panel trai: TOP 10 ---
-    canvas.Panel({ leftX, panelY, panelW, panelH }, panelFill, panelBorder, Config::HUD_PANEL_BORDER_THICKNESS);
-    canvas.CenteredText((int)(leftX + panelW / 2.0f), (int)panelY + 12, 20, YELLOW, "TOP 10");
+    const Color corner = Fade(Palette::UiAccent, 0.55f); // Goc ngoac kieu HUD vector (GD 5) - menu va HUD cung 1 "chat lieu"
+    canvas.FramedPanel({ leftX, panelY, panelW, panelH }, panelFill, panelBorder, Config::HUD_PANEL_BORDER_THICKNESS, corner);
+    canvas.CenteredText((int)(leftX + panelW / 2.0f), (int)panelY + 12, 20, Palette::UiAccent, "TOP 10");
 
     const auto& entries = gm.leaderboard.GetEntries();
     if (entries.empty()) {
         // Canh giua CA CHIEU DOC trong panel - khac ban cu (1 dong xam nho lac long ngay
         // duoi header, phan con lai cua man hinh la khoang den). Panel co dinh kich thuoc
         // nen luon co du cho de canh giua thay vi phai doan vi tri theo noi dung.
-        canvas.CenteredText((int)(leftX + panelW / 2.0f), (int)(panelY + panelH / 2.0f), 16, GRAY, Loc::NoRecordsYet);
+        canvas.CenteredText((int)(leftX + panelW / 2.0f), (int)(panelY + panelH / 2.0f), 16, Palette::UiDim, Loc::NoRecordsYet);
     } else {
         float y = panelY + 44.0f;
         for (size_t i = 0; i < entries.size(); i++) {
-            Color rowColor = (i == 0) ? YELLOW : WHITE;
+            Color rowColor = (i == 0) ? Palette::UiAccent : Palette::UiText;
             canvas.Text((int)leftX + 14, (int)y, 15, rowColor,
                         TextFormat("%2d. %6d pts  wave %d", (int)i + 1, entries[i].score, entries[i].wave));
             y += 22.0f; // 10 dong toi da (Config::LEADERBOARD_MAX_ENTRIES) * 22 = 220, vua trong panelH=290
@@ -129,9 +130,9 @@ void RenderSystem::DrawMenu(const GameManager& gm) {
     }
 
     // --- Panel phai: DIFFICULTY / LOADOUT / VOLUME ---
-    canvas.Panel({ rightX, panelY, panelW, panelH }, panelFill, panelBorder, Config::HUD_PANEL_BORDER_THICKNESS);
+    canvas.FramedPanel({ rightX, panelY, panelW, panelH }, panelFill, panelBorder, Config::HUD_PANEL_BORDER_THICKNESS, corner);
 
-    canvas.Text((int)rightX + 14, (int)panelY + 12, 15, YELLOW, "DIFFICULTY  (LEFT/RIGHT)");
+    canvas.Text((int)rightX + 14, (int)panelY + 12, 15, Palette::UiAccent, "DIFFICULTY  (LEFT/RIGHT)");
     const float pillW = 105.0f, pillGap = 10.0f, pillY = panelY + 36.0f;
     for (int i = 0; i < 3; i++) {
         DifficultyStats s = GetDifficultyStats((Difficulty)i);
@@ -139,7 +140,7 @@ void RenderSystem::DrawMenu(const GameManager& gm) {
         DrawSelectPill(canvas, pillRect, s.label, (Difficulty)i == gm.difficulty);
     }
 
-    canvas.Text((int)rightX + 14, (int)panelY + 82, 15, YELLOW, TextFormat("LOADOUT  (Q/E) - %d CR", gm.metaProgress.GetCurrency()));
+    canvas.Text((int)rightX + 14, (int)panelY + 82, 15, Palette::UiAccent, TextFormat("LOADOUT  (Q/E) - %d CR", gm.metaProgress.GetCurrency()));
     const float cardY = panelY + 106.0f;
     const LoadoutType loadouts[3] = { LoadoutType::Standard, LoadoutType::Vanguard, LoadoutType::Overcharge };
     for (int i = 0; i < 3; i++) {
@@ -150,20 +151,20 @@ void RenderSystem::DrawMenu(const GameManager& gm) {
                          gm.metaProgress.GetCurrency(), GetLoadoutUnlockCost(type));
     }
 
-    canvas.Text((int)rightX + 14, (int)panelY + 176, 15, YELLOW, "VOLUME  (UP/DOWN)");
-    canvas.Bar({ rightX + 14.0f, panelY + 200.0f, panelW - 28.0f, 16.0f }, gm.audio.GetVolume(), DARKGRAY, SKYBLUE, WHITE);
-    canvas.Text((int)(rightX + panelW - 46.0f), (int)panelY + 218, 13, GRAY, TextFormat("%d%%", (int)(gm.audio.GetVolume() * 100.0f)));
+    canvas.Text((int)rightX + 14, (int)panelY + 176, 15, Palette::UiAccent, "VOLUME  (UP/DOWN)");
+    canvas.Bar({ rightX + 14.0f, panelY + 200.0f, panelW - 28.0f, 16.0f }, gm.audio.GetVolume(), Palette::UiPanelFill, Palette::Weaver, Palette::UiText);
+    canvas.Text((int)(rightX + panelW - 46.0f), (int)panelY + 218, 13, Palette::UiDim, TextFormat("%d%%", (int)(gm.audio.GetVolume() * 100.0f)));
 
     // --- Footer: nut START dang Panel that (border pulse) thay vi 1 dong chu doi alpha ---
     float startPulse = 0.5f + 0.5f * sinf((float)GetTime() * 3.0f);
     Rectangle startRect = { Config::SCREEN_W / 2.0f - 140.0f, 480.0f, 280.0f, 52.0f };
-    canvas.Panel(startRect, Color{ 16, 16, 26, 180 }, Fade(YELLOW, 0.6f + 0.4f * startPulse), 2.0f + startPulse);
-    canvas.CenteredText(Config::SCREEN_W / 2, 496, 20, WHITE, "PRESS ENTER TO START");
+    canvas.Panel(startRect, Color{ 16, 16, 26, 180 }, Fade(Palette::UiAccent, 0.6f + 0.4f * startPulse), 2.0f + startPulse);
+    canvas.CenteredText(Config::SCREEN_W / 2, 496, 20, Palette::UiText, "PRESS ENTER TO START");
 
-    canvas.CenteredText(Config::SCREEN_W / 2, 548, 14, GRAY,
+    canvas.CenteredText(Config::SCREEN_W / 2, 548, 14, Palette::UiDim,
                         std::string("ARROWS / Q,E: ADJUST   ")
                         + TextFormat(Loc::MenuAchievementsHintFmt, gm.achievements.UnlockedCount(), ACHIEVEMENT_COUNT));
-    canvas.CenteredText(Config::SCREEN_W / 2, 568, 14, GRAY,
+    canvas.CenteredText(Config::SCREEN_W / 2, 568, 14, Palette::UiDim,
                         std::string(Loc::MenuGraphicsHint) + "   " + Loc::MenuFullscreenHint);
 
     canvas.Draw(gm.gameFont);
@@ -176,7 +177,7 @@ void RenderSystem::DrawMenu(const GameManager& gm) {
 // DrawLoadoutSelect: ham static nay khong co `friend class RenderSystem`.
 static void DrawUpgradeSelect(UICanvas& canvas, int y, UpgradeType chosen, int ownedStacks) {
     const UpgradeTypeDescriptor& desc = GetUpgradeTypeDescriptor(chosen);
-    canvas.CenteredText(Config::SCREEN_W / 2, y, 18, WHITE,
+    canvas.CenteredText(Config::SCREEN_W / 2, y, 18, Palette::UiText,
                          TextFormat("< UPGRADE: %s - %s (x%d owned) >", desc.name, desc.description, ownedStacks));
 }
 
@@ -189,8 +190,8 @@ void RenderSystem::DrawEndScreen(const GameManager& gm) {
     int centerX = Config::SCREEN_W / 2;
     bool waveClear = (gm.state == GameState::WAVE_CLEAR);
     if (waveClear) {
-        canvas.CenteredText(centerX, 180, 36, Palette::UiSuccess, TextFormat("WAVE %d CLEARED!", gm.wave - 1));
-        canvas.CenteredText(centerX, 240, 20, WHITE, TextFormat("SCORE: %d", gm.player.GetScore()));
+        DrawNeonText(gm.titleFont, TextFormat("WAVE %d CLEARED!", gm.wave - 1), { (float)centerX, 198.0f }, 36.0f, Palette::UiSuccess, 1.0f);
+        canvas.CenteredText(centerX, 240, 20, Palette::UiText, TextFormat("SCORE: %d", gm.player.GetScore()));
 
         // NANG CAP SAU WAVE (Track C - Nguoi 2, Phase 3): gm.wave DA duoc ++ TU TRUOC (xem
         // comment trong GameManager::UpdateEndScreen()) - tuc DA LA wave SAP choi, dung
@@ -201,7 +202,7 @@ void RenderSystem::DrawEndScreen(const GameManager& gm) {
         UpgradeType chosenUpgrade = (UpgradeType)gm.selectedUpgrade;
         DrawUpgradeSelect(canvas, 300, chosenUpgrade, gm.player.GetUpgradeStacks(chosenUpgrade));
 
-        canvas.CenteredText(centerX, 335, 16, GRAY, Loc::UpgradeSelectHint);
+        canvas.CenteredText(centerX, 335, 16, Palette::UiDim, Loc::UpgradeSelectHint);
     } else {
         DrawRunSummary(canvas, gm, centerX);
     }
@@ -231,7 +232,7 @@ void RenderSystem::DrawRunSummary(UICanvas& canvas, const GameManager& gm, int c
                 : 1.0f;
     auto countUp = [t](int finalValue) { return (int)((float)finalValue * t); };
 
-    canvas.CenteredText(centerX, 96, 40, Palette::UiDanger, "GAME OVER");
+    DrawNeonText(gm.titleFont, "GAME OVER", { (float)centerX, 116.0f }, 40.0f, Palette::UiDanger, 1.0f);
 
     Color panelFill = Palette::UiPanelFill;
     panelFill.a = (unsigned char)(255.0f * Config::HUD_PANEL_ALPHA);
@@ -563,19 +564,19 @@ void RenderSystem::DrawPlaying(const GameManager& gm) {
 
     int centerX = Config::SCREEN_W / 2;
     if (gm.state == GameState::PAUSED) {
-        DrawRectangle(0, 0, Config::SCREEN_W, Config::SCREEN_H, Fade(BLACK, 0.6f));
+        DrawRectangle(0, 0, Config::SCREEN_W, Config::SCREEN_H, Fade(Palette::Background, 0.6f));
         UICanvas canvas;
         // A4: CenteredText thay cho toa do x hardcode - "PAUSED" (40pt) va 2 dong gia
         // huong dan (18pt) truoc day dung 3 x khac nhau (330/280/250) uoc luong thu
         // cong theo do dai chuoi, khong con chinh xac neu font/chuoi doi sau nay.
-        canvas.CenteredText(centerX, 250, 40, WHITE, "PAUSED");
-        canvas.CenteredText(centerX, 310, 18, GRAY, TextFormat("VOLUME: %d%%  (UP/DOWN)", (int)(gm.audio.GetVolume() * 100)));
-        canvas.CenteredText(centerX, 340, 18, GRAY, Loc::PausedControlsHint);
+        DrawNeonText(gm.titleFont, "PAUSED", { (float)centerX, 270.0f }, 40.0f, Palette::UiText, 1.0f);
+        canvas.CenteredText(centerX, 310, 18, Palette::UiDim, TextFormat("VOLUME: %d%%  (UP/DOWN)", (int)(gm.audio.GetVolume() * 100)));
+        canvas.CenteredText(centerX, 340, 18, Palette::UiDim, Loc::PausedControlsHint);
         canvas.Draw(gm.gameFont);
     } else if (gm.state == GameState::KEYBIND) {
-        DrawRectangle(0, 0, Config::SCREEN_W, Config::SCREEN_H, Fade(BLACK, 0.75f));
+        DrawRectangle(0, 0, Config::SCREEN_W, Config::SCREEN_H, Fade(Palette::Background, 0.75f));
         UICanvas canvas;
-        canvas.CenteredText(centerX, 90, 32, WHITE, Loc::KeybindTitle);
+        DrawNeonText(gm.titleFont, Loc::KeybindTitle, { (float)centerX, 106.0f }, 32.0f, Palette::UiText, 1.0f);
 
         const RebindableAction* actions = GetRebindableActions();
 
@@ -600,15 +601,15 @@ void RenderSystem::DrawPlaying(const GameManager& gm) {
         float rowsLeftX = (float)centerX - maxLineWidth / 2.0f;
         for (int i = 0; i < REBINDABLE_ACTION_COUNT; i++) {
             bool isBeingRebound = (gm.rebindingActionIndex == i);
-            Color rowColor = isBeingRebound ? YELLOW : WHITE;
+            Color rowColor = isBeingRebound ? Palette::UiAccent : Palette::UiText;
             canvas.Text((int)rowsLeftX, 160 + i * 36, 22, rowColor, lines[i]);
         }
 
         if (gm.rebindingActionIndex >= 0) {
-            canvas.CenteredText(centerX, 340, 18, YELLOW,
+            canvas.CenteredText(centerX, 340, 18, Palette::UiAccent,
                         TextFormat(Loc::RebindPromptFmt, actions[gm.rebindingActionIndex].label));
         } else {
-            canvas.CenteredText(centerX, 340, 16, GRAY, Loc::KeybindHelp);
+            canvas.CenteredText(centerX, 340, 16, Palette::UiDim, Loc::KeybindHelp);
         }
         canvas.Draw(gm.gameFont);
     }
@@ -752,7 +753,9 @@ void RenderSystem::DrawHUD(const GameManager& gm) {
 //     nhay -> khong dung toi reduceFlashing.
 // ==========================================
 void RenderSystem::DrawWaveBanner(const GameManager& gm) {
-    if (gm.waveBannerTimer <= 0.0f) return;
+    // Chi khi dang CHOI: pause ngay dau wave thi timer dung nhung banner van con -> vach banner cat
+    // ngang chu PAUSED (thay o anh chup). Timer dung nen banner hien tiep sau khi tiep tuc.
+    if (gm.waveBannerTimer <= 0.0f || gm.state != GameState::PLAYING) return;
     const float alpha = (gm.waveBannerTimer < Config::WAVE_BANNER_FADE)
                           ? (gm.waveBannerTimer / Config::WAVE_BANNER_FADE) : 1.0f;
     const float elapsed = Config::WAVE_BANNER_DURATION - gm.waveBannerTimer;
@@ -820,7 +823,7 @@ void RenderSystem::DrawTransitionWipe(float alpha) {
 void RenderSystem::DrawAchievements(const GameManager& gm) {
     UICanvas canvas;
     const int centerX = Config::SCREEN_W / 2;
-    canvas.CenteredText(centerX, 34, 34, Palette::UiAccent, Loc::AchievementsTitle);
+    DrawNeonText(gm.titleFont, Loc::AchievementsTitle, { (float)centerX, 51.0f }, 34.0f, Palette::UiAccent, 1.0f);
     canvas.CenteredText(centerX, 76, 15, Palette::UiDim,
                         TextFormat(Loc::AchievementsSummaryFmt, gm.achievements.UnlockedCount(),
                                    ACHIEVEMENT_COUNT, gm.achievements.GetLifetimeKills()));
@@ -854,7 +857,7 @@ void RenderSystem::DrawAchievements(const GameManager& gm) {
         y += cardH + gap;
     }
 
-    canvas.CenteredText(centerX, 562, 14, GRAY, Loc::AchievementsBackHint);
+    canvas.CenteredText(centerX, 562, 14, Palette::UiDim, Loc::AchievementsBackHint);
     canvas.Draw(gm.gameFont);
 }
 
@@ -867,7 +870,7 @@ void RenderSystem::DrawGraphicsSettings(const GameManager& gm) {
     UICanvas canvas;
     const int centerX = Config::SCREEN_W / 2;
     const GraphicsSettings& g = gm.settings.graphics;
-    canvas.CenteredText(centerX, 60, 34, Palette::UiAccent, Loc::GraphicsTitle);
+    DrawNeonText(gm.titleFont, Loc::GraphicsTitle, { (float)centerX, 77.0f }, 34.0f, Palette::UiAccent, 1.0f);
 
     Color panelFill = Palette::UiPanelFill;
     panelFill.a = (unsigned char)(255.0f * Config::HUD_PANEL_ALPHA);
@@ -925,7 +928,7 @@ void RenderSystem::DrawGraphicsSettings(const GameManager& gm) {
         y += cardH + gap;
     }
 
-    canvas.CenteredText(centerX, 520, 14, GRAY, Loc::GraphicsHelp);
+    canvas.CenteredText(centerX, 520, 14, Palette::UiDim, Loc::GraphicsHelp);
     canvas.Draw(gm.gameFont);
 }
 
@@ -985,24 +988,24 @@ void RenderSystem::DrawDebugOverlay(const GameManager& gm) {
     int x = 10, y = 90, lineH = 16;
 
     Rectangle bg{ 6.0f, 84.0f, 220.0f, 210.0f };
-    DrawRectangleRec(bg, Fade(BLACK, 0.65f));
-    DrawRectangleLinesEx(bg, 1.0f, GREEN);
+    DrawRectangleRec(bg, Fade(Palette::Background, 0.65f));
+    DrawRectangleLinesEx(bg, 1.0f, Palette::UiSuccess);
 
-    canvas.Text(x, y, 16, GREEN, "-- PROFILER (F3) --"); y += lineH + 2;
-    canvas.Text(x, y, 14, WHITE, TextFormat("FPS: %d", GetFPS())); y += lineH;
-    canvas.Text(x, y, 14, WHITE, TextFormat("Frame time: %.2f ms", GetFrameTime() * 1000.0f)); y += lineH;
+    canvas.Text(x, y, 16, Palette::UiSuccess, "-- PROFILER (F3) --"); y += lineH + 2;
+    canvas.Text(x, y, 14, Palette::UiText, TextFormat("FPS: %d", GetFPS())); y += lineH;
+    canvas.Text(x, y, 14, Palette::UiText, TextFormat("Frame time: %.2f ms", GetFrameTime() * 1000.0f)); y += lineH;
 
     long rssKb = GetProcessRssKb();
-    if (rssKb >= 0) canvas.Text(x, y, 14, WHITE, TextFormat("RAM (RSS): %ld MB", rssKb / 1024));
-    else canvas.Text(x, y, 14, GRAY, "RAM (RSS): N/A");
+    if (rssKb >= 0) canvas.Text(x, y, 14, Palette::UiText, TextFormat("RAM (RSS): %ld MB", rssKb / 1024));
+    else canvas.Text(x, y, 14, Palette::UiDim, "RAM (RSS): N/A");
     y += lineH + 4;
 
-    canvas.Text(x, y, 14, SKYBLUE, "-- ENTITIES --"); y += lineH;
-    canvas.Text(x, y, 13, WHITE, TextFormat("Basic: %d  Tanky: %d", (int)gm.basicEnemies.Size(), (int)gm.tankyEnemies.Size())); y += lineH;
-    canvas.Text(x, y, 13, WHITE, TextFormat("Zigzag: %d  Kamikaze: %d", (int)gm.zigzagEnemies.Size(), (int)gm.kamikazeEnemies.Size())); y += lineH;
-    canvas.Text(x, y, 13, WHITE, TextFormat("Boss: %d  UFO: %d", (int)gm.bossPool.Size(), gm.ufoActive ? 1 : 0)); y += lineH;
-    canvas.Text(x, y, 13, WHITE, TextFormat("Bullets: %d / %d", (int)gm.playerBullets.GetActiveCount(), (int)gm.enemyBullets.GetActiveCount())); y += lineH;
-    canvas.Text(x, y, 13, WHITE, TextFormat("Particles: %d", (int)gm.particles.GetActiveCount())); y += lineH;
+    canvas.Text(x, y, 14, Palette::Weaver, "-- ENTITIES --"); y += lineH;
+    canvas.Text(x, y, 13, Palette::UiText, TextFormat("Basic: %d  Tanky: %d", (int)gm.basicEnemies.Size(), (int)gm.tankyEnemies.Size())); y += lineH;
+    canvas.Text(x, y, 13, Palette::UiText, TextFormat("Zigzag: %d  Kamikaze: %d", (int)gm.zigzagEnemies.Size(), (int)gm.kamikazeEnemies.Size())); y += lineH;
+    canvas.Text(x, y, 13, Palette::UiText, TextFormat("Boss: %d  UFO: %d", (int)gm.bossPool.Size(), gm.ufoActive ? 1 : 0)); y += lineH;
+    canvas.Text(x, y, 13, Palette::UiText, TextFormat("Bullets: %d / %d", (int)gm.playerBullets.GetActiveCount(), (int)gm.enemyBullets.GetActiveCount())); y += lineH;
+    canvas.Text(x, y, 13, Palette::UiText, TextFormat("Particles: %d", (int)gm.particles.GetActiveCount())); y += lineH;
 
     canvas.Draw(gm.gameFont);
 }

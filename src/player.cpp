@@ -272,10 +272,13 @@ void Player::Draw(const Texture2D& sprite, bool reduceFlashing) const {
 
     struct PipStatus { bool active; Color color; };
     PipStatus pips[] = {
-        { HasShield(),     SKYBLUE },
-        { HasPiercing(),   MAGENTA },
-        { HasRapidFire(),  ORANGE  },
-        { HasSpreadShot(), GOLD    }, // Phase 1b, Nguoi 1
+        // GD 5: qua Palette:: - khien = mau rao chan (khop vong luc giac), 3 power-up tan cong = 3
+        // sac NONG khac nhau (phan thuong), Overdrive = do rui ro. Truoc day SKYBLUE/MAGENTA/ORANGE/
+        // GOLD goi thang (MAGENTA khong thuoc dai nao trong luat lanh/nong).
+        { HasShield(),     Palette::ShieldBarrier },
+        { HasPiercing(),   Palette::UiAccent },
+        { HasRapidFire(),  Palette::PlayerThrust },
+        { HasSpreadShot(), Palette::ScoreText }, // Phase 1b, Nguoi 1
         { HasOverdrive(),  Palette::EnemyBullet }, // Phase 1b, Nguoi 1 - do = nhac nho rui ro "mat 2 mang" dang active
     };
     int activeCount = 0;

@@ -1,6 +1,6 @@
 # Kế hoạch nâng cấp đồ họa toàn diện - "Neon-vector arcade"
 
-> Trạng thái: **ĐÃ DUYỆT** (2026-10-03). Xong: GĐ 0, hạ tầng settings (mục 4), phần chính GĐ 2, GĐ 1, GĐ 3. Tiếp theo: GĐ 5 - UI/HUD/menu.
+> Trạng thái: **ĐÃ DUYỆT** (2026-10-03). Xong: GĐ 0, hạ tầng settings (mục 4), phần chính GĐ 2, GĐ 1, GĐ 3, GĐ 5. Còn: GĐ 4 (đo trên máy thật), GĐ 6 (tài liệu tổng), các mục dời lại.
 > Ảnh baseline chụp headless bằng Xvfb (thư mục `screenshots/` nằm trong `.gitignore`, ảnh trước/sau gửi kèm PR thay vì commit).
 > Nhánh: `claude/upgrade-vibking-graphics-cwhbn3`. Ngày lập: 2026-10-03.
 
@@ -330,7 +330,30 @@ Cộng dồn với GĐ 1 (+20%), Medium hiện chậm hơn bản trước nâng 
    Nova Drift).
 3. Đo lại frame time từng preset so với baseline GĐ 0; Low phải giữ 60 fps.
 
-### GĐ 5 - UI / HUD / menu
+### GĐ 5 - UI / HUD / menu - **XONG**
+
+**Đã làm** (4 commit):
+- Font **Audiowide** (SIL OFL, `assets/fonts/LICENSE-Audiowide.txt`) cho logo + tiêu đề MỌI màn
+  (GAME OVER / WAVE CLEARED / PAUSED / ACHIEVEMENTS / GRAPHICS / REBIND KEYS / banner). Chữ nhỏ
+  vẫn DejaVu. `DrawNeonText` + `NeonPowerOn` ("bật đèn" 2 lần chớp lúc mở game; giảm nhấp
+  nháy -> sáng dần).
+- HUD vector: `FramedPanel` góc ngoặc; điểm lăn số (`RollToward`); tàu mini thay chữ LIVES;
+  thanh máu boss màu theo giai đoạn (`BossTint`, cùng nguồn với sprite) + vạch tại
+  `BOSS_STAGE2/3_RATIO` + vệt sát thương (`DamageTrail`).
+- Banner: wave thường = neon + vạch phóng ra; boss = dải sọc cảnh báo đỏ-đen trôi + WARNING.
+  Chỉ hiện khi đang PLAYING (pause đầu wave từng để vạch banner cắt chữ PAUSED).
+- Chuyển cảnh: 12 dải đóng từ giữa, lệch nhịp trên -> dưới (`WipeBandCoverage`).
+- Màu: 46 dòng trong `render_system.cpp` + pip power-up + 2 chỗ trong `physics_system.cpp` chuyển
+  sang `Palette::`. Còn lại chỉ là `WHITE` làm tint trung tính (vẽ texture/mặt nạ sprite).
+- Test `[ui]`: lăn số, vệt sát thương, wipe (alpha 1 phải kín mọi dải), ease, power-on (≤ 3 lần
+  bật/giây - WCAG 2.3.1).
+
+**Giới hạn đã biết:** sóng xung kích (GĐ 3) méo CẢ HUD/banner khi vòng sóng đi qua (HUD vẽ vào
+cùng render target trước pass cuối). Sóng chỉ sống 0,4-0,8 s; tách HUD ra sau pass cuối cần 1
+render target nữa - chưa làm. Màn GAME OVER / WAVE CLEARED: tiêu đề neon đã đổi nhưng chưa chụp
+được ảnh (cần chơi tới đó; cảnh trình diễn chưa có 2 màn này).
+
+**Đề xuất gốc:**
 1. **Title screen**: logo vẽ bằng nét neon (outline phát sáng + nhấp nháy "khởi động bóng đèn"
    1 lần lúc vào, rồi đứng yên - không strobe), lưới nền GĐ 1 dùng luôn ở menu.
 2. **HUD**: khung mảnh kiểu vector, số điểm "lăn" (tween) thay vì nhảy, combo meter phát sáng

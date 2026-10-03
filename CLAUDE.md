@@ -126,6 +126,9 @@ cmake --build build-strict -j"$(nproc)"
   balance data (không vào balance.json). Muốn biết "preset này có bật X không" thì gọi hàm của
   struct đó (`BloomEnabled()`, `ParticleScale()`...), đừng tự so `quality == High`. Mọi flash
   toàn màn hình mới phải tôn trọng `reduceFlashing` (WCAG 2.3.1: không quá 3 lần/giây).
+- **2 font**: `gameFont` (DejaVu Sans Mono, có dấu tiếng Việt) cho MỌI chữ thường; `titleFont`
+  (Audiowide, qua `DrawNeonText()` trong draw_helpers.h) CHỈ cho tiêu đề/banner tiếng Anh - font này
+  chỉ có bộ Latin cơ bản, đưa chuỗi tiếng Việt vào sẽ mất dấu ÂM THẦM (raylib vẽ ô trống, không báo lỗi).
 - **Fade transition 2 pha**: `RequestTransition()` KHÔNG đổi `state` ngay - chỉ đặt
   `pendingState` + bắt đầu `FADE_OUT`; `state` đổi thật bên trong `UpdateTransition()`
   sau đủ `Config::TRANSITION_DURATION` giây, rồi `FADE_IN` trước khi về `NONE`.
