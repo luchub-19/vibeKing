@@ -7,6 +7,7 @@
 #include "input_system.h"
 #include "meta_progress.h"
 #include "upgrade_types.h"
+#include "powerup.h"
 
 class Player {
 private:
@@ -106,6 +107,19 @@ public:
     void SetSkinTint(Color tint) { skinTint = tint; }
     Color GetSkinTint() const { return skinTint; }
 
+    // Thoi gian con lai cua 1 power-up co thoi han - HUD ve vach dem nguoc duoi icon (nang cap GUI).
+    // Cleanser la hieu ung tuc thi -> 0.
+    float PowerUpTimeLeft(PowerUpType t) const {
+        switch (t) {
+            case PowerUpType::Shield:     return shieldTimer;
+            case PowerUpType::RapidFire:  return rapidFireTimer;
+            case PowerUpType::Piercing:   return pierceTimer;
+            case PowerUpType::SpreadShot: return spreadShotTimer;
+            case PowerUpType::Overdrive:  return overdriveTimer;
+            case PowerUpType::Cleanser:   break;
+        }
+        return 0.0f;
+    }
     bool HasShield() const { return shieldTimer > 0.0f; }
     bool HasRapidFire() const { return rapidFireTimer > 0.0f; }
     bool HasPiercing() const { return pierceTimer > 0.0f; }

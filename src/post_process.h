@@ -64,6 +64,7 @@ private:
     struct FinalLocs {
         int resolution = -1, gameSize = -1, time = -1, scanline = -1, vignette = -1, flicker = -1;
         int barrel = -1, waves = -1, waveCount = -1, chromatic = -1, enrage = -1, hurt = -1, grade = -1, flipY = -1;
+        int colorFilter = -1;
     } fl;
 
     RenderTexture2D bloomLevels[BLOOM_MAX_LEVELS]{};

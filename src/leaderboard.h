@@ -6,6 +6,10 @@
 struct LeaderboardEntry {
     int score = 0;
     int wave = 0;
+    // Ván có lúc chơi với tốc độ game < 100% (Cài đặt > Trợ năng) - kiểu Celeste Assist: vẫn
+    // vào bảng, không phạt người chơi, nhưng dòng mang nhãn ASSIST để so sánh công bằng. Ghi ra
+    // file thành cột thứ 3 tuỳ chọn ("A") - file cũ 2 cột vẫn đọc được (= không assist).
+    bool assisted = false;
 };
 
 enum class SubmitResult { NotQualified, MadeTop10, NewRecord };
@@ -38,7 +42,7 @@ public:
 
     // NewRecord: điểm này giờ là #1. MadeTop10: lọt vào danh sách nhưng không phải #1.
     // NotQualified: không đủ điểm để lọt top (RAM và file đều không đổi).
-    SubmitResult TrySubmit(int score, int wave);
+    SubmitResult TrySubmit(int score, int wave, bool assisted = false);
 
     const std::vector<LeaderboardEntry>& GetEntries() const { return entries; }
     int GetTopScore() const { return entries.empty() ? 0 : entries[0].score; }

@@ -50,9 +50,21 @@ private:
     Sound hiHat{};
     float hiHatTimer = 0.0f;
 
+    // AM THANH GIAO DIEN (nang cap GUI) - bip vuong ngan kieu may arcade/Famicom: di chuyen con
+    // tro, xac nhan, quay lai, loi, va tieng "go chu" rat nho cho hieu ung typewriter. Thuoc
+    // nhom SFX (nhan sfxVolume) va tat duoc rieng qua Settings::uiSounds.
+    VoicePool<2> uiMove;
+    VoicePool<2> uiConfirm;
+    VoicePool<2> uiBack;
+    VoicePool<2> uiError;
+    VoicePool<3> uiType;
+    bool uiEnabled = true;
+
     int bassIndex = 0;
     float bassTimer = 0.0f;
     float masterVolume = 0.6f;
+    float musicVolume = 1.0f; // Ty le nhan them cho nhac nen + bassline/hi-hat (nhip doi hinh = "nhac")
+    float sfxVolume = 1.0f;   // Ty le nhan them cho moi SFX + am thanh giao dien
     bool initialized = false;
 
     // NHAC NEN PROCEDURAL (Config::MUSIC_*) - AudioStream RIENG BIET HOAN TOAN voi
@@ -97,6 +109,15 @@ public:
     // chay (initialized=false -> no-op, giong triet ly cac ham Update/Play khac).
     void UpdateMusic(float dt, const MusicContext& ctx);
 
-    void SetVolume(float v); // 0..1
+    // 3 tang am luong 0..1 (kep trong ham). Am thanh that = master x nhom.
+    void SetMix(float master, float music, float sfx);
+    void SetVolume(float v) { SetMix(v, musicVolume, sfxVolume); } // Chi doi TONG, giu ty le nhom
     float GetVolume() const { return masterVolume; }
+
+    void SetUiSoundsEnabled(bool on) { uiEnabled = on; }
+    void PlayUiMove();
+    void PlayUiConfirm();
+    void PlayUiBack();
+    void PlayUiError();
+    void PlayUiType();
 };

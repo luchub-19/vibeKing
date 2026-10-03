@@ -26,6 +26,13 @@ constexpr int GRAPHICS_QUALITY_COUNT = 3;
 constexpr int SHAKE_PERCENT_LEVELS[] = { 100, 50, 0 };
 constexpr int SHAKE_PERCENT_LEVEL_COUNT = 3;
 
+// LOC MAU cho nguoi thieu sac giac (trang Cai dat > Tro nang). Thuc thi o pass cuoi (final.fs)
+// bang thuat toan daltonize (Fidaner et al.): mo phong cach mat loai do nhin anh, lay phan
+// thong tin mau BI MAT roi don sang kenh mat VAN phan biet duoc. Khong doi Palette:: - luat
+// lanh/nong van giu, chi lam no doc duoc voi nhieu nguoi hon.
+enum class ColorFilter : uint8_t { Off, Protan, Deutan, Tritan };
+constexpr int COLOR_FILTER_COUNT = 4;
+
 struct GraphicsSettings {
     GraphicsQuality quality = GraphicsQuality::Medium; // Medium = dien mao truoc khi co trang nay
     bool crtEnabled = true;
@@ -33,6 +40,7 @@ struct GraphicsSettings {
     // man hinh. Hien chi co CRT flicker; cac flash lon them o GD 2-4 phai doc co nay.
     bool reduceFlashing = false;
     int shakePercent = 100; // Luon la 1 phan tu cua SHAKE_PERCENT_LEVELS sau Sanitize()
+    ColorFilter colorFilter = ColorFilter::Off;
 
     // Low tat bloom: pass dat nhat (3 lan ve full-texture), la thu dau tien bo khi may yeu.
     bool BloomEnabled() const { return quality != GraphicsQuality::Low; }
@@ -72,6 +80,11 @@ struct GraphicsSettings {
         quality = (GraphicsQuality)q;
     }
 
+    void CycleColorFilter(int dir) {
+        int f = ((int)colorFilter + dir % COLOR_FILTER_COUNT + COLOR_FILTER_COUNT) % COLOR_FILTER_COUNT;
+        colorFilter = (ColorFilter)f;
+    }
+
     void CycleShake(int dir) {
         int idx = 0;
         for (int i = 0; i < SHAKE_PERCENT_LEVEL_COUNT; i++) {
@@ -93,11 +106,6 @@ struct GraphicsSettings {
     }
 };
 
-// Thu tu cac dong tren trang GRAPHICS - 1 nguon cho ca GameManager::UpdateGraphicsScreen()
-// (dong nao doi gi) lan RenderSystem::DrawGraphicsSettings() (dong nao ve gi).
-enum class GraphicsRow : uint8_t { Quality, Crt, ReduceFlashing, Shake };
-constexpr int GRAPHICS_ROW_COUNT = 4;
-
 inline const char* GraphicsQualityLabel(GraphicsQuality q) {
     switch (q) {
         case GraphicsQuality::Low:    return "LOW";
@@ -105,4 +113,15 @@ inline const char* GraphicsQualityLabel(GraphicsQuality q) {
         case GraphicsQuality::High:   return "HIGH";
     }
     return "MEDIUM";
+}
+
+// Ma luu file (settings.cfg) - KHONG dich, giong GraphicsQualityLabel.
+inline const char* ColorFilterCode(ColorFilter f) {
+    switch (f) {
+        case ColorFilter::Protan: return "PROTAN";
+        case ColorFilter::Deutan: return "DEUTAN";
+        case ColorFilter::Tritan: return "TRITAN";
+        case ColorFilter::Off:    break;
+    }
+    return "OFF";
 }

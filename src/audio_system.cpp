@@ -118,6 +118,15 @@ void AudioSystem::Init() {
     // tach biet ro, khong lan vao nhau du 2 lop vang GAN NHAU ve mat thoi gian.
     hiHat = GenerateTone(2400.0f, 0.04f, 2);
 
+    // Am thanh giao dien: song vuong ngan (chat 8-bit), cao do tach biet ro voi SFX gameplay.
+    // Xac nhan cao hon di chuyen 1 quang tam (660 -> 1320Hz), quay lai thap hon - tai nghe tu
+    // phan biet "tien/lui" ma khong can nhin.
+    uiMove.Init(GenerateTone(660.0f, 0.035f, 1));
+    uiConfirm.Init(GenerateTone(1320.0f, 0.07f, 1));
+    uiBack.Init(GenerateTone(392.0f, 0.06f, 1));
+    uiError.Init(GenerateTone(130.0f, 0.12f, 1));
+    uiType.Init(GenerateTone(1760.0f, 0.012f, 0));
+
     // NHAC NEN PROCEDURAL: AudioStream mono 16-bit 44100Hz - GIONG het tham so sampleRate/
     // sampleSize/channels ma moi Sound o tren dung (xem GenerateTone()), nhung day la 1
     // STREAM lien tuc (khong phai buffer co dinh) nen phai LoadAudioStream()+
@@ -129,8 +138,8 @@ void AudioSystem::Init() {
     musicSampleCursor = 0.0;
     musicTensionLerp = 0.0f;
 
-    SetVolume(masterVolume);
     initialized = true;
+    SetMix(masterVolume, musicVolume, sfxVolume);
 }
 
 void AudioSystem::Shutdown() {
@@ -143,6 +152,11 @@ void AudioSystem::Shutdown() {
     sfxUfoHit.Unload();
     sfxCleanser.Unload();
     sfxBossPhase.Unload();
+    uiMove.Unload();
+    uiConfirm.Unload();
+    uiBack.Unload();
+    uiError.Unload();
+    uiType.Unload();
 
     UnloadSound(sfxGameOver);
     UnloadSound(sfxWaveClear);
@@ -165,6 +179,11 @@ void AudioSystem::PlayUfoHit()     { sfxUfoHit.Play(); }
 void AudioSystem::PlayCleanser()   { sfxCleanser.Play(); }
 void AudioSystem::PlayBossDefeat() { PlaySound(sfxBossDefeat); }
 void AudioSystem::PlayBossPhase()  { sfxBossPhase.Play(); }
+void AudioSystem::PlayUiMove()     { if (uiEnabled) uiMove.Play(); }
+void AudioSystem::PlayUiConfirm()  { if (uiEnabled) uiConfirm.Play(); }
+void AudioSystem::PlayUiBack()     { if (uiEnabled) uiBack.Play(); }
+void AudioSystem::PlayUiError()    { if (uiEnabled) uiError.Play(); }
+void AudioSystem::PlayUiType()     { if (uiEnabled) uiType.Play(); }
 
 void AudioSystem::UpdateBassline(float dt, float enemySpeed, float enemySpeedMax) {
     float speedRatio = enemySpeedMax > 0.0f ? (enemySpeed / enemySpeedMax) : 0.0f;
@@ -194,24 +213,35 @@ void AudioSystem::UpdateBassline(float dt, float enemySpeed, float enemySpeedMax
     }
 }
 
-void AudioSystem::SetVolume(float v) {
-    if (v < 0.0f) v = 0.0f;
-    if (v > 1.0f) v = 1.0f;
-    masterVolume = v;
-    sfxShoot.SetVolume(v);
-    sfxHit.SetVolume(v);
-    sfxExplosion.SetVolume(v);
-    sfxPickup.SetVolume(v);
-    sfxUfoAppear.SetVolume(v);
-    sfxUfoHit.SetVolume(v);
-    sfxCleanser.SetVolume(v);
-    sfxBossPhase.SetVolume(v);
-    SetSoundVolume(sfxGameOver, v);
-    SetSoundVolume(sfxWaveClear, v);
-    SetSoundVolume(sfxBossDefeat, v);
-    for (int i = 0; i < 4; i++) SetSoundVolume(bassNotes[i], v * 0.7f); // Bass nhỏ hơn SFX chính 1 chút
-    SetSoundVolume(hiHat, v * 0.35f); // Hi-hat chi la lop nen tinh te, nho hon ca bass
-    SetAudioStreamVolume(musicStream, v * Config::MUSIC_MASTER_GAIN); // Nhac nen: cung 1 nut volume duy nhat voi moi SFX khac, chi nho hon theo MUSIC_MASTER_GAIN
+void AudioSystem::SetMix(float master, float music, float sfx) {
+    auto clamp01 = [](float v) { return v < 0.0f ? 0.0f : (v > 1.0f ? 1.0f : v); };
+    masterVolume = clamp01(master);
+    musicVolume = clamp01(music);
+    sfxVolume = clamp01(sfx);
+    if (!initialized) return; // Chua Init (test headless) - chi ghi nho gia tri, Init() se ap dung
+
+    const float s = masterVolume * sfxVolume;
+    const float m = masterVolume * musicVolume;
+    sfxShoot.SetVolume(s);
+    sfxHit.SetVolume(s);
+    sfxExplosion.SetVolume(s);
+    sfxPickup.SetVolume(s);
+    sfxUfoAppear.SetVolume(s);
+    sfxUfoHit.SetVolume(s);
+    sfxCleanser.SetVolume(s);
+    sfxBossPhase.SetVolume(s);
+    SetSoundVolume(sfxGameOver, s);
+    SetSoundVolume(sfxWaveClear, s);
+    SetSoundVolume(sfxBossDefeat, s);
+    uiMove.SetVolume(s * 0.5f);    // Giao dien nho hon gameplay - nghe ro nhung khong choi tai
+    uiConfirm.SetVolume(s * 0.5f);
+    uiBack.SetVolume(s * 0.5f);
+    uiError.SetVolume(s * 0.5f);
+    uiType.SetVolume(s * 0.18f);   // Go chu lap lai lien tuc -> rat nho, chi la "ket cau"
+    // Bassline + hi-hat la NHIP DOI HINH - ve mat cam nhan la nhac, nen theo nhom nhac.
+    for (int i = 0; i < 4; i++) SetSoundVolume(bassNotes[i], m * 0.7f); // Bass nhỏ hơn SFX chính 1 chút
+    SetSoundVolume(hiHat, m * 0.35f); // Hi-hat chi la lop nen tinh te, nho hon ca bass
+    SetAudioStreamVolume(musicStream, m * Config::MUSIC_MASTER_GAIN);
 }
 
 void AudioSystem::UpdateMusic(float dt, const MusicContext& ctx) {

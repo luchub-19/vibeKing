@@ -42,10 +42,17 @@ void Leaderboard::Load(const std::string& path) {
         return;
     }
 
+    // Đọc TỪNG DÒNG (không phải `>> score >> wave` liền mạch): cột thứ 3 "A" (assisted) là
+    // tuỳ chọn - đọc liền mạch thì chữ "A" làm hỏng luồng và mất mọi dòng phía sau.
     std::istringstream bodyIn(body);
-    int score, wave;
-    while (bodyIn >> score >> wave) {
-        entries.push_back({ score, wave });
+    std::string line;
+    while (std::getline(bodyIn, line)) {
+        std::istringstream lineIn(line);
+        LeaderboardEntry e;
+        if (!(lineIn >> e.score >> e.wave)) continue;
+        std::string flag;
+        e.assisted = (lineIn >> flag) && flag == "A";
+        entries.push_back(e);
         if ((int)entries.size() >= Config::LEADERBOARD_MAX_ENTRIES) break; // File hỏng/dài bất thường cũng không đọc quá giới hạn
     }
 
@@ -56,7 +63,7 @@ void Leaderboard::Load(const std::string& path) {
     });
 }
 
-SubmitResult Leaderboard::TrySubmit(int score, int wave) {
+SubmitResult Leaderboard::TrySubmit(int score, int wave, bool assisted) {
     // 1 van 0 diem KHONG phai thanh tich. Truoc day danh sach rong lam `isNewRecord` luon
     // dung, nen lan chet dau tien cua nguoi choi moi - ke ca chet o wave 1 voi dung 0 diem,
     // chua ban trung gi - van duoc chuc mung bang bang "NEW RECORD! (#1)" (da thay trong
@@ -72,8 +79,10 @@ SubmitResult Leaderboard::TrySubmit(int score, int wave) {
     // thanh tich da ghi.
     if (inRun && runHasEntry) {
         if (score < runEntry.score) return SubmitResult::NotQualified;
+        // Assist la 1 chieu trong 1 van: bat 1 lan thi ca van mang nhan, ke ca khi tat lai sau do.
+        assisted = assisted || runEntry.assisted;
         auto it = std::find_if(entries.begin(), entries.end(), [&](const LeaderboardEntry& e) {
-            return e.score == runEntry.score && e.wave == runEntry.wave;
+            return e.score == runEntry.score && e.wave == runEntry.wave && e.assisted == runEntry.assisted;
         });
         if (it != entries.end()) entries.erase(it);
         runHasEntry = false;
@@ -85,7 +94,7 @@ SubmitResult Leaderboard::TrySubmit(int score, int wave) {
 
     if (!hasRoom && !beatsWeakest) return SubmitResult::NotQualified;
 
-    entries.push_back({ score, wave });
+    entries.push_back({ score, wave, assisted });
     std::sort(entries.begin(), entries.end(), [](const LeaderboardEntry& a, const LeaderboardEntry& b) {
         return a.score > b.score;
     });
@@ -93,7 +102,7 @@ SubmitResult Leaderboard::TrySubmit(int score, int wave) {
         entries.resize(Config::LEADERBOARD_MAX_ENTRIES);
     }
     if (inRun) {
-        runEntry = { score, wave };
+        runEntry = { score, wave, assisted };
         runHasEntry = true;
     }
 
@@ -114,7 +123,7 @@ void Leaderboard::SaveToFile(const std::string& path) const {
     // thay doi sau nay.
     std::ostringstream bodyBuf;
     for (const LeaderboardEntry& e : entries) {
-        bodyBuf << e.score << " " << e.wave << "\n";
+        bodyBuf << e.score << " " << e.wave << (e.assisted ? " A" : "") << "\n";
     }
     std::string body = bodyBuf.str();
     std::string sigHex = SaveChecksum::ToHex(SaveChecksum::Fnv1a64(body));

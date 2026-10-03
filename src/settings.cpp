@@ -29,6 +29,19 @@ namespace {
         else TraceLog(LOG_WARNING, "Settings: gia tri ma phim khong hop le");
     }
 
+    void ParseFloatKey(std::string_view val, float& target) {
+        float v;
+        auto res = std::from_chars(val.data(), val.data() + val.size(), v);
+        if (res.ec == std::errc{}) target = v;
+        else TraceLog(LOG_WARNING, "Settings: gia tri so thuc khong hop le");
+    }
+
+    // NaN (from_chars nhan "nan") lot qua moi phep so sanh -> ve mac dinh truoc, roi kep 0..1.
+    float SanitizeVolume(float v, float def) {
+        if (std::isnan(v)) return def;
+        return v < 0.0f ? 0.0f : (v > 1.0f ? 1.0f : v);
+    }
+
     // Chi "0"/"1" - gia tri khac (sua tay sai) giu nguyen mac dinh thay vi doan y.
     void ParseBoolKey(std::string_view val, bool& target) {
         if (val == "1") target = true;
@@ -37,8 +50,9 @@ namespace {
     }
 }
 
-Settings Settings::LoadFromFile(const std::string& path) {
+Settings Settings::LoadFromFile(const std::string& path, Language defaultLanguage) {
     Settings cfg; // Bắt đầu từ default - file thiếu key nào thì key đó giữ default
+    cfg.language = defaultLanguage;
 
     std::ifstream file(path);
     if (!file.is_open()) {
@@ -61,10 +75,7 @@ Settings Settings::LoadFromFile(const std::string& path) {
         if (IEquals(key, "DIFFICULTY")) {
             cfg.difficulty = DifficultyFromLabel(val, cfg.difficulty);
         } else if (IEquals(key, "VOLUME")) {
-            float v;
-            auto res = std::from_chars(val.data(), val.data() + val.size(), v);
-            if (res.ec == std::errc{}) cfg.volume = v;
-            else TraceLog(LOG_WARNING, "Settings: gia tri VOLUME khong hop le");
+            ParseFloatKey(val, cfg.volume);
         } else if (IEquals(key, "KEY_MOVE_LEFT")) {
             ParseIntKey(val, cfg.keyMoveLeft);
         } else if (IEquals(key, "KEY_MOVE_RIGHT")) {
@@ -83,14 +94,43 @@ Settings Settings::LoadFromFile(const std::string& path) {
             ParseBoolKey(val, cfg.graphics.reduceFlashing);
         } else if (IEquals(key, "GFX_SHAKE")) {
             ParseIntKey(val, cfg.graphics.shakePercent);
+        } else if (IEquals(key, "GFX_COLOR_FILTER")) {
+            for (int f = 0; f < COLOR_FILTER_COUNT; f++) {
+                if (IEquals(val, ColorFilterCode((ColorFilter)f))) cfg.graphics.colorFilter = (ColorFilter)f;
+            }
+        } else if (IEquals(key, "MUSIC_VOLUME")) {
+            ParseFloatKey(val, cfg.musicVolume);
+        } else if (IEquals(key, "SFX_VOLUME")) {
+            ParseFloatKey(val, cfg.sfxVolume);
+        } else if (IEquals(key, "UI_SOUNDS")) {
+            ParseBoolKey(val, cfg.uiSounds);
+        } else if (IEquals(key, "LANGUAGE")) {
+            cfg.language = Loc::LanguageFromCode(val, cfg.language);
+        } else if (IEquals(key, "FULLSCREEN")) {
+            ParseBoolKey(val, cfg.fullscreen);
+        } else if (IEquals(key, "SHOW_FPS")) {
+            ParseBoolKey(val, cfg.showFps);
+        } else if (IEquals(key, "AUTO_FIRE")) {
+            ParseBoolKey(val, cfg.autoFire);
+        } else if (IEquals(key, "GAME_SPEED")) {
+            ParseIntKey(val, cfg.gameSpeedPercent);
+        } else if (IEquals(key, "SHOW_HITBOX")) {
+            ParseBoolKey(val, cfg.showHitbox);
         }
     }
 
     // from_chars chap nhan ca "nan", va moi phep so sanh voi NaN deu false - 2 dong clamp ben
     // duoi de NaN lot qua, roi di thang vao SetMasterVolume(). NaN = gia tri vo nghia -> mac dinh.
-    if (std::isnan(cfg.volume)) cfg.volume = Settings{}.volume;
-    if (cfg.volume < 0.0f) cfg.volume = 0.0f;
-    if (cfg.volume > 1.0f) cfg.volume = 1.0f;
+    cfg.volume = SanitizeVolume(cfg.volume, Settings{}.volume);
+    cfg.musicVolume = SanitizeVolume(cfg.musicVolume, Settings{}.musicVolume);
+    cfg.sfxVolume = SanitizeVolume(cfg.sfxVolume, Settings{}.sfxVolume);
+
+    // GAME_SPEED sua tay ngoai danh sach (vd 5 -> game gan nhu dung yen) -> 100. KHONG lam tron
+    // ve muc gan nhat nhu GFX_SHAKE: toc do choi la thu anh huong bang xep hang, gia tri la phai
+    // ve "khong ho tro" chu khong phai doan y.
+    bool speedOk = false;
+    for (int lv : GAME_SPEED_LEVELS) speedOk = speedOk || (lv == cfg.gameSpeedPercent);
+    if (!speedOk) cfg.gameSpeedPercent = 100;
 
     // Chi chap nhan ma phim trong vung hop le cua raylib (MAX_KEYBOARD_KEYS=512, xac
     // nhan truc tiep tu rcore.c) - file bi sua tay/hong voi gia tri vo ly (am, qua lon)
@@ -133,6 +173,16 @@ void Settings::SaveToFile(const std::string& path) const {
         file << "GFX_CRT=" << (graphics.crtEnabled ? 1 : 0) << "\n";
         file << "GFX_REDUCE_FLASHING=" << (graphics.reduceFlashing ? 1 : 0) << "\n";
         file << "GFX_SHAKE=" << graphics.shakePercent << "\n";
+        file << "GFX_COLOR_FILTER=" << ColorFilterCode(graphics.colorFilter) << "\n";
+        file << "MUSIC_VOLUME=" << musicVolume << "\n";
+        file << "SFX_VOLUME=" << sfxVolume << "\n";
+        file << "UI_SOUNDS=" << (uiSounds ? 1 : 0) << "\n";
+        file << "LANGUAGE=" << Loc::LanguageCode(language) << "\n";
+        file << "FULLSCREEN=" << (fullscreen ? 1 : 0) << "\n";
+        file << "SHOW_FPS=" << (showFps ? 1 : 0) << "\n";
+        file << "AUTO_FIRE=" << (autoFire ? 1 : 0) << "\n";
+        file << "GAME_SPEED=" << gameSpeedPercent << "\n";
+        file << "SHOW_HITBOX=" << (showHitbox ? 1 : 0) << "\n";
     } // Dong scope -> ofstream flush + dong file truoc khi rename ben duoi
 
     if (!AtomicFile::Replace(tmpPath, path)) {

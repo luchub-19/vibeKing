@@ -11,6 +11,7 @@
 //   4. Chinh mau nhe: S-curve + bao hoa +8%. 5. Khu bao hoa khi vua trung don.
 //   6. Vien ngả DO khi boss enrage (do = nguy hiem, luat lanh/nong).
 //   7. Scanline/vignette/flicker cu - strength = 0 khi tat CRT.
+//   8. Loc mau mu mau (Cai dat > Tro nang): daltonize - xem graphics_settings.h ColorFilter.
 
 in vec2 fragTexCoord;
 in vec4 fragColor;
@@ -31,6 +32,29 @@ uniform float enrage;             // 0..1
 uniform float hurt;               // 0..1
 uniform float grade;              // 0..1 do manh chinh mau
 uniform float flipY;              // 1 neu fragTexCoord.y nguoc chieu Y game (render texture)
+uniform int colorFilter;          // 0 tat, 1 protan, 2 deutan, 3 tritan
+
+// DALTONIZE (Fidaner, Lin, Ozguven 2005): RGB -> LMS, bo kenh non bi thieu (mo phong cach mat
+// loai do nhin), lay phan SAI KHAC so voi anh goc - tuc thong tin mau ma nguoi do bi mat - roi
+// cong sang cac kenh ho van phan biet duoc. Ket qua: do/luc (protan/deutan) hoac lam/vang
+// (tritan) tach nhau ro hon thay vi lan vao nhau.
+vec3 daltonize(vec3 rgb, int mode) {
+    // Ma tran cot (GLSL mat3 nhap theo COT) - gia tri tu bai bao goc.
+    mat3 rgb2lms = mat3(17.8824, 3.45565, 0.0299566,
+                        43.5161, 27.1554, 0.184309,
+                        4.11935, 3.86714, 1.46709);
+    mat3 lms2rgb = mat3(0.0809444479, -0.0102485335, -0.000365296938,
+                        -0.130504409, 0.0540193266, -0.00412161469,
+                        0.116721066, -0.113614708, 0.693511405);
+    vec3 lms = rgb2lms * rgb;
+    vec3 sim;
+    if (mode == 1)      sim = vec3(2.02344 * lms.y - 2.52581 * lms.z, lms.y, lms.z);
+    else if (mode == 2) sim = vec3(lms.x, 0.494207 * lms.x + 1.24827 * lms.z, lms.z);
+    else                sim = vec3(lms.x, lms.y, -0.395913 * lms.x + 0.801109 * lms.y);
+    vec3 err = rgb - lms2rgb * sim;
+    vec3 shift = vec3(0.0, 0.7 * err.r + err.g, 0.7 * err.r + err.b);
+    return clamp(rgb + shift, 0.0, 1.0);
+}
 
 out vec4 finalColor;
 
@@ -97,6 +121,9 @@ void main()
     col *= mix(1.0, 0.5 + 0.5 * scanline, scanlineStrength);
     col *= clamp(1.0 - dot(centered, centered) * vignetteStrength, 0.0, 1.0);
     col *= 1.0 + sin(time * 30.0) * flickerStrength;
+
+    // 8) Loc mau CUOI cung - sau moi chinh mau khac, de bu dung cai mat se thay.
+    if (colorFilter > 0) col = daltonize(clamp(col, 0.0, 1.0), colorFilter);
 
     finalColor = vec4(col, 1.0);
 }

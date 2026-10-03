@@ -60,6 +60,7 @@ void PostProcess::Init() {
         fl.hurt       = GetShaderLocation(finalShader, "hurt");
         fl.grade      = GetShaderLocation(finalShader, "grade");
         fl.flipY      = GetShaderLocation(finalShader, "flipY");
+        fl.colorFilter = GetShaderLocation(finalShader, "colorFilter");
         float gameSize[2] = { (float)Config::SCREEN_W, (float)Config::SCREEN_H };
         SetShaderValue(finalShader, fl.gameSize, gameSize, SHADER_UNIFORM_VEC2);
     } else {
@@ -161,6 +162,8 @@ void PostProcess::Render(const RenderTexture2D& source, Rectangle srcRec, Rectan
         setF(fl.grade, 1.0f);
         // finalSrcRec luon co chieu cao AM (lat render texture) -> fragTexCoord.y nguoc chieu Y game
         setF(fl.flipY, finalSrcRec.height < 0.0f ? 1.0f : 0.0f);
+        int filter = (int)gfx.colorFilter;
+        SetShaderValue(finalShader, fl.colorFilter, &filter, SHADER_UNIFORM_INT);
 
         BeginShaderMode(finalShader);
             DrawTexturePro(finalSource->texture, finalSrcRec, destRec, { 0.0f, 0.0f }, 0.0f, WHITE);
