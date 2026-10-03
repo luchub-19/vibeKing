@@ -87,10 +87,10 @@ namespace Loc {
     constexpr const char* GraphicsRowReduceFlashing = "REDUCE FLASHING";
     constexpr const char* GraphicsRowShake = "SCREEN SHAKE";
     // Mo ta tung preset - phai khop GraphicsSettings::BloomEnabled/ParticleScale (graphics_settings.h).
-    // High hien chua them gi so voi Medium: ghi THANG ra thay vi de nguoi choi tuong bi loi.
-    constexpr const char* GraphicsQualityDescLow = "Bloom off, half particles. For weak GPUs.";
-    constexpr const char* GraphicsQualityDescMedium = "Bloom on, full particles.";
-    constexpr const char* GraphicsQualityDescHigh = "Same as Medium for now - heavier effects coming.";
+    // Chua co hieu ung nang rieng nao cho High ngoai luoi day hon: ghi THANG ra "coming".
+    constexpr const char* GraphicsQualityDescLow = "Bloom off, half particles, no grid. For weak GPUs.";
+    constexpr const char* GraphicsQualityDescMedium = "Bloom, full particles, reactive grid.";
+    constexpr const char* GraphicsQualityDescHigh = "Denser grid. More heavy effects coming.";
     constexpr const char* GraphicsCrtDesc = "Scanlines + vignette + subtle flicker.";
     constexpr const char* GraphicsReduceFlashingDesc = "Removes screen flicker and large flashes.";
     constexpr const char* GraphicsShakeDesc = "Camera shake on hits and explosions.";

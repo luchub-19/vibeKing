@@ -40,6 +40,12 @@ struct GraphicsSettings {
     // He so nhan so particle moi Burst(). High hien = Medium; GD 2 se nang len khi pool lon hon.
     float ParticleScale() const { return quality == GraphicsQuality::Low ? 0.5f : 1.0f; }
 
+    // Luoi lo xo (WarpGrid): Low TAT han (ban de xuat la "luoi dung yen", nhung do bang bench:
+    // ve ~1000-1600 doan thang van ton ngang 1 pass post-process tren renderer CPU - may yeu
+    // can bo het, khong phai giu 1 luoi khong chuyen dong). Medium o 32px, High o 25px.
+    bool GridEnabled() const { return quality != GraphicsQuality::Low; }
+    float GridCellSize() const { return quality == GraphicsQuality::High ? 25.0f : 32.0f; }
+
     float ShakeScale() const { return (float)shakePercent / 100.0f; }
 
     float CrtFlickerScale() const { return reduceFlashing ? 0.0f : 1.0f; }

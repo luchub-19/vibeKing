@@ -66,6 +66,13 @@ constexpr Color PowerUp      = { 255, 201, 66, 255 };  // #FFC942
 constexpr Color Ufo          = { 255, 176, 58, 255 };  // #FFB03A - muc tieu thuong diem, khong phai de doa
 constexpr Color ScoreText    = { 255, 216, 77, 255 };  // #FFD84D - popup diem/combo
 
+// --- LUOI NEN (WarpGrid, GD 1) - dai LANH, DO SANG THAP co y ---
+// Luma ~0.18/0.28, xa duoi Config::BLOOM_THRESHOLD (0.6): nen KHONG duoc phat sang manh hon
+// dich (luat R2). Do luoi ve ~1600 doan thang phu kin man hinh, chi can sang hon 1 chut la
+// toan bo bloom bat len thanh 1 lop suong, nuot mat dan.
+constexpr Color GridLine      = { 40, 46, 104, 255 };  // #282E68
+constexpr Color GridLineMajor = { 64, 74, 150, 255 };  // #404A96 - moi 4 duong 1 duong
+
 // --- RAO CHAN (khien) - dung CHUNG cho khien power-up cua player VA khien Sentinel ---
 // 1 mau = 1 nghia: "dan khong xuyen qua cho nay", bat ke ben nao dang duoc bao ve. Truoc day
 // ca 2 la SKYBLUE goi thang (vi pham luat Palette::) va ve 2 kieu khac nhau (khung vuong vs

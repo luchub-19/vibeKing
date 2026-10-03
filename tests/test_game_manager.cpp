@@ -882,3 +882,28 @@ TEST_CASE("Hit-stop dong bang gameplay nhung hieu ung van chay tiep", "[game_man
     REQUIRE(GTA::HitStopRef(gm).IsActive());              // van dang dung hinh
     REQUIRE(GTA::ParticlesRef(gm).GetActiveCount() == 0); // nhung hat da het life
 }
+
+TEST_CASE("ProcessEvents: vu no day luoi nen tai dung vi tri vu no", "[game_manager][vfx][warp_grid]") {
+    GameManager gm;
+    QuarantinePersistence(gm);
+    GTA::CallApplyGraphicsSettings(gm); // Medium -> luoi 32px duoc Init
+    WarpGrid& grid = GTA::WarpGridRef(gm);
+    REQUIRE(grid.Cols() > 0);
+
+    auto& q = GTA::PendingEvents(gm);
+    q.clear();
+    GameEvent ev;
+    ev.position = { 400.0f, 300.0f };
+    ev.explosion = ExplosionSize::Small;
+    q.push_back(ev);
+    GTA::CallProcessEvents(gm);
+    // Diem luoi (13, 9) = (416, 288) nam trong ban kinh vu no nho -> phai lech khoi vi tri goc.
+    // Lay do lech LON NHAT qua 12 buoc - luoi dao dong nhanh (xem test_warp_grid.cpp).
+    float worst = 0.0f;
+    for (int i = 0; i < 12; i++) {
+        grid.Update(WarpGrid::STEP, true);
+        Vector2 p = grid.PointAt(13, 9), rest = grid.RestAt(13, 9);
+        worst = fmaxf(worst, sqrtf((p.x - rest.x) * (p.x - rest.x) + (p.y - rest.y) * (p.y - rest.y)));
+    }
+    REQUIRE(worst > 1.0f);
+}

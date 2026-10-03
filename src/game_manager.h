@@ -21,6 +21,7 @@
 #include "bunker.h"
 #include "sprites.h"
 #include "parallax.h"
+#include "warp_grid.h"
 #include "post_process.h"
 #include "events.h"
 #include "localization.h"
@@ -126,6 +127,7 @@ private:
     Font gameFont{}; // Tai qua LoadFontEx() trong Run() - Texture Atlas rieng thay the font mac dinh mo cua raylib
     RenderTexture2D renderTarget{}; // Canvas noi bo co dinh SCREEN_W x SCREEN_H, upscale len man hinh that trong Run()
     PostProcess postProcess; // Bloom + CRT ap dung luc upscale renderTarget - xem post_process.h, Config::BLOOM_ENABLED/CRT_ENABLED
+    WarpGrid warpGrid;       // Luoi neon lo xo duoi moi thu (GD 1) - bi vu no day lom, xem warp_grid.h
     Parallax background;     // Starfield nhieu lop, ve o MOI man hinh (Menu/Playing/EndScreen) truoc switch-case state - xem parallax.h
     LevelGridConfig levelGrid; // Doc tu level.cfg luc Run() - thay cho hardcode r<4,c<10
 

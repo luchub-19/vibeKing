@@ -479,6 +479,15 @@ namespace Config {
     constexpr float CRT_FLICKER_STRENGTH  = 0.015f; // Bien do nhap nhay do sang theo thoi gian - rat nho, chi de "song dong", khong gay kho chiu/loa mat
 
     // --- Parallax starfield (ve truoc MOI trang thai Menu/Playing/EndScreen...) ---
+    // LUOI LO XO (WarpGrid, GD 1) - xung luc (px/buoc 60Hz) + ban kinh anh huong. constexpr:
+    // trinh bay, khong phai can bang gameplay (cung ly do voi PARALLAX_* ben duoi).
+    constexpr float GRID_PUSH_SMALL   = 4.0f;
+    constexpr float GRID_RADIUS_SMALL = 90.0f;
+    constexpr float GRID_PUSH_LARGE   = 10.0f;
+    constexpr float GRID_RADIUS_LARGE = 240.0f;
+    constexpr float GRID_PUSH_BULLET  = 0.25f; // Moi frame moi vien - nho, chi de luoi "gon song"
+    constexpr float GRID_RADIUS_BULLET = 28.0f;
+
     constexpr int   PARALLAX_STAR_COUNT  = 90; // Tong so sao ca 3 lop cong lai - kich thuoc std::array trong Parallax (xem parallax.h)
     constexpr int   PARALLAX_LAYER_COUNT = 3;  // Lop xa/giua/gan - xem Parallax::Init() (parallax.cpp)
     constexpr float PARALLAX_SPEED_FAR   = 12.0f; // px/giay, lop xa nhat (nho + mo + cham nhat)

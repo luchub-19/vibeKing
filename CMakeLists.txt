@@ -54,6 +54,7 @@ set(SOURCES
     src/sprites.cpp
     src/meta_progress.cpp
     src/wave_generator.cpp
+    src/warp_grid.cpp
 )
 
 add_executable(space_invaders ${SOURCES})
@@ -106,6 +107,7 @@ if(BUILD_TESTS)
         tests/test_launch_options.cpp
         tests/test_particles.cpp
         tests/test_screen_shake.cpp
+        tests/test_warp_grid.cpp
         src/achievements.cpp
         src/atomic_file.cpp
         src/leaderboard.cpp
@@ -125,6 +127,7 @@ if(BUILD_TESTS)
         src/level_config.cpp
         src/parallax.cpp
         src/post_process.cpp
+        src/warp_grid.cpp
     )
     target_include_directories(unit_tests PRIVATE src tests)
     target_link_libraries(unit_tests raylib)

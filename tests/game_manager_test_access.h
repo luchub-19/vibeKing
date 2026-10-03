@@ -78,6 +78,7 @@ public:
     // that su toi duoc ParticlePool (khong goi UpdateGraphicsScreen() vi can phim that).
     static Settings& SettingsRef(GameManager& gm) { return gm.settings; }
     static void CallApplyGraphicsSettings(GameManager& gm) { gm.ApplyGraphicsSettings(); }
+    static WarpGrid& WarpGridRef(GameManager& gm) { return gm.warpGrid; }
 
     // ----- Du lieu the gioi (giong het tinh than friend PhysicsSystem/RenderSystem) -----
     static Player& PlayerRef(GameManager& gm) { return gm.player; }

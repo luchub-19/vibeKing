@@ -151,6 +151,11 @@ void GameManager::UpdateGraphicsScreen() {
 
 void GameManager::ApplyGraphicsSettings() {
     particles.SetSpawnScale(settings.graphics.ParticleScale());
+    // Dung lai luoi CHI khi mat do doi (Init xoa moi bien dang dang co). Ham thuan CPU, an toan
+    // headless - goi duoc ca trong test.
+    if (warpGrid.CellSize() != settings.graphics.GridCellSize()) {
+        warpGrid.Init((float)Config::SCREEN_W, (float)Config::SCREEN_H, settings.graphics.GridCellSize());
+    }
 }
 
 // ==========================================
@@ -721,6 +726,13 @@ void GameManager::UpdatePlaying(float dt) {
     if (state != GameState::PLAYING) return; // UpdateEnemies/danh boss co the trigger WAVE_CLEAR/GAME_OVER
 
     playerBullets.Update(dt);
+    // Dan player re nuoc nhe tren luoi khi bay (kieu Geometry Wars) - luoi "song" ngay ca khi
+    // khong co vu no nao. Moi vien chi quet vai o quanh no (xem ApplyRadialImpulse).
+    for (size_t i = 0; i < playerBullets.GetActiveCount(); i++) {
+        Rectangle br = playerBullets.GetBullet(i).GetRect();
+        warpGrid.ApplyExplosiveForce({ br.x + br.width / 2.0f, br.y + br.height / 2.0f },
+                                     Config::GRID_PUSH_BULLET, Config::GRID_RADIUS_BULLET);
+    }
     enemyBullets.Update(dt);
     PhysicsSystem::CheckCollisions(*this);
     ProcessEvents(); // Xu ly tach biet moi hieu ung/he qua ma CheckCollisions() vua ghi nhan
@@ -736,6 +748,7 @@ void GameManager::UpdatePlaying(float dt) {
         audio.PlayBossDefeat();
         particles.Burst(bossCenter, 40, Palette::BossEnrage2);
         particles.Explosion(bossCenter, Palette::Boss, ExplosionSize::Large);
+        warpGrid.ApplyExplosiveForce(bossCenter, Config::GRID_PUSH_LARGE, Config::GRID_RADIUS_LARGE);
         screenShake.Trigger(0.4f, 12.0f);
         hitStop.Trigger(0.1f); // Nang do hon dong bang thuong (0.04f) - xem physics_system.cpp
         ApplyComboAndScore(Config::BOSS_SCORE_VALUE, bossCenter);
@@ -822,6 +835,8 @@ void GameManager::ProcessEvents() {
         const GameEvent ev = pendingEvents[i];
         if (ev.particleCount > 0) particles.Burst(ev.position, ev.particleCount, ev.color);
         particles.Explosion(ev.position, ev.color, ev.explosion); // No-op khi ExplosionSize::None
+        if (ev.explosion == ExplosionSize::Small) warpGrid.ApplyExplosiveForce(ev.position, Config::GRID_PUSH_SMALL, Config::GRID_RADIUS_SMALL);
+        else if (ev.explosion == ExplosionSize::Large) warpGrid.ApplyExplosiveForce(ev.position, Config::GRID_PUSH_LARGE, Config::GRID_RADIUS_LARGE);
         // HIT-FLASH (Nguoi 3 - Audio & UI): cum particle TRANG rieng, CONG DON voi burst
         // mau thuong o tren neu co (khong thay the) - bao "chi trung", tach voi burst mau
         // dang bao "loai gi/khien hay khong" (xem events.h + physics_system.cpp).
@@ -953,12 +968,18 @@ void GameManager::SetupShowcase(ShowcaseScene scene) {
     if (scene == ShowcaseScene::Combat) {
         particles.Explosion({ 160.0f, 200.0f }, Palette::BasicA, ExplosionSize::Small);
         particles.Explosion({ 620.0f, 230.0f }, Palette::Kamikaze, ExplosionSize::Small);
+        warpGrid.ApplyExplosiveForce({ 160.0f, 200.0f }, Config::GRID_PUSH_SMALL, Config::GRID_RADIUS_SMALL);
+        warpGrid.ApplyExplosiveForce({ 620.0f, 230.0f }, Config::GRID_PUSH_SMALL, Config::GRID_RADIUS_SMALL);
     } else if (bossPool.Size() > 0) {
         // Xem truoc vu no co Large (boss guc) canh con boss con song
         Vector2 c = EnemyCenter(bossPool[0].rect);
-        particles.Explosion({ c.x + 150.0f, c.y + 170.0f }, Palette::Boss, ExplosionSize::Large);
+        Vector2 at{ c.x + 150.0f, c.y + 170.0f };
+        particles.Explosion(at, Palette::Boss, ExplosionSize::Large);
+        warpGrid.ApplyExplosiveForce(at, Config::GRID_PUSH_LARGE, Config::GRID_RADIUS_LARGE);
     }
     particles.Update(0.05f);
+    // Luoi: tua cung khoang thoi gian voi lop no (3 buoc ~ 0.05s) - song lom dang lan ra
+    for (int i = 0; i < 3; i++) warpGrid.Update(WarpGrid::STEP, settings.graphics.GridEnabled());
     showcaseFrozen = true;
 }
 
@@ -1079,6 +1100,11 @@ void GameManager::Run(const LaunchOptions& opts) {
         UpdateToasts(dt); // Ngoai `frozen`: toast la lop phu doc lap voi state, van chay het qua fade/chuyen canh
         // Khi dang fade, dong bang gameplay de khong update/collision trong luc man hinh dang mo dan
         bool frozen = (transitionPhase != TransitionPhase::NONE) || showcaseFrozen;
+        // Luoi chay theo thoi gian thuc ca o MENU (nen song dong), nhung dung khi PAUSE va khi
+        // canh trinh dien dong bang (anh chup phai lap lai duoc).
+        if (!showcaseFrozen && state != GameState::PAUSED && state != GameState::KEYBIND) {
+            warpGrid.Update(dt, settings.graphics.GridEnabled());
+        }
 
         if (!frozen) {
             switch (state) {
@@ -1100,6 +1126,7 @@ void GameManager::Run(const LaunchOptions& opts) {
         ClearBackground(Palette::Background);
 
         background.Draw(); // Starfield - duoi cung MOI trang thai (Menu/Playing/EndScreen...), truoc noi dung tung state
+        if (settings.graphics.GridEnabled()) warpGrid.Draw(WarpGrid::CalmFactor((int)enemyBullets.GetActiveCount())); // Tren sao, duoi moi noi dung (luat R2)
 
         switch (state) {
             case GameState::MENU: RenderSystem::DrawMenu(*this); break;
