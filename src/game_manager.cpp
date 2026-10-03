@@ -907,6 +907,26 @@ void GameManager::SetupShowcase(ShowcaseScene scene) {
     // (Chi con lech rat nho do IdleWobble/Parallax doc GetTime() - xem launch_options.h.)
     SetRandomSeed(1337);
     InitLevel(true);
+    if (scene == ShowcaseScene::GameOver || scene == ShowcaseScene::WaveClear) {
+        // Man tong ket voi so lieu co dinh. Gan THANG field thay vi goi TriggerGameOver()/
+        // OnWaveCleared(): 2 ham do ghi leaderboard/currency/thanh tuu that cua nguoi choi.
+        player.AddScore(23450);
+        hudScoreShown = 23450.0f;
+        runKills = 137;
+        runBestCombo = 12;
+        runCurrencyEarned = 48;
+        endScreenTimer = 10.0f; // Bang tong ket da chay so xong
+        if (scene == ShowcaseScene::WaveClear) {
+            wave = 4;            // Vua don wave 3 (wave da ++ truoc khi vao WAVE_CLEAR)
+            selectedUpgrade = 1;
+            state = GameState::WAVE_CLEAR;
+        } else {
+            wave = 7; // "WAVE REACHED" trong bang tong ket - 1 thi nhin nhu chua choi gi
+            state = GameState::GAME_OVER;
+        }
+        showcaseFrozen = true;
+        return;
+    }
     if (scene == ShowcaseScene::Boss) {
         // Wave 10 = Sentinel (xoay vong boss, xem SpawnBoss) - loai duy nhat co vong khien de
         // soi; InitLevel(false) giu nguyen "van" vua tao o tren, chi dung lai wave.

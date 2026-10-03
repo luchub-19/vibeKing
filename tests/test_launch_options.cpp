@@ -22,6 +22,8 @@ TEST_CASE("ParseLaunchOptions: doc scene/capture/capture-frame", "[launch]") {
     REQUIRE(o.captureFrame == 90);
 
     REQUIRE(ParseLaunchOptions({ "--scene=combat" }).scene == ShowcaseScene::Combat);
+    REQUIRE(ParseLaunchOptions({ "--scene=gameover" }).scene == ShowcaseScene::GameOver);
+    REQUIRE(ParseLaunchOptions({ "--scene=waveclear" }).scene == ShowcaseScene::WaveClear);
 }
 
 TEST_CASE("ParseLaunchOptions: tu choi gia tri sai thay vi lang le bo qua", "[launch]") {

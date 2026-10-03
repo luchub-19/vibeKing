@@ -128,7 +128,7 @@ public:
     Vector2 GetCenter() const { return { rect.x + rect.width / 2, rect.y + rect.height / 2 }; }
 
     // Track C - Nguoi 2 (Phase 3): so lan DA CHON loai nang cap `type` trong van hien tai -
-    // dung cho DrawUpgradeSelect (render_system.cpp) hien "da co may cai" va cho test.
+    // dung cho DrawUpgradeCards (render_system.cpp) hien "da co may cai" va cho test.
     int GetUpgradeStacks(UpgradeType type) const {
         int idx = (int)type;
         if (idx < 0 || idx >= UPGRADE_TYPE_COUNT) return 0;

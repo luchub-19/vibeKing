@@ -13,7 +13,7 @@
 #     thu_muc_output  Mac dinh <repo>/screenshots (nam trong .gitignore)
 #     so_frame_bench  Mac dinh 600; 0 = chi chup, khong do
 #
-# KET QUA: <output>/showcase_combat.png, showcase_boss.png va <output>/bench.txt
+# KET QUA: <output>/showcase_{combat,boss,gameover,waveclear}.png va <output>/bench.txt
 #
 # LUU Y VE SO LIEU: trong Xvfb, OpenGL chay bang llvmpipe (render bang CPU) - frame time o day
 # KHONG phai frame time tren iGPU that. Chi dung de so TUONG DOI: cung may, cung moi truong,
@@ -25,7 +25,8 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 BINARY="${1:-$REPO_ROOT/build/space_invaders}"
 OUT_DIR="${2:-$REPO_ROOT/screenshots}"
 BENCH_FRAMES="${3:-600}"
-SCENES=(combat boss)
+SCENES=(combat boss gameover waveclear)
+BENCH_SCENES=(combat boss) # Man tong ket gan nhu tinh, do frame time khong co y nghia
 
 if ! command -v Xvfb >/dev/null 2>&1; then
     echo "LOI: thieu Xvfb. Cai qua: sudo apt-get install -y xvfb" >&2
@@ -57,7 +58,7 @@ done
 
 if [ "$BENCH_FRAMES" -gt 0 ]; then
     : > "$OUT_DIR/bench.txt"
-    for scene in "${SCENES[@]}"; do
+    for scene in "${BENCH_SCENES[@]}"; do
         line="$(run_game --scene="$scene" --bench="$BENCH_FRAMES" | grep '^BENCH' || true)"
         [ -n "$line" ] || { echo "LOI: bench canh $scene khong in ket qua" >&2; exit 1; }
         echo "$scene: $line" | tee -a "$OUT_DIR/bench.txt"

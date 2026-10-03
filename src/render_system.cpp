@@ -175,10 +175,26 @@ void RenderSystem::DrawMenu(const GameManager& gm) {
 // 1 lua chon tai 1 thoi diem - xem GameManager::UpdateEndScreen() cho logic cycle/ap dung
 // that su). Nhan gia tri DA trich xuat san (khong nhan GameManager&) - cung ly do voi
 // DrawLoadoutSelect: ham static nay khong co `friend class RenderSystem`.
-static void DrawUpgradeSelect(UICanvas& canvas, int y, UpgradeType chosen, int ownedStacks) {
-    const UpgradeTypeDescriptor& desc = GetUpgradeTypeDescriptor(chosen);
-    canvas.CenteredText(Config::SCREEN_W / 2, y, 18, Palette::UiText,
-                         TextFormat("< UPGRADE: %s - %s (x%d owned) >", desc.name, desc.description, ownedStacks));
+// THE NANG CAP (GD 5) - 3 the canh nhau thay cho dong "< UPGRADE: TEN - mo ta (xN owned) >" chi
+// hien 1 lua chon tai 1 thoi diem: nguoi choi thay HET lua chon cung luc (cung ly do DrawSelectPill/
+// DrawLoadoutCard o menu). Trai/Phai van doi lua chon nhu cu - chi doi cach VE.
+static void DrawUpgradeCards(UICanvas& canvas, int y, int selected, const Player& player) {
+    const float cardW = 220.0f, cardH = 86.0f, gap = 14.0f;
+    const float startX = (Config::SCREEN_W - (3.0f * cardW + 2.0f * gap)) / 2.0f;
+    Color fill = Palette::UiPanelFill;
+    fill.a = (unsigned char)(255.0f * Config::HUD_PANEL_ALPHA);
+    for (int i = 0; i < UPGRADE_TYPE_COUNT; i++) {
+        const UpgradeTypeDescriptor& d = GetUpgradeTypeDescriptor((UpgradeType)i);
+        const bool active = (i == selected);
+        Rectangle r{ startX + (float)i * (cardW + gap), (float)y, cardW, cardH };
+        if (active) canvas.FramedPanel(r, fill, Palette::UiAccent, 2.0f, Palette::UiAccent);
+        else        canvas.Panel(r, fill, Palette::UiPanelEdge, Config::HUD_PANEL_BORDER_THICKNESS);
+        const int cx = (int)(r.x + cardW / 2.0f);
+        canvas.CenteredText(cx, y + 12, 17, active ? Palette::UiText : Palette::UiDim, d.name);
+        canvas.CenteredText(cx, y + 38, 13, active ? Palette::UiText : Palette::UiDim, d.description);
+        int owned = player.GetUpgradeStacks((UpgradeType)i);
+        canvas.CenteredText(cx, y + 62, 13, owned > 0 ? Palette::UiAccent : Palette::UiDim, TextFormat("x%d owned", owned));
+    }
 }
 
 void RenderSystem::DrawEndScreen(const GameManager& gm) {
@@ -199,10 +215,9 @@ void RenderSystem::DrawEndScreen(const GameManager& gm) {
         bool rareWave = (gm.wave % Config::BOSS_WAVE_INTERVAL == 0);
         if (rareWave) canvas.CenteredText(centerX, 272, 16, Palette::UiAccent, Loc::BossWaveUpgradeBanner);
 
-        UpgradeType chosenUpgrade = (UpgradeType)gm.selectedUpgrade;
-        DrawUpgradeSelect(canvas, 300, chosenUpgrade, gm.player.GetUpgradeStacks(chosenUpgrade));
+        DrawUpgradeCards(canvas, 296, gm.selectedUpgrade, gm.player);
 
-        canvas.CenteredText(centerX, 335, 16, Palette::UiDim, Loc::UpgradeSelectHint);
+        canvas.CenteredText(centerX, 398, 16, Palette::UiDim, Loc::UpgradeSelectHint);
     } else {
         DrawRunSummary(canvas, gm, centerX);
     }
@@ -241,7 +256,8 @@ void RenderSystem::DrawRunSummary(UICanvas& canvas, const GameManager& gm, int c
     // trong anh chup: "NEXT: VANGUARD 17/150 CR" cat ngang chu "TOTAL ... 17 CR").
     const float panelW = 380.0f, panelX = (float)centerX - panelW / 2.0f;
     const float panelY = 150.0f, panelH = 250.0f;
-    canvas.Panel({ panelX, panelY, panelW, panelH }, panelFill, Palette::UiPanelEdge, Config::HUD_PANEL_BORDER_THICKNESS);
+    canvas.FramedPanel({ panelX, panelY, panelW, panelH }, panelFill, Palette::UiPanelEdge, Config::HUD_PANEL_BORDER_THICKNESS,
+                       Fade(Palette::UiAccent, 0.55f)); // Goc ngoac nhu HUD/menu (GD 5)
     canvas.CenteredText(centerX, (int)panelY + 12, 18, Palette::UiAccent, Loc::RunSummaryTitle);
 
     // 1 helper duy nhat cho MOI dong "nhan trai - gia tri phai" - canh le bang toa do co

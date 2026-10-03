@@ -13,7 +13,9 @@
 // --scene dung san 1 canh CO DINH (seed RNG co dinh, gameplay dong bang), --capture chup roi
 // thoat, --bench do frame time lam moc hieu nang (luat R4).
 //
-//   --scene=combat|boss   Vao thang canh trinh dien, gameplay dong bang (khong ai chet/an diem)
+//   --scene=combat|boss|gameover|waveclear  Vao thang canh trinh dien, gameplay dong bang (khong
+//                         ai chet/an diem). gameover/waveclear: man tong ket voi so lieu co dinh,
+//                         KHONG di qua TriggerGameOver() -> khong ghi leaderboard/currency.
 //   --capture=<file.png>  Chup man hinh SAU post-process o frame --capture-frame roi thoat
 //   --capture-frame=<n>   Mac dinh 45 (du cho fade/khoi tao on dinh)
 //   --quality=low|medium|high  Ghi de preset do hoa CHI TRONG RAM (khong luu settings.cfg) -
@@ -24,7 +26,7 @@
 // Ham THUAN (khong goi raylib) - test headless tai tests/test_launch_options.cpp.
 // ==========================================
 
-enum class ShowcaseScene { None, Combat, Boss };
+enum class ShowcaseScene { None, Combat, Boss, GameOver, WaveClear };
 
 struct LaunchOptions {
     ShowcaseScene scene = ShowcaseScene::None;

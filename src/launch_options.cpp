@@ -29,6 +29,8 @@ LaunchOptions ParseLaunchOptions(const std::vector<std::string>& args) {
         if (StartsWith(a, "--scene=", v)) {
             if (v == "combat")    o.scene = ShowcaseScene::Combat;
             else if (v == "boss") o.scene = ShowcaseScene::Boss;
+            else if (v == "gameover") o.scene = ShowcaseScene::GameOver;
+            else if (v == "waveclear") o.scene = ShowcaseScene::WaveClear;
             else { o.error = "scene khong hop le: " + v; return o; }
         } else if (StartsWith(a, "--capture=", v)) {
             if (v.empty()) { o.error = "--capture can ten file"; return o; }
@@ -73,6 +75,6 @@ FrameStats SummarizeFrameTimes(std::vector<double> samplesMs) {
 }
 
 const char* LaunchUsage() {
-    return "Cach dung: space_invaders [--scene=combat|boss] [--capture=<file.png>] "
+    return "Cach dung: space_invaders [--scene=combat|boss|gameover|waveclear] [--capture=<file.png>] "
            "[--capture-frame=<n>] [--quality=low|medium|high] [--bench=<n>]\n";
 }

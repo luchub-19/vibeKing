@@ -26,7 +26,7 @@ enum class UpgradeType : uint8_t { MoveSpeed, ExtraLife, BonusScore };
 constexpr int UPGRADE_TYPE_COUNT = 3;
 
 struct UpgradeTypeDescriptor {
-    const char* name;        // Loc:: - ten hien thi ngan, dung trong "< ... >" (xem DrawUpgradeSelect, render_system.cpp)
+    const char* name;        // Loc:: - ten hien thi ngan, dong dau the nang cap (xem DrawUpgradeCards, render_system.cpp)
     const char* description; // Loc:: - mo ta 1 dong, chi la nhan hien thi (so lieu THAT su luon doc tu *coefficient, khong parse tu chuoi nay)
 
     // Y NGHIA TUY LOAI (xem Player::ApplyRunUpgrade()):
