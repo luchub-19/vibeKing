@@ -1,44 +1,41 @@
 #include "post_process.h"
 #include "config.h"
+#include <initializer_list>
 
 void PostProcess::Init() {
     if (Config::BLOOM_ENABLED) {
         bloomExtractShader = LoadShader(nullptr, Config::BloomExtractShaderPath());
-        blurShader = LoadShader(nullptr, Config::BlurShaderPath());
+        kawaseDownShader = LoadShader(nullptr, Config::KawaseDownShaderPath());
+        kawaseUpShader = LoadShader(nullptr, Config::KawaseUpShaderPath());
 
-        int bloomW = Config::SCREEN_W / Config::BLOOM_DOWNSAMPLE;
-        int bloomH = Config::SCREEN_H / Config::BLOOM_DOWNSAMPLE;
-        if (bloomW < 1) bloomW = 1;
-        if (bloomH < 1) bloomH = 1;
-        bloomTexA = LoadRenderTexture(bloomW, bloomH);
-        bloomTexB = LoadRenderTexture(bloomW, bloomH);
-        compositeTex = LoadRenderTexture(Config::SCREEN_W, Config::SCREEN_H);
-
-        bloomReady = IsShaderValid(bloomExtractShader) && IsShaderValid(blurShader) &&
-                     IsRenderTextureValid(bloomTexA) && IsRenderTextureValid(bloomTexB) &&
-                     IsRenderTextureValid(compositeTex);
+        bloomReady = IsShaderValid(bloomExtractShader) && IsShaderValid(kawaseDownShader) && IsShaderValid(kawaseUpShader);
+        int w = Config::SCREEN_W / Config::BLOOM_DOWNSAMPLE;
+        int h = Config::SCREEN_H / Config::BLOOM_DOWNSAMPLE;
+        for (int i = 0; i < BLOOM_MAX_LEVELS && bloomReady; i++) {
+            bloomLevels[i] = LoadRenderTexture(w < 1 ? 1 : w, h < 1 ? 1 : h);
+            if (!IsRenderTextureValid(bloomLevels[i])) { bloomReady = false; break; }
+            // BILINEAR la dieu kien cua Dual Kawase: moi lan doc o nua texel = trung binh 4 texel
+            SetTextureFilter(bloomLevels[i].texture, TEXTURE_FILTER_BILINEAR);
+            SetTextureWrap(bloomLevels[i].texture, TEXTURE_WRAP_CLAMP); // Khong "cuon" sang tu mep doi dien
+            w /= 2;
+            h /= 2;
+        }
+        if (bloomReady) {
+            compositeTex = LoadRenderTexture(Config::SCREEN_W, Config::SCREEN_H);
+            bloomReady = IsRenderTextureValid(compositeTex);
+        }
 
         if (bloomReady) {
-            SetTextureFilter(bloomTexA.texture, TEXTURE_FILTER_BILINEAR);
-            SetTextureFilter(bloomTexB.texture, TEXTURE_FILTER_BILINEAR);
-
-            // Uniform CO DINH throughout 1 phien chay - set 1 lan o day, khac voi
-            // `direction` (blurShader) phai doi giua 2 pass ngang/doc trong MOI lan goi
-            // Render() (xem ben duoi).
+            // Uniform CO DINH throughout 1 phien chay - set 1 lan o day; `halfpixel` thi doi
+            // theo tung muc trong MOI lan goi Render() (xem ben duoi).
             int thresholdLoc = GetShaderLocation(bloomExtractShader, "threshold");
             int extractIntensityLoc = GetShaderLocation(bloomExtractShader, "intensity");
             float threshold = Config::BLOOM_THRESHOLD;
             float intensity = Config::BLOOM_INTENSITY;
             SetShaderValue(bloomExtractShader, thresholdLoc, &threshold, SHADER_UNIFORM_FLOAT);
             SetShaderValue(bloomExtractShader, extractIntensityLoc, &intensity, SHADER_UNIFORM_FLOAT);
-
-            blurDirectionLoc = GetShaderLocation(blurShader, "direction");
-            int texelSizeLoc = GetShaderLocation(blurShader, "texelSize");
-            int spreadLoc = GetShaderLocation(blurShader, "spread");
-            float texelSize[2] = { 1.0f / (float)bloomW, 1.0f / (float)bloomH };
-            float spread = Config::BLOOM_BLUR_SPREAD;
-            SetShaderValue(blurShader, texelSizeLoc, texelSize, SHADER_UNIFORM_VEC2);
-            SetShaderValue(blurShader, spreadLoc, &spread, SHADER_UNIFORM_FLOAT);
+            kawaseDownHalfpixelLoc = GetShaderLocation(kawaseDownShader, "halfpixel");
+            kawaseUpHalfpixelLoc = GetShaderLocation(kawaseUpShader, "halfpixel");
         } else {
             TraceLog(LOG_WARNING, "PostProcess: khong the khoi tao pipeline Bloom (shader hoac render texture loi) - tat Bloom cho phien nay.");
         }
@@ -65,14 +62,16 @@ void PostProcess::Init() {
 }
 
 void PostProcess::Shutdown() {
-    if (bloomReady) {
-        UnloadShader(bloomExtractShader);
-        UnloadShader(blurShader);
-        UnloadRenderTexture(bloomTexA);
-        UnloadRenderTexture(bloomTexB);
-        UnloadRenderTexture(compositeTex);
-        bloomReady = false;
+    // Giai phong THEO TUNG tai nguyen hop le, khong theo bloomReady: Init() co the load duoc
+    // 1 phan roi that bai giua chung (vd muc 3) - phan da load van phai tra lai.
+    for (Shader* sh : { &bloomExtractShader, &kawaseDownShader, &kawaseUpShader }) {
+        if (IsShaderValid(*sh)) UnloadShader(*sh);
     }
+    for (RenderTexture2D& t : bloomLevels) {
+        if (IsRenderTextureValid(t)) UnloadRenderTexture(t);
+    }
+    if (IsRenderTextureValid(compositeTex)) UnloadRenderTexture(compositeTex);
+    bloomReady = false;
     if (crtReady) {
         UnloadShader(crtShader);
         crtReady = false;
@@ -85,54 +84,55 @@ void PostProcess::Render(const RenderTexture2D& source, Rectangle srcRec, Rectan
 
     if (bloomReady && gfx.BloomEnabled()) {
         // RenderTexture2D bi lat nguoc truc Y khi doc lai (quy uoc OpenGL) - MOI lan doc
-        // texture cua 1 RenderTexture2D (bat ke no duoc ve boi buoc nao truoc do) can
-        // chieu cao AM de tra ve dung chieu, xem comment goc tai diem goi trong
-        // GameManager::Run(). Ap dung dong nhat ca 6 lan doc trong ham nay - "da lat 1
-        // lan roi" KHONG co nghia lan doc sau khong can lat nua, moi lan doc deu can rieng.
-        Rectangle bloomFullSrc{ 0.0f, 0.0f, (float)bloomTexA.texture.width, -(float)bloomTexA.texture.height };
-        Rectangle bloomFullDst{ 0.0f, 0.0f, (float)bloomTexA.texture.width, (float)bloomTexA.texture.height };
+        // texture cua 1 RenderTexture2D can chieu cao AM de tra ve dung chieu, xem comment goc
+        // tai diem goi trong GameManager::Run(). "Da lat 1 lan roi" KHONG co nghia lan doc sau
+        // khong can lat nua - moi lan doc deu can rieng.
+        auto fullSrc = [](const RenderTexture2D& t) {
+            return Rectangle{ 0.0f, 0.0f, (float)t.texture.width, -(float)t.texture.height };
+        };
+        auto fullDst = [](const RenderTexture2D& t) {
+            return Rectangle{ 0.0f, 0.0f, (float)t.texture.width, (float)t.texture.height };
+        };
+        // Ve `src` vao `dst` qua `shader` voi halfpixel tinh theo texture NGUON.
+        auto pass = [&](const RenderTexture2D& src, const RenderTexture2D& dst, Shader shader, int halfpixelLoc) {
+            float hp[2] = { 0.5f / (float)src.texture.width, 0.5f / (float)src.texture.height };
+            SetShaderValue(shader, halfpixelLoc, hp, SHADER_UNIFORM_VEC2);
+            BeginTextureMode(dst);
+                ClearBackground(BLANK);
+                BeginShaderMode(shader);
+                    DrawTexturePro(src.texture, fullSrc(src), fullDst(dst), { 0.0f, 0.0f }, 0.0f, WHITE);
+                EndShaderMode();
+            EndTextureMode();
+        };
 
-        // 1) Trich vung sang (nguong BLOOM_THRESHOLD) tu source, thu nho ve bloomTexA.
-        BeginTextureMode(bloomTexA);
+        // 1) Trich vung sang (nguong BLOOM_THRESHOLD) tu source, thu nho ve muc 0.
+        BeginTextureMode(bloomLevels[0]);
             ClearBackground(BLANK);
             BeginShaderMode(bloomExtractShader);
-                DrawTexturePro(source.texture, srcRec, bloomFullDst, { 0.0f, 0.0f }, 0.0f, WHITE);
+                DrawTexturePro(source.texture, srcRec, fullDst(bloomLevels[0]), { 0.0f, 0.0f }, 0.0f, WHITE);
             EndShaderMode();
         EndTextureMode();
 
-        // 2) Blur ngang: bloomTexA -> bloomTexB.
-        BeginTextureMode(bloomTexB);
-            ClearBackground(BLANK);
-            BeginShaderMode(blurShader);
-                float dirH[2] = { 1.0f, 0.0f };
-                SetShaderValue(blurShader, blurDirectionLoc, dirH, SHADER_UNIFORM_VEC2);
-                DrawTexturePro(bloomTexA.texture, bloomFullSrc, bloomFullDst, { 0.0f, 0.0f }, 0.0f, WHITE);
-            EndShaderMode();
-        EndTextureMode();
+        // 2) Dual Kawase: thu nho 0 -> N roi phong nguoc N -> 0 (ghi de, khong cong don - quang
+        // rong la nho chuoi muc, khong phai nho cong).
+        int levels = gfx.BloomLevels();
+        if (levels > BLOOM_MAX_LEVELS - 1) levels = BLOOM_MAX_LEVELS - 1;
+        for (int i = 0; i < levels; i++) pass(bloomLevels[i], bloomLevels[i + 1], kawaseDownShader, kawaseDownHalfpixelLoc);
+        for (int i = levels; i > 0; i--) pass(bloomLevels[i], bloomLevels[i - 1], kawaseUpShader, kawaseUpHalfpixelLoc);
 
-        // 3) Blur doc: bloomTexB -> bloomTexA (dung lai, khong can texture trung gian thu 3).
-        BeginTextureMode(bloomTexA);
-            ClearBackground(BLANK);
-            BeginShaderMode(blurShader);
-                float dirV[2] = { 0.0f, 1.0f };
-                SetShaderValue(blurShader, blurDirectionLoc, dirV, SHADER_UNIFORM_VEC2);
-                DrawTexturePro(bloomTexB.texture, bloomFullSrc, bloomFullDst, { 0.0f, 0.0f }, 0.0f, WHITE);
-            EndShaderMode();
-        EndTextureMode();
-
-        // 4) Composite: anh goc (khong shader) + bloom (BLEND_ADDITIVE) vao compositeTex,
+        // 3) Composite: anh goc (khong shader) + bloom (BLEND_ADDITIVE) vao compositeTex,
         // FULL do phan giai.
-        Rectangle compositeFullDst{ 0.0f, 0.0f, (float)compositeTex.texture.width, (float)compositeTex.texture.height };
+        Rectangle compositeFullDst = fullDst(compositeTex);
         BeginTextureMode(compositeTex);
             ClearBackground(BLACK);
             DrawTexturePro(source.texture, srcRec, compositeFullDst, { 0.0f, 0.0f }, 0.0f, WHITE);
             BeginBlendMode(BLEND_ADDITIVE);
-                DrawTexturePro(bloomTexA.texture, bloomFullSrc, compositeFullDst, { 0.0f, 0.0f }, 0.0f, WHITE);
+                DrawTexturePro(bloomLevels[0].texture, fullSrc(bloomLevels[0]), compositeFullDst, { 0.0f, 0.0f }, 0.0f, WHITE);
             EndBlendMode();
         EndTextureMode();
 
         finalSource = &compositeTex;
-        finalSrcRec = { 0.0f, 0.0f, (float)compositeTex.texture.width, -(float)compositeTex.texture.height };
+        finalSrcRec = fullSrc(compositeTex);
     }
 
     if (crtReady && gfx.crtEnabled) {

@@ -45,22 +45,25 @@ public:
     void Render(const RenderTexture2D& source, Rectangle srcRec, Rectangle destRec, const GraphicsSettings& gfx);
 
 private:
+    // Muc 0 = anh vung sang o 1/BLOOM_DOWNSAMPLE do phan giai; muc i+1 = nua muc i. Dual Kawase
+    // (GD 3): thu nho 0->1->..->N roi phong nguoc N->..->0 - xem kawase_down.fs/kawase_up.fs.
+    // Truoc day: 2 pass Gauss 9 mau (ngang/doc) o muc 0 - phan lon chi phi bloom.
+    static constexpr int BLOOM_MAX_LEVELS = 4; // muc 0 + toi da 3 muc thu nho (preset High)
+
     Shader bloomExtractShader{};
-    Shader blurShader{};
+    Shader kawaseDownShader{};
+    Shader kawaseUpShader{};
     Shader crtShader{};
 
-    // Vi tri uniform "dong" (doi giua cac lan goi Render(), vd huong blur ngang/doc) -
-    // cache lai 1 lan trong Init(), tranh GetShaderLocation() (do chuoi ten) moi frame.
-    int blurDirectionLoc = -1;
+    // Vi tri uniform "dong" (doi giua cac lan goi Render()) - cache lai 1 lan trong Init(),
+    // tranh GetShaderLocation() (do chuoi ten) moi frame.
+    int kawaseDownHalfpixelLoc = -1;
+    int kawaseUpHalfpixelLoc = -1;
     int crtTimeLoc = -1;
     int crtResolutionLoc = -1;
     int crtFlickerLoc = -1; // Doi theo GraphicsSettings::reduceFlashing - set moi frame
 
-    // 2 texture trung gian cho Bloom, dung kieu ping-pong (trich sang -> blur ngang ->
-    // blur doc) - xem post_process.cpp:Render(). Ca 2 o do phan giai giam theo Config::
-    // BLOOM_DOWNSAMPLE (blur re hon, upscale lai khi cong don cung lam "mem" hon tu nhien).
-    RenderTexture2D bloomTexA{};
-    RenderTexture2D bloomTexB{};
+    RenderTexture2D bloomLevels[BLOOM_MAX_LEVELS]{};
 
     // Anh FULL do phan giai sau khi cong don (additive) anh goc + bloom - dau vao cho
     // buoc CRT cuoi cung (hoac ve thang ra man hinh neu CRT tat).

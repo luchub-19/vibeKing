@@ -36,6 +36,11 @@ struct GraphicsSettings {
 
     // Low tat bloom: pass dat nhat (3 lan ve full-texture), la thu dau tien bo khi may yeu.
     bool BloomEnabled() const { return quality != GraphicsQuality::Low; }
+    // So muc thu nho Dual Kawase sau buoc trich (1/2 man hinh). Medium 1 muc: quang ~ bang Gauss
+    // cu (so anh) va nhanh hon ~5% (A/B llvmpipe). 2 muc ban dau CHAM hon Gauss ~8% tren renderer
+    // CPU - moi pass them = 1 lan doi render target, ton hon khoan bang thong tiet kiem duoc.
+    // High 3 muc: quang rong gap 4 - danh cho may du suc.
+    int BloomLevels() const { return quality == GraphicsQuality::High ? 3 : 1; }
 
     // He so nhan so particle moi Burst(). High hien = Medium; GD 2 se nang len khi pool lon hon.
     float ParticleScale() const { return quality == GraphicsQuality::Low ? 0.5f : 1.0f; }
@@ -49,7 +54,7 @@ struct GraphicsSettings {
     // Tinh van (Nebula): Low 0 lop (bo ca shader lan texture), Medium 1, High 2 lop parallax.
     int NebulaLayers() const { return quality == GraphicsQuality::Low ? 0 : (quality == GraphicsQuality::High ? 2 : 1); }
 
-        float ShakeScale() const { return (float)shakePercent / 100.0f; }
+    float ShakeScale() const { return (float)shakePercent / 100.0f; }
 
     float CrtFlickerScale() const { return reduceFlashing ? 0.0f : 1.0f; }
 

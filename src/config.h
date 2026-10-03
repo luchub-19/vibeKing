@@ -470,7 +470,6 @@ namespace Config {
     constexpr float BLOOM_THRESHOLD   = 0.6f;  // Nguong do sang (luma, 0..1) de tinh la vung "bloom". CHU Y: mau XANH LA thuan (chu dao game nay - alien/title) co luma ~0.715 - nguong phai THAP HON gia tri nay thi alien/title moi co bloom (verify bang screenshot thuc te: nguong 0.75 ban dau lam alien/title KHONG bloom gi ca, ha xuong 0.6 moi thay ro)
     constexpr float BLOOM_INTENSITY   = 1.0f;  // He so nhan mau khi trich xuat vung sang, TRUOC khi blur (shader bloom_extract.fs) - co the >1 de "chay sang" manh hon
     constexpr int   BLOOM_DOWNSAMPLE  = 2;     // Chia do phan giai renderTarget cho so nay khi lam texture trung gian (2 = nua do phan giai) - blur re hon, upscale lai cung lam blur "mem" hon tu nhien
-    constexpr float BLOOM_BLUR_SPREAD = 1.5f;  // He so nhan them vao buoc lay mau cua Gauss 1 chieu (blur.fs) - lon hon = quang sang loang rong hon
 
     // --- CRT (scanline + vignette + nhap nhay nhe) ---
     constexpr bool  CRT_ENABLED           = true;
@@ -496,7 +495,8 @@ namespace Config {
     // --- Duong dan shader (tuong doi so voi thu muc lam viec luc chay executable - cung
     // quy uoc voi FontFilePath()/BalanceFilePath() o tren) ---
     inline const char* BloomExtractShaderPath() { return "assets/shaders/bloom_extract.fs"; }
-    inline const char* BlurShaderPath()         { return "assets/shaders/blur.fs"; }
+    inline const char* KawaseDownShaderPath()   { return "assets/shaders/kawase_down.fs"; }
+    inline const char* KawaseUpShaderPath()     { return "assets/shaders/kawase_up.fs"; }
     inline const char* CrtShaderPath()          { return "assets/shaders/crt.fs"; }
     inline const char* NebulaShaderPath()       { return "assets/shaders/nebula.fs"; }
 }
