@@ -147,12 +147,46 @@ chuyển, A/Cross bắn) lẫn menu/pause/end-screen (D-pad đổi độ khó/â
 nhận, X/Square chơi lại, Start tạm dừng, Select mở màn hình thành tựu). Màn hình đổi phím bàn phím ở trên và `F11`
 (fullscreen) là 2 chỗ còn giới hạn bàn phím.
 
+## Đồ họa
+
+Phong cách **neon-vector arcade** (Geometry Wars / Galaga Legions), giữ luật màu LẠNH (nền + mọi
+loại địch) / NÓNG (đạn, đe doạ, phần thưởng). Chi tiết thiết kế và nguồn tham khảo:
+[`docs/GRAPHICS_UPGRADE_PLAN.md`](docs/GRAPHICS_UPGRADE_PLAN.md).
+
+Trang **GRAPHICS** (phím `G` ở menu chính) - đổi là có hiệu lực ngay, lưu vào `settings.cfg`:
+
+| Tuỳ chọn | Low | Medium (mặc định) | High |
+|---|---|---|---|
+| Bloom | tắt | Dual Kawase 1 mức | 3 mức (quầng rộng) |
+| Lưới neon lò xo | tắt | ô 32 px | ô 25 px |
+| Tinh vân | tắt | 1 lớp | 2 lớp parallax |
+| Sóng xung kích méo hình | tắt | tối đa 4 | tối đa 8 + tách RGB ở mép |
+| Hạt hiệu ứng | 0,5x | 1x | 1,5x |
+| CRT cong | - | - | có (nếu bật CRT) |
+
+- **CRT SCANLINES**: bật/tắt scanline + vignette + nhấp nháy nhẹ.
+- **REDUCE FLASHING**: tắt mọi nhấp nháy (CRT flicker, tàu chớp khi bất tử -> mờ đều, sao lấp
+  lánh, đạn địch "thở", logo "bật đèn" -> sáng dần). Theo WCAG 2.3.1 / Xbox Accessibility 118.
+- **SCREEN SHAKE**: 100% / 50% / tắt.
+
+**Tự đo hiệu năng trên máy bạn** (số đo trong repo là renderer CPU, không phải GPU thật):
+
+```bash
+./build/space_invaders --scene=boss --bench=600                # preset đang lưu
+./build/space_invaders --scene=boss --quality=low --bench=600  # thử preset khác, không ghi settings.cfg
+```
+
+Tham số dòng lệnh khác (chỉ để kiểm chứng đồ họa, xem `src/launch_options.h`):
+`--scene=combat|boss|gameover|waveclear` dựng cảnh cố định, `--capture=<file.png>` chụp rồi thoát;
+`scripts/capture_showcase.sh` chụp cả 4 cảnh dưới Xvfb.
+
 ## Tài nguyên
 
 - **Đồ hoạ**: [Kenney](https://kenney.nl) — *Space Shooter Remastered* và *Space Shooter
   Extension* (CC0). Ảnh được khử màu rồi nhuộm màu lúc vẽ, nên `atlas.png` là ảnh xám; xem
   `docs/ASSET_INTEGRATION.md` nếu muốn thay pack khác.
-- **Font**: DejaVu Sans Mono (`assets/fonts/LICENSE-DejaVuSansMono.txt`).
+- **Font**: DejaVu Sans Mono (`assets/fonts/LICENSE-DejaVuSansMono.txt`); tiêu đề dùng
+  Audiowide của Astigmatic (SIL OFL 1.1, `assets/fonts/LICENSE-Audiowide.txt`).
 - **Âm thanh**: không dùng file `.wav` nào — toàn bộ hiệu ứng và nhạc nền được tổng hợp
   bằng code lúc chạy (`src/audio_system.cpp`).
 - **Mã nguồn**: MIT (xem `LICENSE`).

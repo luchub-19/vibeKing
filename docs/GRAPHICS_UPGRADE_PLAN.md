@@ -1,6 +1,6 @@
 # Kế hoạch nâng cấp đồ họa toàn diện - "Neon-vector arcade"
 
-> Trạng thái: **ĐÃ DUYỆT** (2026-10-03). Xong: GĐ 0, hạ tầng settings (mục 4), phần chính GĐ 2, GĐ 1, GĐ 3, GĐ 5. Còn: GĐ 4 (đo trên máy thật), GĐ 6 (tài liệu tổng), các mục dời lại.
+> Trạng thái: **ĐÃ DUYỆT** (2026-10-03). Xong: GĐ 0, 1, 2, 3, 5, 6 + hạ tầng settings (mục 4). **Còn: GĐ 4 - đo trên iGPU thật** (cần máy người dùng).
 > Ảnh baseline chụp headless bằng Xvfb (thư mục `screenshots/` nằm trong `.gitignore`, ảnh trước/sau gửi kèm PR thay vì commit).
 > Nhánh: `claude/upgrade-vibking-graphics-cwhbn3`. Ngày lập: 2026-10-03.
 
@@ -252,7 +252,13 @@ llvmpipe (render bằng CPU) - trên GPU thật, 1 texture toàn màn hình + ~1
 - Rung: mô hình trauma² + value noise tất định + xoay ≤1,5° quanh TÂM màn hình.
 - Test mới: `[vfx]`, `[shake]`, `[player][vfx]` - mỗi test đã thử làm hỏng code để chắc nó đỏ.
 
-**Chưa làm - dời lại** (không bị quên, ghi rõ ở đây):
+**Mục dời lại - cập nhật sau GĐ 5:** đã làm: High 1,5x hạt (pool 800), đạn địch "thở", đạn
+xuyên đổi hình, khiên vỡ có hiệu ứng, bóng mờ khi lướt, player mất mạng -> khử bão hoà (GĐ 3).
+**Không làm (có lý do):** boss nổ dây chuyền 1,5 s (phải trì hoãn luồng WAVE_CLEAR = đổi gameplay),
+lớp "khói" (nền tối - khói tối không thấy, khói sáng lấn đạn), khiên gợn khi trúng (khiên đỡ 1
+đòn rồi vỡ - đã thay bằng hiệu ứng vỡ), slow-motion khi chết (làm chậm luồng Game Over).
+
+**Danh sách gốc lúc dời:**
 - Boss gục nổ dây chuyền 1,5 s; lớp "khói"; afterimage khi đổi hướng; khiên gợn khi trúng.
 - Đạn địch "thở" độ sáng; đạn Piercing đổi hình dạng (chữ ký riêng từng power-up).
 - Player chết: slow-motion + khử bão hoà -> cần pass shader, làm cùng GĐ 3.
@@ -368,7 +374,12 @@ render target nữa - chưa làm. Màn GAME OVER / WAVE CLEARED: tiêu đề neo
    Anh); fallback về DejaVu nếu thiếu file.
 7. Gom hết hằng màu raylib còn sót trong `render_system.cpp` về `Palette::`.
 
-### GĐ 6 - Tài liệu
+### GĐ 6 - Tài liệu - **XONG**
+README (mục Đồ họa: bảng preset, tuỳ chọn trợ năng, cách tự đo), ARCHITECTURE (sơ đồ pipeline
+vẽ 1 frame + thứ tự lớp R1 + module mới), CLAUDE.md (GraphicsSettings, 2 font, cách đo A/B),
+CREDITS = mục Tài nguyên của README (Audiowide OFL).
+
+**Đề xuất gốc:**
 Cập nhật `ARCHITECTURE.md` (pipeline render mới + thứ tự lớp), `CLAUDE.md` (quy tắc R1-R3, nơi đặt
 `GraphicsSettings`), `docs/ASSET_INTEGRATION.md` (font/asset mới), `CREDITS.md` nếu có CC-BY.
 

@@ -128,6 +128,25 @@ sequenceDiagram
     GM->>GM: UnloadFont / audio.Shutdown / CloseWindow / FileLogger::Shutdown
 ```
 
+### Pipeline vẽ 1 frame (sau nâng cấp đồ họa - xem docs/GRAPHICS_UPGRADE_PLAN.md)
+
+```mermaid
+flowchart LR
+    subgraph RT["renderTarget 800x600"]
+        N["Nebula<br/>(texture nướng sẵn)"] --> S["Parallax<br/>(sao + warp)"] --> G["WarpGrid<br/>(lưới lò xo)"]
+        G --> W["Nội dung state<br/>DrawPlaying / Menu / ..."] --> H["HUD + banner"] --> T["Wipe chuyển cảnh"]
+    end
+    T --> B["Bloom: extract -> Kawase down/up -> cộng"]
+    B --> F["final.fs: CRT cong, sóng xung kích,<br/>chỉnh màu, khử bão hoà, viền enrage, scanline"]
+    F --> D["Debug overlay F3<br/>(toạ độ màn hình thật)"]
+```
+
+Trong `DrawPlaying()` thứ tự lớp theo **luật R1 - đạn địch luôn đọc được**: địch -> lá chắn ->
+particle/chữ điểm -> quầng đạn (1 khối additive) -> power-up -> lõi đạn player -> **lõi đạn địch**
+-> tàu player. Trạng thái hiệu ứng (`shockwaves`, `hurtTimer`, `warpBoostTimer`, `hudBossTrail`) là
+trạng thái THEO WAVE - reset ở cả 2 nhánh `InitLevel()`; `hudScoreShown` theo VÁN.
+Pass nào chạy do `GraphicsSettings` (preset người chơi) quyết định MỖI FRAME.
+
 **Điểm mấu chốt:** `GameManager::UpdatePlaying()` (thân vòng lặp lúc PLAYING)
 chỉ còn là **một chuỗi lời gọi tuần tự** — không phép tính hình học, không phép
 so va chạm, không lệnh vẽ nào nằm trực tiếp trong đó. Đọc hàm này là đọc được
