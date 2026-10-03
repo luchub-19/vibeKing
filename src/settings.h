@@ -2,6 +2,7 @@
 #include <string>
 #include "config.h"
 #include "raylib.h"
+#include "graphics_settings.h"
 
 // ==========================================
 // SETTINGS - lưu độ khó & âm lượng ra file KEY=VALUE (giống level.cfg) để không bị
@@ -25,6 +26,8 @@ struct Settings {
     int keyMoveRight = KEY_D;
     int keyShoot     = KEY_SPACE;
     int keyPause     = KEY_P;
+
+    GraphicsSettings graphics; // Trang GRAPHICS (phim G o menu) - xem graphics_settings.h
 
     // Reset ca 4 phim ve mac dinh - dung khi nguoi choi bam "Khoi phuc mac dinh" o man
     // hinh rebind, tranh phai nho lai tung gia tri mac dinh o nhieu noi khac nhau.

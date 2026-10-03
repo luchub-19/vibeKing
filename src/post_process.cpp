@@ -53,13 +53,11 @@ void PostProcess::Init() {
             crtResolutionLoc = GetShaderLocation(crtShader, "resolution");
             int scanlineLoc = GetShaderLocation(crtShader, "scanlineStrength");
             int vignetteLoc = GetShaderLocation(crtShader, "vignetteStrength");
-            int flickerLoc = GetShaderLocation(crtShader, "flickerStrength");
+            crtFlickerLoc = GetShaderLocation(crtShader, "flickerStrength");
             float scanline = Config::CRT_SCANLINE_STRENGTH;
             float vignette = Config::CRT_VIGNETTE_STRENGTH;
-            float flicker = Config::CRT_FLICKER_STRENGTH;
             SetShaderValue(crtShader, scanlineLoc, &scanline, SHADER_UNIFORM_FLOAT);
             SetShaderValue(crtShader, vignetteLoc, &vignette, SHADER_UNIFORM_FLOAT);
-            SetShaderValue(crtShader, flickerLoc, &flicker, SHADER_UNIFORM_FLOAT);
         } else {
             TraceLog(LOG_WARNING, "PostProcess: khong the khoi tao shader CRT - tat CRT cho phien nay.");
         }
@@ -81,11 +79,11 @@ void PostProcess::Shutdown() {
     }
 }
 
-void PostProcess::Render(const RenderTexture2D& source, Rectangle srcRec, Rectangle destRec) {
+void PostProcess::Render(const RenderTexture2D& source, Rectangle srcRec, Rectangle destRec, const GraphicsSettings& gfx) {
     const RenderTexture2D* finalSource = &source;
     Rectangle finalSrcRec = srcRec;
 
-    if (bloomReady) {
+    if (bloomReady && gfx.BloomEnabled()) {
         // RenderTexture2D bi lat nguoc truc Y khi doc lai (quy uoc OpenGL) - MOI lan doc
         // texture cua 1 RenderTexture2D (bat ke no duoc ve boi buoc nao truoc do) can
         // chieu cao AM de tra ve dung chieu, xem comment goc tai diem goi trong
@@ -137,8 +135,10 @@ void PostProcess::Render(const RenderTexture2D& source, Rectangle srcRec, Rectan
         finalSrcRec = { 0.0f, 0.0f, (float)compositeTex.texture.width, -(float)compositeTex.texture.height };
     }
 
-    if (crtReady) {
+    if (crtReady && gfx.crtEnabled) {
         float t = (float)GetTime();
+        float flicker = Config::CRT_FLICKER_STRENGTH * gfx.CrtFlickerScale();
+        SetShaderValue(crtShader, crtFlickerLoc, &flicker, SHADER_UNIFORM_FLOAT);
         float res[2] = { destRec.width, destRec.height };
         SetShaderValue(crtShader, crtTimeLoc, &t, SHADER_UNIFORM_FLOAT);
         SetShaderValue(crtShader, crtResolutionLoc, res, SHADER_UNIFORM_VEC2);

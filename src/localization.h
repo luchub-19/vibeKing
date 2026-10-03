@@ -77,6 +77,23 @@ namespace Loc {
     constexpr const char* AchievementUnlockedState = "UNLOCKED";
     // %d/%d = thanh tuu da mo / tong so
     constexpr const char* MenuAchievementsHintFmt = "TAB: ACHIEVEMENTS (%d/%d)";
+    constexpr const char* MenuGraphicsHint = "G: GRAPHICS";
+
+    // --- Trang GRAPHICS (RenderSystem::DrawGraphicsSettings) ---
+    constexpr const char* GraphicsTitle = "GRAPHICS";
+    constexpr const char* GraphicsHelp = "UP/DOWN: SELECT   LEFT/RIGHT: CHANGE   G / ESC / ENTER: BACK";
+    constexpr const char* GraphicsRowQuality = "QUALITY";
+    constexpr const char* GraphicsRowCrt = "CRT SCANLINES";
+    constexpr const char* GraphicsRowReduceFlashing = "REDUCE FLASHING";
+    constexpr const char* GraphicsRowShake = "SCREEN SHAKE";
+    // Mo ta tung preset - phai khop GraphicsSettings::BloomEnabled/ParticleScale (graphics_settings.h).
+    // High hien chua them gi so voi Medium: ghi THANG ra thay vi de nguoi choi tuong bi loi.
+    constexpr const char* GraphicsQualityDescLow = "Bloom off, half particles. For weak GPUs.";
+    constexpr const char* GraphicsQualityDescMedium = "Bloom on, full particles.";
+    constexpr const char* GraphicsQualityDescHigh = "Same as Medium for now - heavier effects coming.";
+    constexpr const char* GraphicsCrtDesc = "Scanlines + vignette + subtle flicker.";
+    constexpr const char* GraphicsReduceFlashingDesc = "Removes screen flicker and large flashes.";
+    constexpr const char* GraphicsShakeDesc = "Camera shake on hits and explosions.";
 
     // --- HUD (RenderSystem::DrawHUD) ---
     constexpr const char* ShieldTag = "SHIELD!";

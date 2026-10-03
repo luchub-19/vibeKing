@@ -34,6 +34,7 @@ public:
     // MOI state (goi rieng trong GameManager::Run(), ngoai switch-case state) vi thanh tuu co
     // the mo dung luc chuyen canh sang WAVE_CLEAR/GAME_OVER.
     static void DrawAchievements(const GameManager& gm);
+    static void DrawGraphicsSettings(const GameManager& gm); // Trang GRAPHICS (phim G o MENU)
     static void DrawAchievementToast(const GameManager& gm);
 
     // OBSERVABILITY / PROFILING OVERLAY: FPS, frame time, RAM tien trinh thuc te (xem

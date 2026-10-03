@@ -44,6 +44,7 @@ struct MenuInput {
     bool CycleLoadoutLeft = false;     // KEY_Q - chi co y nghia luc dang MENU (xem UpdateMenu/DrawLoadoutSelect)
     bool CycleLoadoutRight = false;    // KEY_E - chi co y nghia luc dang MENU
     bool OpenAchievements = false;     // KEY_TAB / gamepad SELECT - mo/dong man ACHIEVEMENTS tu MENU (xem UpdateAchievementsScreen)
+    bool OpenGraphics = false;         // KEY_G - mo/dong trang GRAPHICS tu MENU (xem UpdateGraphicsScreen). Khong anh xa gamepad, cung ly do OpenKeybinds
 };
 
 class InputSystem {
@@ -104,6 +105,7 @@ public:
         m.CycleLoadoutLeft      = IsKeyPressed(KEY_Q);
         m.CycleLoadoutRight     = IsKeyPressed(KEY_E);
         m.OpenAchievements      = IsKeyPressed(KEY_TAB);
+        m.OpenGraphics          = IsKeyPressed(KEY_G);
 
         if (IsGamepadAvailable(0)) {
             if (IsGamepadButtonPressed(0, GAMEPAD_BUTTON_LEFT_FACE_LEFT))   m.CycleDifficultyLeft  = true;

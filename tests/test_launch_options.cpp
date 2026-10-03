@@ -50,3 +50,10 @@ TEST_CASE("SummarizeFrameTimes: avg/max/p95 nearest-rank, khong phu thuoc thu tu
     REQUIRE(s.maxMs == Approx(20.0));
     REQUIRE(s.p95Ms == Approx(19.0));
 }
+
+TEST_CASE("ParseLaunchOptions: --quality ghi de preset, mac dinh khong ghi de", "[launch]") {
+    REQUIRE(ParseLaunchOptions({}).qualityOverride == -1);
+    REQUIRE(ParseLaunchOptions({ "--quality=low" }).qualityOverride == 0);
+    REQUIRE(ParseLaunchOptions({ "--quality=high" }).qualityOverride == 2);
+    REQUIRE_FALSE(ParseLaunchOptions({ "--quality=ultra" }).Ok());
+}

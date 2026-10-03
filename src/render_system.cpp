@@ -158,7 +158,8 @@ void RenderSystem::DrawMenu(const GameManager& gm) {
     canvas.CenteredText(Config::SCREEN_W / 2, 548, 14, GRAY,
                         std::string("ARROWS / Q,E: ADJUST   ")
                         + TextFormat(Loc::MenuAchievementsHintFmt, gm.achievements.UnlockedCount(), ACHIEVEMENT_COUNT));
-    canvas.CenteredText(Config::SCREEN_W / 2, 568, 14, GRAY, Loc::MenuFullscreenHint);
+    canvas.CenteredText(Config::SCREEN_W / 2, 568, 14, GRAY,
+                        std::string(Loc::MenuGraphicsHint) + "   " + Loc::MenuFullscreenHint);
 
     canvas.Draw(gm.gameFont);
 }
@@ -357,7 +358,10 @@ void RenderSystem::DrawBomberEnemies(const GameManager& gm, float animTime) {
 
 void RenderSystem::DrawPlaying(const GameManager& gm) {
     Camera2D cam{};
-    cam.offset = gm.screenShake.GetOffset();
+    // Co do rung TAI DAY (diem DUY NHAT doc offset) thay vi o tung screenShake.Trigger(): moi
+    // nguon rung hien tai va sau nay deu tu dong theo cai dat, ke ca muc 0% = dung yen han.
+    const float shakeScale = gm.settings.graphics.ShakeScale();
+    cam.offset = { gm.screenShake.GetOffset().x * shakeScale, gm.screenShake.GetOffset().y * shakeScale };
     cam.target = { 0, 0 };
     cam.rotation = 0.0f;
     cam.zoom = 1.0f;
@@ -732,6 +736,77 @@ void RenderSystem::DrawAchievements(const GameManager& gm) {
     }
 
     canvas.CenteredText(centerX, 562, 14, GRAY, Loc::AchievementsBackHint);
+    canvas.Draw(gm.gameFont);
+}
+
+// ==========================================
+// TRANG GRAPHICS - 1 the moi dong (cung khuon the cua DrawAchievements o tren), cot phai la
+// day pill cua DrawSelectPill de thay HET lua chon cung luc thay vi kieu "< MEDIUM >". Dong
+// dang chon: vien UiAccent + mo ta sang hon. Thu tu dong = enum GraphicsRow.
+// ==========================================
+void RenderSystem::DrawGraphicsSettings(const GameManager& gm) {
+    UICanvas canvas;
+    const int centerX = Config::SCREEN_W / 2;
+    const GraphicsSettings& g = gm.settings.graphics;
+    canvas.CenteredText(centerX, 60, 34, Palette::UiAccent, Loc::GraphicsTitle);
+
+    Color panelFill = Palette::UiPanelFill;
+    panelFill.a = (unsigned char)(255.0f * Config::HUD_PANEL_ALPHA);
+    const float cardX = 60.0f, cardW = (float)Config::SCREEN_W - 120.0f, cardH = 76.0f, gap = 12.0f;
+    const float pillW = 92.0f, pillH = 30.0f, pillGap = 8.0f;
+    float y = 120.0f; // 4 the x (76+12) = 352 -> ket thuc ~472, chua cho dong huong dan
+
+    for (int row = 0; row < GRAPHICS_ROW_COUNT; row++) {
+        const bool active = (row == gm.graphicsRow);
+        canvas.Panel({ cardX, y, cardW, cardH }, panelFill, active ? Palette::UiAccent : Palette::UiPanelEdge,
+                     active ? 2.0f : Config::HUD_PANEL_BORDER_THICKNESS);
+
+        const char* name = "";
+        const char* desc = "";
+        const char* labels[3] = { "", "", "" };
+        int count = 2, selected = 0;
+        switch ((GraphicsRow)row) {
+            case GraphicsRow::Quality:
+                name = Loc::GraphicsRowQuality;
+                desc = (g.quality == GraphicsQuality::Low) ? Loc::GraphicsQualityDescLow
+                     : (g.quality == GraphicsQuality::High) ? Loc::GraphicsQualityDescHigh
+                     : Loc::GraphicsQualityDescMedium;
+                for (int q = 0; q < GRAPHICS_QUALITY_COUNT; q++) labels[q] = GraphicsQualityLabel((GraphicsQuality)q);
+                count = GRAPHICS_QUALITY_COUNT;
+                selected = (int)g.quality;
+                break;
+            case GraphicsRow::Crt:
+                name = Loc::GraphicsRowCrt; desc = Loc::GraphicsCrtDesc;
+                labels[0] = "ON"; labels[1] = "OFF"; selected = g.crtEnabled ? 0 : 1;
+                break;
+            case GraphicsRow::ReduceFlashing:
+                name = Loc::GraphicsRowReduceFlashing; desc = Loc::GraphicsReduceFlashingDesc;
+                labels[0] = "ON"; labels[1] = "OFF"; selected = g.reduceFlashing ? 0 : 1;
+                break;
+            case GraphicsRow::Shake:
+                name = Loc::GraphicsRowShake; desc = Loc::GraphicsShakeDesc;
+                labels[0] = "100%"; labels[1] = "50%"; labels[2] = "OFF";
+                count = SHAKE_PERCENT_LEVEL_COUNT;
+                for (int i = 0; i < SHAKE_PERCENT_LEVEL_COUNT; i++) {
+                    if (SHAKE_PERCENT_LEVELS[i] == g.shakePercent) selected = i;
+                }
+                break;
+        }
+
+        canvas.Text((int)cardX + 16, (int)y + 14, 18, active ? Palette::UiText : Palette::UiDim, name);
+        canvas.Text((int)cardX + 16, (int)y + 44, 13, active ? Palette::UiText : Palette::UiDim, desc);
+
+        // Pill can phai, luon chiem cho cua 3 o de cot pill thang hang giua cac dong 2 va 3 lua chon
+        const float pillsRight = cardX + cardW - 14.0f;
+        const float firstX = pillsRight - 3.0f * pillW - 2.0f * pillGap + (float)(3 - count) * (pillW + pillGap);
+        for (int i = 0; i < count; i++) {
+            Rectangle r = { firstX + (float)i * (pillW + pillGap), y + (cardH - pillH) / 2.0f, pillW, pillH };
+            DrawSelectPill(canvas, r, labels[i], i == selected);
+        }
+        y += cardH + gap;
+    }
+
+    canvas.CenteredText(centerX, 520, 14, GRAY, Loc::GraphicsHelp);
     canvas.Draw(gm.gameFont);
 }
 

@@ -1,6 +1,6 @@
 # Kế hoạch nâng cấp đồ họa toàn diện - "Neon-vector arcade"
 
-> Trạng thái: **ĐÃ DUYỆT** (2026-10-03). Xong: GĐ 0. Tiếp theo: hạ tầng settings đồ họa (mục 4).
+> Trạng thái: **ĐÃ DUYỆT** (2026-10-03). Xong: GĐ 0, hạ tầng settings đồ họa (mục 4). Tiếp theo: GĐ 2 - VFX chiến đấu.
 > Ảnh baseline chụp headless bằng Xvfb (thư mục `screenshots/` nằm trong `.gitignore`, ảnh trước/sau gửi kèm PR thay vì commit).
 > Nhánh: `claude/upgrade-vibking-graphics-cwhbn3`. Ngày lập: 2026-10-03.
 
@@ -97,9 +97,42 @@ vi phạm luật "màu đi qua `Palette::`". Gom lại ở Giai đoạn 5 (UI).
 
 ---
 
-## 4. Hạ tầng: chất lượng đồ họa thành trạng thái runtime
+## 4. Hạ tầng: chất lượng đồ họa thành trạng thái runtime - **XONG**
 
-Đây là việc phải làm TRƯỚC, vì 3 tùy chọn người dùng chọn đều cần nó.
+**Đã làm (khác bản đề xuất ở dưới chỗ nào thì ghi rõ):**
+- `src/graphics_settings.h`: `GraphicsSettings` (quality / crtEnabled / reduceFlashing /
+  shakePercent 100-50-0) + `GraphicsRow`. Là **1 nguồn duy nhất** cho "preset X bật gì":
+  `BloomEnabled()`, `ParticleScale()`, `ShakeScale()`, `CrtFlickerScale()`. Hiệu ứng mới ở các
+  giai đoạn sau thêm 1 hàm vào đây, không rải `if (quality == High)`.
+- Lưu trong `settings.cfg` (`GFX_QUALITY/GFX_CRT/GFX_REDUCE_FLASHING/GFX_SHAKE`); file cũ không có
+  key nào -> mặc định = diện mạo trước đây (Medium, CRT bật). Giá trị sửa tay sai -> mặc định,
+  `GFX_SHAKE` làm tròn về mức gần nhất.
+- `PostProcess::Render()` quyết định MỖI FRAME chạy pass nào; `Init()` vẫn load mọi thứ Config
+  cho phép nên đổi preset giữa chừng có hiệu lực ngay. `Config::BLOOM_ENABLED/CRT_ENABLED` giữ
+  vai công tắc tổng lúc build.
+- Particle co trong `ParticlePool::Burst()` (1 điểm phủ mọi nơi gọi), không bao giờ về 0 hạt.
+  Độ rung co ở camera `DrawPlaying()` (1 điểm đọc offset).
+- Trang GRAPHICS: phím `G` ở menu chính (Q4 = trang riêng). Lên/Xuống chọn dòng, Trái/Phải đổi.
+- `--quality=low|medium|high` để chụp/đo từng preset mà không ghi `settings.cfg`.
+- Test: `[graphics]` (round-trip file, file cũ, giá trị sai, preset, làm tròn particle) + 1 test
+  `[game_manager][graphics]` đi qua `ProcessEvents()` thật (10 vs 5 hạt - đã thử tắt phần nối
+  preset, test đỏ đúng như mong đợi).
+
+**Preset thực tế hiện tại** (bảng đề xuất bên dưới là đích cuối, điền dần theo giai đoạn):
+
+| | Low | Medium | High |
+|---|---|---|---|
+| Bloom | tắt | bật (Gauss cũ) | bật |
+| Particle | 0,5x | 1x | 1x (lên 1,5x ở GĐ 2) |
+| Khác | - | - | **chưa khác Medium** - trang GRAPHICS ghi thẳng điều này |
+
+`reduceFlashing` hiện chỉ tắt CRT flicker vì game chưa có flash toàn màn hình nào; mọi flash lớn
+thêm ở GĐ 2-4 PHẢI đọc cờ này.
+
+Bench cảnh boss (llvmpipe, 2 lần): **Low 8,0-8,2 ms**, **Medium 15,8-16,3 ms** (= mốc GĐ 0,
+không tụt). Bloom là gần một nửa chi phí frame trên renderer CPU - lý do GĐ 3 đổi sang Dual Kawase.
+
+**Bản đề xuất gốc:**
 
 - Thêm `struct GraphicsSettings` vào `Settings` (lưu trong `settings.cfg`, cùng đường
   `AtomicFile::Replace()` sẵn có):

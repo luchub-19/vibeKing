@@ -28,6 +28,13 @@ namespace {
         if (res.ec == std::errc{}) target = v;
         else TraceLog(LOG_WARNING, "Settings: gia tri ma phim khong hop le");
     }
+
+    // Chi "0"/"1" - gia tri khac (sua tay sai) giu nguyen mac dinh thay vi doan y.
+    void ParseBoolKey(std::string_view val, bool& target) {
+        if (val == "1") target = true;
+        else if (val == "0") target = false;
+        else TraceLog(LOG_WARNING, "Settings: gia tri bat/tat khong hop le (chi nhan 0/1)");
+    }
 }
 
 Settings Settings::LoadFromFile(const std::string& path) {
@@ -66,6 +73,16 @@ Settings Settings::LoadFromFile(const std::string& path) {
             ParseIntKey(val, cfg.keyShoot);
         } else if (IEquals(key, "KEY_PAUSE")) {
             ParseIntKey(val, cfg.keyPause);
+        } else if (IEquals(key, "GFX_QUALITY")) {
+            for (int q = 0; q < GRAPHICS_QUALITY_COUNT; q++) {
+                if (IEquals(val, GraphicsQualityLabel((GraphicsQuality)q))) cfg.graphics.quality = (GraphicsQuality)q;
+            }
+        } else if (IEquals(key, "GFX_CRT")) {
+            ParseBoolKey(val, cfg.graphics.crtEnabled);
+        } else if (IEquals(key, "GFX_REDUCE_FLASHING")) {
+            ParseBoolKey(val, cfg.graphics.reduceFlashing);
+        } else if (IEquals(key, "GFX_SHAKE")) {
+            ParseIntKey(val, cfg.graphics.shakePercent);
         }
     }
 
@@ -84,6 +101,8 @@ Settings Settings::LoadFromFile(const std::string& path) {
     cfg.keyMoveRight = validOrDefault(cfg.keyMoveRight, KEY_D);
     cfg.keyShoot     = validOrDefault(cfg.keyShoot, KEY_SPACE);
     cfg.keyPause     = validOrDefault(cfg.keyPause, KEY_P);
+
+    cfg.graphics.Sanitize();
 
     return cfg;
 }
@@ -110,6 +129,10 @@ void Settings::SaveToFile(const std::string& path) const {
         file << "KEY_MOVE_RIGHT=" << keyMoveRight << "\n";
         file << "KEY_SHOOT=" << keyShoot << "\n";
         file << "KEY_PAUSE=" << keyPause << "\n";
+        file << "GFX_QUALITY=" << GraphicsQualityLabel(graphics.quality) << "\n";
+        file << "GFX_CRT=" << (graphics.crtEnabled ? 1 : 0) << "\n";
+        file << "GFX_REDUCE_FLASHING=" << (graphics.reduceFlashing ? 1 : 0) << "\n";
+        file << "GFX_SHAKE=" << graphics.shakePercent << "\n";
     } // Dong scope -> ofstream flush + dong file truoc khi rename ben duoi
 
     if (!AtomicFile::Replace(tmpPath, path)) {

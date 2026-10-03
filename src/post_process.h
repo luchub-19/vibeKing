@@ -1,5 +1,6 @@
 #pragma once
 #include "raylib.h"
+#include "graphics_settings.h"
 
 // ==========================================
 // POST-PROCESS: Bloom (trich sang + blur 2 chieu + cong don) va CRT (scanline/vignette/
@@ -37,7 +38,11 @@ public:
     // thuong co chieu cao AM - xem comment tai diem goi trong GameManager::Run() ve quy
     // uoc lat truc Y cua RenderTexture2D). Tu quyet dinh chay Bloom/CRT hay khong dua
     // theo Config::BLOOM_ENABLED/CRT_ENABLED VA viec Init() co thanh cong hay khong.
-    void Render(const RenderTexture2D& source, Rectangle srcRec, Rectangle destRec);
+    //
+    // `gfx` (trang GRAPHICS) quyet dinh MOI FRAME pass nao chay: doi preset/tat CRT co hieu
+    // luc ngay, khong can khoi dong lai. Init() load san moi thu Config cho phep bat ke preset
+    // hien tai, de bat lai Bloom giua chung khong phai load shader luc dang choi.
+    void Render(const RenderTexture2D& source, Rectangle srcRec, Rectangle destRec, const GraphicsSettings& gfx);
 
 private:
     Shader bloomExtractShader{};
@@ -49,6 +54,7 @@ private:
     int blurDirectionLoc = -1;
     int crtTimeLoc = -1;
     int crtResolutionLoc = -1;
+    int crtFlickerLoc = -1; // Doi theo GraphicsSettings::reduceFlashing - set moi frame
 
     // 2 texture trung gian cho Bloom, dung kieu ping-pong (trich sang -> blur ngang ->
     // blur doc) - xem post_process.cpp:Render(). Ca 2 o do phan giai giam theo Config::

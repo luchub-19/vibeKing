@@ -135,6 +135,7 @@ trắng, không crash.
 | `Q` / `E` | Trong MENU: đổi loadout (dừng trên loadout đang khoá mà đủ currency thì tự mở khoá luôn) |
 | Lên/Xuống | Tăng/giảm âm lượng (menu và lúc Pause) |
 | `Tab` | Trong MENU: mở/đóng màn hình thành tựu (`Esc`/`Enter` cũng quay lại) |
+| `G` | Trong MENU: mở/đóng trang GRAPHICS - preset chất lượng Low/Medium/High, bật/tắt CRT, giảm nhấp nháy, độ rung màn hình (lưu ngay vào `settings.cfg`) |
 
 Màn hình đổi phím (`K` lúc Pause): bấm `1`-`4` để chọn hành động, rồi bấm phím mới muốn
 gán. `0` hoặc `R` khôi phục cả 4 về mặc định. `Esc` để huỷ/quay lại. Phím hệ thống

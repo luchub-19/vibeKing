@@ -829,3 +829,25 @@ TEST_CASE("Leaderboard: 1 van qua 2 lan WAVE_CLEAR roi GAME_OVER chi de lai DUNG
     REQUIRE(entries.size() == 1);
     REQUIRE(entries[0].score == 2461);
 }
+
+TEST_CASE("Preset do hoa: Low lam MOI Burst() di qua ProcessEvents chi con nua so particle", "[game_manager][graphics]") {
+    // 10 vs 5: 2 nhanh cho ket qua KHAC nhau, nen neu ApplyGraphicsSettings() khong day he so
+    // xuong ParticlePool thi test nay do (khac kieu "currency = 0 o ca 2 nhanh" - xem CLAUDE.md).
+    auto particlesFromOneEvent = [](GraphicsQuality q) {
+        GameManager gm;
+        QuarantinePersistence(gm);
+        GTA::SettingsRef(gm).graphics.quality = q;
+        GTA::CallApplyGraphicsSettings(gm);
+        GTA::ParticlesRef(gm).Reset();
+        auto& queue = GTA::PendingEvents(gm);
+        queue.clear();
+        GameEvent ev;
+        ev.position = { 400.0f, 300.0f };
+        ev.particleCount = 10;
+        queue.push_back(ev);
+        GTA::CallProcessEvents(gm);
+        return GTA::ParticlesRef(gm).GetActiveCount();
+    };
+    REQUIRE(particlesFromOneEvent(GraphicsQuality::Medium) == 10);
+    REQUIRE(particlesFromOneEvent(GraphicsQuality::Low) == 5);
+}

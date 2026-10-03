@@ -26,7 +26,7 @@
 #include "localization.h"
 #include "launch_options.h"
 
-enum class GameState { MENU, PLAYING, PAUSED, GAME_OVER, WAVE_CLEAR, KEYBIND, ACHIEVEMENTS };
+enum class GameState { MENU, PLAYING, PAUSED, GAME_OVER, WAVE_CLEAR, KEYBIND, ACHIEVEMENTS, GRAPHICS };
 enum class TransitionPhase { NONE, FADE_OUT, FADE_IN };
 
 // ==========================================
@@ -218,6 +218,12 @@ private:
     int PayOutAchievementBonus();
     void UpdateToasts(float dt);
     void UpdateAchievementsScreen(); // Man ACHIEVEMENTS - vao/ra tu MENU bang TAB
+
+    // TRANG GRAPHICS (phim G o MENU) - preset chat luong / CRT / giam nhap nhay / do rung.
+    // Doi gia tri nao cung luu settings.cfg ngay va co hieu luc ngay (ApplyGraphicsSettings).
+    void UpdateGraphicsScreen();
+    void ApplyGraphicsSettings(); // Day settings.graphics xuong cac he thong khong tu doc settings (ParticlePool)
+    int graphicsRow = 0;          // Dong dang chon tren trang GRAPHICS, 0..GRAPHICS_ROW_COUNT-1
 
     // COMBO SCORE: ha guc lien tiep trong Config::COMBO_WINDOW giay se duoc nhan diem.
     float comboTimer = 0.0f;

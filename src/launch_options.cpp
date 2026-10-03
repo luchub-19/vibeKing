@@ -35,6 +35,13 @@ LaunchOptions ParseLaunchOptions(const std::vector<std::string>& args) {
             o.captureFile = v;
         } else if (StartsWith(a, "--capture-frame=", v)) {
             if (!ParsePositiveInt(v, o.captureFrame)) { o.error = "--capture-frame phai la so nguyen duong"; return o; }
+        } else if (StartsWith(a, "--quality=", v)) {
+            // So nguyen khop thu tu enum GraphicsQuality (graphics_settings.h) - file nay giu
+            // khong include settings de van la ham thuan doc lap.
+            if (v == "low")         o.qualityOverride = 0;
+            else if (v == "medium") o.qualityOverride = 1;
+            else if (v == "high")   o.qualityOverride = 2;
+            else { o.error = "quality khong hop le: " + v; return o; }
         } else if (StartsWith(a, "--bench=", v)) {
             if (!ParsePositiveInt(v, o.benchFrames)) { o.error = "--bench phai la so nguyen duong"; return o; }
         } else {
@@ -67,5 +74,5 @@ FrameStats SummarizeFrameTimes(std::vector<double> samplesMs) {
 
 const char* LaunchUsage() {
     return "Cach dung: space_invaders [--scene=combat|boss] [--capture=<file.png>] "
-           "[--capture-frame=<n>] [--bench=<n>]\n";
+           "[--capture-frame=<n>] [--quality=low|medium|high] [--bench=<n>]\n";
 }

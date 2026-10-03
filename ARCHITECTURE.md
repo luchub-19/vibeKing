@@ -205,7 +205,9 @@ nâng cấp thành hàng đợi có timestamp — chưa cần ở quy mô hiện
 | `bunker.h/.cpp` | Voxel-grid bunker: khoét/hồi phục O(1) qua `damagedVoxels` | — |
 | `config.h/.cpp` | Hằng số kỹ thuật (`constexpr`) + biến cân bằng (`inline`, ghi đè runtime) | Không thêm hằng số CÂN BẰNG mới dạng `constexpr` — phải `inline` + có mặt trong `LoadBalance()` (xem §6) |
 | `level_config.h/.cpp` | `LevelGridConfig` — số hàng/cột/khoảng cách đội hình đọc từ `level.cfg`, thay vì hardcode trong vòng lặp `InitLevel()` | — |
-| `settings.h/.cpp` | `Settings` — độ khó/âm lượng/4 phím rebind, đọc/ghi `settings.cfg` (KEY=VALUE) | — |
+| `settings.h/.cpp` | `Settings` — độ khó/âm lượng/4 phím rebind + `GraphicsSettings`, đọc/ghi `settings.cfg` (KEY=VALUE) | — |
+| `graphics_settings.h` | `GraphicsSettings` — preset Low/Medium/High, CRT, giảm nhấp nháy, độ rung; 1 nguồn cho "preset nào bật gì" (trang GRAPHICS, phím `G`) | — |
+| `launch_options.h/.cpp` | Tham số dòng lệnh chỉ để kiểm chứng đồ họa: `--scene`/`--capture`/`--quality`/`--bench` (xem `scripts/capture_showcase.sh`) | — |
 | `text_utils.h` | `TextUtils::Trim`/`IEquals` — tiện ích `string_view` dùng chung bởi 2 parser KEY=VALUE (`level_config.cpp`, `settings.cpp`), không copy chuỗi | — |
 | `save_checksum.h` | Checksum FNV-1a cho file save | — |
 | `atomic_file.h/.cpp` | `AtomicFile::Replace()` — bước "đổi tên `.tmp` đè lên file thật" của cả 3 file save; `rename(2)` trên POSIX, `MoveFileEx(REPLACE_EXISTING)` trên Windows (`std::rename()` của Windows không ghi đè được). Tách `.cpp` riêng để `<windows.h>` không đụng `raylib.h` | — |
@@ -217,7 +219,7 @@ nâng cấp thành hàng đợi có timestamp — chưa cần ở quy mô hiện
 | `wave_generator.h/.cpp` | `WaveGenerator::Generate()` — quyết định "ô nào có địch loại gì" theo wave; hàm THUẦN, không biết `GameManager` tồn tại | Không đọc/ghi `GameManager` ở đây — `InitLevel()` mới là nơi biến `FormationSpawn` thành `EnemyPool::Spawn()` |
 | `upgrade_types.h` | `UpgradeType` + `g_upgradeTypeDescriptors[]` — nâng cấp chọn sau mỗi wave, data-driven cùng khuôn với `BossTypeDescriptor` | Không thêm `switch(UpgradeType)` rải rác — thêm 1 dòng vào bảng |
 | `parallax.h/.cpp` | `Parallax` — starfield nhiều lớp, vẽ dưới cùng ở MỌI state trước switch-case | — |
-| `post_process.h/.cpp` | `PostProcess` — bloom + CRT áp lúc upscale `renderTarget`; tự fallback về 1 `DrawTexturePro` nếu shader lỗi/tắt | — |
+| `post_process.h/.cpp` | `PostProcess` — bloom + CRT áp lúc upscale `renderTarget`; pass nào chạy do `GraphicsSettings` quyết định MỖI FRAME; tự fallback về 1 `DrawTexturePro` nếu shader lỗi/tắt | — |
 | `localization.h` | `Loc::` — chuỗi hiển thị, 1 nguồn duy nhất cho RenderSystem và `GetRebindableActions()` | Không hardcode chuỗi UI rải rác trong `render_system.cpp` |
 | `palette.h` | `Palette::` — 1 nguồn duy nhất cho MỌI màu; thi hành luật LẠNH (nền + mọi loại địch) vs NÓNG (đạn, đe doạ tức thì, phần thưởng). Kèm `Lerp()`/`Shade()` để dẫn xuất sắc độ thay vì khai thêm hằng số | Không gọi thẳng hằng số màu của raylib (`PURPLE`, `RED`, `GREEN`...) ở bất kỳ đâu trong đường gameplay — thêm 1 tên vào `Palette::` |
 | `process_metrics.h` | Đọc RAM (RSS) thật từ `/proc/self/status` | — |

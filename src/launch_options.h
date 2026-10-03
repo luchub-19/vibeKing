@@ -16,6 +16,8 @@
 //   --scene=combat|boss   Vao thang canh trinh dien, gameplay dong bang (khong ai chet/an diem)
 //   --capture=<file.png>  Chup man hinh SAU post-process o frame --capture-frame roi thoat
 //   --capture-frame=<n>   Mac dinh 45 (du cho fade/khoi tao on dinh)
+//   --quality=low|medium|high  Ghi de preset do hoa CHI TRONG RAM (khong luu settings.cfg) -
+//                         de chup/do tung preset ma khong dong vao cai dat that cua nguoi choi
 //   --bench=<n>           Bo gioi han 60 FPS, do n frame (sau 30 frame khoi dong), in thong
 //                         ke ra stdout roi thoat
 //
@@ -29,6 +31,7 @@ struct LaunchOptions {
     std::string captureFile;  // rong = khong chup
     int captureFrame = 45;
     int benchFrames = 0;      // 0 = khong do
+    int qualityOverride = -1; // -1 = dung settings.cfg; 0/1/2 = GraphicsQuality Low/Medium/High
     std::string error;        // khac rong = tham so sai, main() in usage va thoat ma 2
 
     bool Ok() const { return error.empty(); }

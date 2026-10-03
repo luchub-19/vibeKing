@@ -74,6 +74,10 @@ public:
     // Diem vao DUY NHAT cua GAME OVER - test goi thang de kiem tinh idempotent ma khong
     // phai dung san 2 duong thua cuoc that su xay ra cung 1 frame.
     static void CallTriggerGameOver(GameManager& gm) { gm.TriggerGameOver(); }
+    // Trang GRAPHICS: test sua settings.graphics roi goi ApplyGraphicsSettings() de kiem preset
+    // that su toi duoc ParticlePool (khong goi UpdateGraphicsScreen() vi can phim that).
+    static Settings& SettingsRef(GameManager& gm) { return gm.settings; }
+    static void CallApplyGraphicsSettings(GameManager& gm) { gm.ApplyGraphicsSettings(); }
 
     // ----- Du lieu the gioi (giong het tinh than friend PhysicsSystem/RenderSystem) -----
     static Player& PlayerRef(GameManager& gm) { return gm.player; }

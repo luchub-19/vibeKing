@@ -121,6 +121,11 @@ cmake --build build-strict -j"$(nproc)"
   không vật thể nào đủ sáng vượt ngưỡng luma; dải NÓNG sáng hơn nên bloom mới thật sự
   phát sáng đúng chỗ cần. `constexpr` (dữ liệu trình bày), cố ý KHÔNG nằm trong
   balance.json.
+- **Cài đặt đồ họa đi qua `GraphicsSettings` (graphics_settings.h)**: preset Low/Medium/High,
+  CRT, giảm nhấp nháy, độ rung - tùy chọn NGƯỜI CHƠI lưu trong `settings.cfg`, không phải
+  balance data (không vào balance.json). Muốn biết "preset này có bật X không" thì gọi hàm của
+  struct đó (`BloomEnabled()`, `ParticleScale()`...), đừng tự so `quality == High`. Mọi flash
+  toàn màn hình mới phải tôn trọng `reduceFlashing` (WCAG 2.3.1: không quá 3 lần/giây).
 - **Fade transition 2 pha**: `RequestTransition()` KHÔNG đổi `state` ngay - chỉ đặt
   `pendingState` + bắt đầu `FADE_OUT`; `state` đổi thật bên trong `UpdateTransition()`
   sau đủ `Config::TRANSITION_DURATION` giây, rồi `FADE_IN` trước khi về `NONE`.

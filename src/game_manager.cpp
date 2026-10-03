@@ -125,6 +125,35 @@ void GameManager::UpdateAchievementsScreen() {
 }
 
 // ==========================================
+// TRANG GRAPHICS - tai dung MenuInput nhu cac man khac: Len/Xuong (VolumeUp/Down) chon dong,
+// Trai/Phai (CycleDifficulty*) doi gia tri. Thu tu dong PHAI khop RenderSystem::
+// DrawGraphicsSettings() - ca 2 dung chung GraphicsRow (graphics_settings.h).
+// ==========================================
+void GameManager::UpdateGraphicsScreen() {
+    MenuInput input = InputSystem::PollMenu(settings);
+    if (input.OpenGraphics || input.PauseToggle || input.Confirm) { state = GameState::MENU; return; }
+
+    if (input.VolumeUp)   graphicsRow = (graphicsRow + GRAPHICS_ROW_COUNT - 1) % GRAPHICS_ROW_COUNT;
+    if (input.VolumeDown) graphicsRow = (graphicsRow + 1) % GRAPHICS_ROW_COUNT;
+
+    if (!input.CycleDifficultyLeft && !input.CycleDifficultyRight) return;
+    int dir = input.CycleDifficultyRight ? 1 : -1;
+    GraphicsSettings& g = settings.graphics;
+    switch ((GraphicsRow)graphicsRow) {
+        case GraphicsRow::Quality:        g.CycleQuality(dir); break;
+        case GraphicsRow::Crt:            g.crtEnabled = !g.crtEnabled; break;
+        case GraphicsRow::ReduceFlashing: g.reduceFlashing = !g.reduceFlashing; break;
+        case GraphicsRow::Shake:          g.CycleShake(dir); break;
+    }
+    ApplyGraphicsSettings();
+    SaveSettings();
+}
+
+void GameManager::ApplyGraphicsSettings() {
+    particles.SetSpawnScale(settings.graphics.ParticleScale());
+}
+
+// ==========================================
 // SETTINGS
 // ==========================================
 void GameManager::SaveSettings() {
@@ -511,6 +540,7 @@ void GameManager::UpdateMenu() {
 
     if (input.ToggleFullscreen) ToggleFullscreen();
     if (input.OpenAchievements) { state = GameState::ACHIEVEMENTS; return; }
+    if (input.OpenGraphics) { state = GameState::GRAPHICS; graphicsRow = 0; return; }
 
     if (input.Confirm) {
         InitLevel(true);
@@ -988,6 +1018,8 @@ void GameManager::Run(const LaunchOptions& opts) {
     settings = Settings::LoadFromFile(Config::SettingsFilePath());
     difficulty = settings.difficulty;
     audio.SetVolume(settings.volume);
+    if (opts.qualityOverride >= 0) settings.graphics.quality = (GraphicsQuality)opts.qualityOverride; // Chi trong RAM - xem launch_options.h
+    ApplyGraphicsSettings(); // TRUOC SetupShowcase: Burst() cua canh trinh dien cung phai theo preset
 
     if (opts.scene != ShowcaseScene::None) SetupShowcase(opts.scene);
 
@@ -1023,6 +1055,7 @@ void GameManager::Run(const LaunchOptions& opts) {
                 case GameState::PAUSED:     UpdatePaused(); break;
                 case GameState::KEYBIND:    UpdateKeybindScreen(); break;
                 case GameState::ACHIEVEMENTS: UpdateAchievementsScreen(); break;
+                case GameState::GRAPHICS:   UpdateGraphicsScreen(); break;
                 case GameState::PLAYING:    UpdatePlaying(dt); break;
             }
         }
@@ -1043,6 +1076,7 @@ void GameManager::Run(const LaunchOptions& opts) {
             case GameState::PAUSED:
             case GameState::KEYBIND: RenderSystem::DrawPlaying(*this); break;
             case GameState::ACHIEVEMENTS: RenderSystem::DrawAchievements(*this); break;
+            case GameState::GRAPHICS: RenderSystem::DrawGraphicsSettings(*this); break;
         }
         RenderSystem::DrawAchievementToast(*this); // Tren noi dung moi state, duoi lop fade
 
@@ -1072,7 +1106,7 @@ void GameManager::Run(const LaunchOptions& opts) {
         // thuong (quy uoc OpenGL) - day la buoc lat lai chuan, khong phai 1 hack.
         Rectangle src{ 0.0f, 0.0f, (float)renderTarget.texture.width, -(float)renderTarget.texture.height };
         Rectangle dst{ destX, destY, destW, destH };
-        postProcess.Render(renderTarget, src, dst); // Bloom + CRT (neu bat) - fallback ve dung 1 DrawTexturePro nhu truoc neu ca 2 tat/loi luc Init()
+        postProcess.Render(renderTarget, src, dst, settings.graphics); // Bloom + CRT (neu bat) - fallback ve dung 1 DrawTexturePro nhu truoc neu ca 2 tat/loi luc Init()
 
         // OVERLAY DO LUONG: ve o TOA DO MAN HINH THAT (ngoai canh render texture noi bo
         // 800x600 vua upscale o tren) - luon sac net va o dung goc man hinh du dang

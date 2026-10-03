@@ -1,5 +1,6 @@
 #include "thirdparty/catch.hpp"
 #include "settings.h"
+#include "particle_pool.h"
 #include <cstdio>
 #include <fstream>
 #include <cmath>
@@ -110,4 +111,96 @@ TEST_CASE("Settings: VOLUME=nan -> ve mac dinh, khong lot qua clamp", "[settings
     Settings loaded = Settings::LoadFromFile(TestPath());
     REQUIRE_FALSE(std::isnan(loaded.volume));
     REQUIRE(loaded.volume == Approx(Settings{}.volume));
+}
+
+// ==========================================
+// GRAPHICS SETTINGS (trang GRAPHICS, graphics_settings.h)
+// ==========================================
+
+TEST_CASE("Settings: 4 field do hoa round-trip qua file", "[settings][graphics]") {
+    CleanupGuard guard;
+    std::remove(TestPath());
+
+    // Moi field dat KHAC mac dinh - neu Save/Load bo sot 1 field thi gia tri mac dinh lot
+    // qua va REQUIRE tuong ung do (mac dinh: Medium / CRT bat / khong giam / 100%).
+    Settings original;
+    original.graphics.quality = GraphicsQuality::Low;
+    original.graphics.crtEnabled = false;
+    original.graphics.reduceFlashing = true;
+    original.graphics.shakePercent = 50;
+    original.SaveToFile(TestPath());
+
+    Settings loaded = Settings::LoadFromFile(TestPath());
+    REQUIRE(loaded.graphics.quality == GraphicsQuality::Low);
+    REQUIRE_FALSE(loaded.graphics.crtEnabled);
+    REQUIRE(loaded.graphics.reduceFlashing);
+    REQUIRE(loaded.graphics.shakePercent == 50);
+}
+
+TEST_CASE("Settings: settings.cfg cu (truoc khi co GFX_*) -> do hoa giu mac dinh = dien mao cu", "[settings][graphics]") {
+    CleanupGuard guard;
+    {
+        std::ofstream f(TestPath());
+        f << "DIFFICULTY=HARD\nVOLUME=0.5\n";
+    }
+    Settings loaded = Settings::LoadFromFile(TestPath());
+    REQUIRE(loaded.graphics.quality == GraphicsQuality::Medium);
+    REQUIRE(loaded.graphics.crtEnabled);
+    REQUIRE_FALSE(loaded.graphics.reduceFlashing);
+    REQUIRE(loaded.graphics.shakePercent == 100);
+}
+
+TEST_CASE("Settings: gia tri GFX_* sua tay sai -> mac dinh, GFX_SHAKE lam tron ve muc gan nhat", "[settings][graphics]") {
+    CleanupGuard guard;
+    {
+        std::ofstream f(TestPath());
+        f << "GFX_QUALITY=ULTRA\nGFX_CRT=yes\nGFX_REDUCE_FLASHING=2\nGFX_SHAKE=73\n";
+    }
+    Settings loaded = Settings::LoadFromFile(TestPath());
+    REQUIRE(loaded.graphics.quality == GraphicsQuality::Medium);
+    REQUIRE(loaded.graphics.crtEnabled);
+    REQUIRE_FALSE(loaded.graphics.reduceFlashing);
+    REQUIRE(loaded.graphics.shakePercent == 50); // |73-50|=23 < |73-100|=27
+
+    {
+        std::ofstream f(TestPath());
+        f << "GFX_QUALITY=high\nGFX_SHAKE=-40\n"; // khong phan biet hoa/thuong; am -> OFF
+    }
+    loaded = Settings::LoadFromFile(TestPath());
+    REQUIRE(loaded.graphics.quality == GraphicsQuality::High);
+    REQUIRE(loaded.graphics.shakePercent == 0);
+}
+
+TEST_CASE("GraphicsSettings: preset quyet dinh bloom/particle, Cycle quay vong 2 chieu", "[graphics]") {
+    GraphicsSettings g;
+    g.quality = GraphicsQuality::Low;
+    REQUIRE_FALSE(g.BloomEnabled());
+    REQUIRE(g.ParticleScale() == Approx(0.5f));
+    g.quality = GraphicsQuality::Medium;
+    REQUIRE(g.BloomEnabled());
+    REQUIRE(g.ParticleScale() == Approx(1.0f));
+
+    g.quality = GraphicsQuality::High;
+    g.CycleQuality(1);
+    REQUIRE(g.quality == GraphicsQuality::Low);   // High -> Low
+    g.CycleQuality(-1);
+    REQUIRE(g.quality == GraphicsQuality::High);  // Low -> High
+
+    g.shakePercent = 100;
+    g.CycleShake(1);  REQUIRE(g.shakePercent == 50);
+    g.CycleShake(1);  REQUIRE(g.shakePercent == 0);
+    g.CycleShake(1);  REQUIRE(g.shakePercent == 100);
+    g.CycleShake(-1); REQUIRE(g.shakePercent == 0);
+    REQUIRE(g.ShakeScale() == Approx(0.0f));
+
+    g.reduceFlashing = true;
+    REQUIRE(g.CrtFlickerScale() == Approx(0.0f));
+}
+
+TEST_CASE("ParticlePool::ScaledCount: giam theo preset nhung khong bao gio xoa mat 1 cum", "[graphics]") {
+    REQUIRE(ParticlePool<8>::ScaledCount(40, 0.5f) == 20);
+    REQUIRE(ParticlePool<8>::ScaledCount(3, 0.5f) == 2);  // 1.5 lam tron len
+    REQUIRE(ParticlePool<8>::ScaledCount(1, 0.5f) == 1);  // muzzle flash 1 hat van con
+    REQUIRE(ParticlePool<8>::ScaledCount(0, 0.5f) == 0);
+    REQUIRE(ParticlePool<8>::ScaledCount(7, 1.0f) == 7);
 }

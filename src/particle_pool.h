@@ -77,9 +77,23 @@ class ParticlePool {
 private:
     Particle pool[MAX_PARTICLES];
     size_t activeCount = 0;
+    float spawnScale = 1.0f;
 
 public:
     void Reset() { activeCount = 0; }
+
+    // He so preset do hoa (GraphicsSettings::ParticleScale) - ap TAI DAY, 1 diem duy nhat,
+    // thay vi o tung noi goi Burst() (ProcessEvents, UpdatePlaying, PhysicsSystem...): them
+    // noi goi moi sau nay tu dong theo preset, khong the quen.
+    void SetSpawnScale(float s) { spawnScale = s; }
+
+    // Lam tron gan nhat nhung KHONG ve 0 khi count > 0: muzzle flash 3 hat x 0.5 van phai con
+    // 1 hat - preset Low giam do day, khong duoc xoa mat phan hoi "vua ban/vua trung".
+    static int ScaledCount(int count, float scale) {
+        if (count <= 0) return 0;
+        int n = (int)((float)count * scale + 0.5f);
+        return n < 1 ? 1 : n;
+    }
 
     void Spawn(Vector2 pos, Vector2 vel, float life, Color color, ParticleShape shape = ParticleShape::Square, float size = 3.0f) {
         if (activeCount >= MAX_PARTICLES) return;
@@ -91,6 +105,7 @@ public:
     // ~1/3 là Spark (tia kéo dài), còn lại Square kích thước ngẫu nhiên 2-4px - trộn
     // trong 1 cụm để đa dạng thị giác thay vì toàn hạt giống hệt nhau từng pixel.
     void Burst(Vector2 origin, int count, Color color) {
+        count = ScaledCount(count, spawnScale);
         for (int i = 0; i < count; i++) {
             float angle = (float)GetRandomValue(0, 359) * (ParticleMath::PI_F / 180.0f);
             float speed = (float)GetRandomValue(60, 220);
