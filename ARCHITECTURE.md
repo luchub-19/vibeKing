@@ -207,7 +207,12 @@ nâng cấp thành hàng đợi có timestamp — chưa cần ở quy mô hiện
 | `player.h/.cpp` | Dữ liệu + hành vi Player (di chuyển, bắn, mạng, bất tử tạm thời, power-up timers) — 1 trong các ngoại lệ "container tự quản lý" ở §2, không phải component swarm | Player KHÔNG nằm trong danh sách friend của `GameManager` — field mới cần GameManager đọc thẳng thì phải qua API public, không tự thêm friend rải rác |
 | `input_system.h` | Nơi DUY NHẤT gọi `IsKeyDown/IsKeyPressed/IsGamepad*` | Không đọc phần cứng ở bất kỳ file nào khác |
 | `physics_system.h/.cpp` | Di chuyển entity + va chạm; sinh `GameEvent`, KHÔNG tự gọi audio/particle | Không gọi `AudioSystem`/`ParticlePool` trực tiếp — luôn qua `GameEvent` |
-| `render_system.h/.cpp` | Vẽ mọi màn hình qua `UICanvas`; hàm `const`, chỉ đọc | Không sửa bất kỳ field nào của `GameManager` |
+| `render_system.h/.cpp` | Vẽ thế giới game + HUD qua `UICanvas`; hàm `const`, chỉ đọc | Không sửa bất kỳ field nào của `GameManager` |
+| `render_screens.cpp` | Phần còn lại của `RenderSystem`: mọi màn GUI (menu, xưởng tàu, bảng xếp hạng, thành tựu, hướng dẫn, attract, cài đặt, pause, hộp xác nhận, màn kết thúc) — xem `docs/GUI_UPGRADE.md` | Không tự đặt toạ độ nút — lấy từ `ui_layout.h` (chung với hit-test chuột) |
+| `game_manager_ui.cpp` | Thành viên `GameManager` cho điều hướng GUI: `UpdateUi()` (chuột/F11/attract), `Update*Screen()`, hộp xác nhận, `ApplySettings()` | Không đặt luật chơi ở đây; mọi đường thua vẫn qua `TriggerGameOver()` |
+| `ui_nav.h` / `ui_layout.h` | Hàm thuần: vòng quanh danh sách, đổi toạ độ chuột → canvas, gõ chữ theo ký tự UTF-8, nhấp nháy an toàn / `Rectangle` của mọi nút | Không gọi hàm raylib cần cửa sổ (test headless) |
+| `retro_ui.h` | Widget vẽ retro: khung pixel, mũi tên pixel, chữ nhún, tiêu đề glitch, chữ gõ, thanh LED, keycap | Hiệu ứng chuyển động phải tắt theo `reduceFlashing` |
+| `settings_menu.h/.cpp` | 4 tab Cài đặt × các dòng (Choice/Slider/Key/Action) + thao tác thuần trên `Settings` — 1 nguồn cho cả Update lẫn Render | Thêm cài đặt = 1 dòng bảng + case trong `ChoiceCount/ChoiceIndex/SetChoice/ChoiceLabel`, không `switch` riêng ở chỗ khác |
 | `audio_system.h/.cpp` | Tổng hợp & phát âm thanh procedural (không file `.wav`) | — |
 | `voice_pool.h` | `VoicePool<N>` — luân phiên N bản `LoadSoundAlias()` của 1 `Sound` gốc để SFX bắn/trúng liên tiếp không cắt ngang nhau; dùng nội bộ bởi `AudioSystem` | Không gọi trực tiếp từ ngoài `AudioSystem` |
 | `sprites.h/.cpp` | `SpriteSheet` — cắt texture từ `assets/sprites/atlas.png` theo toạ độ trong `atlas.cfg`; tên nào thiếu/sai toạ độ thì **fallback** sang `BuildXxx()` vẽ bằng `Image` trong RAM (18/19 tên hiện dùng atlas) | `Load()` phải gọi SAU `InitWindow()`, `Unload()` phải TRƯỚC `CloseWindow()`. Fallback diễn ra ÂM THẦM — gõ sai tên không báo lỗi, chỉ thấy qua dòng log `n/19 ten hop le` |
@@ -224,9 +229,9 @@ nâng cấp thành hàng đợi có timestamp — chưa cần ở quy mô hiện
 | `bunker.h/.cpp` | Voxel-grid bunker: khoét/hồi phục O(1) qua `damagedVoxels` | — |
 | `config.h/.cpp` | Hằng số kỹ thuật (`constexpr`) + biến cân bằng (`inline`, ghi đè runtime) | Không thêm hằng số CÂN BẰNG mới dạng `constexpr` — phải `inline` + có mặt trong `LoadBalance()` (xem §6) |
 | `level_config.h/.cpp` | `LevelGridConfig` — số hàng/cột/khoảng cách đội hình đọc từ `level.cfg`, thay vì hardcode trong vòng lặp `InitLevel()` | — |
-| `settings.h/.cpp` | `Settings` — độ khó/âm lượng/4 phím rebind + `GraphicsSettings`, đọc/ghi `settings.cfg` (KEY=VALUE) | — |
-| `graphics_settings.h` | `GraphicsSettings` — preset Low/Medium/High, CRT, giảm nhấp nháy, độ rung; 1 nguồn cho "preset nào bật gì" (trang GRAPHICS, phím `G`) | — |
-| `launch_options.h/.cpp` | Tham số dòng lệnh chỉ để kiểm chứng đồ họa: `--scene`/`--capture`/`--quality`/`--bench` (xem `scripts/capture_showcase.sh`) | — |
+| `settings.h/.cpp` | `Settings` — độ khó, âm lượng 3 tầng, ngôn ngữ, toàn màn hình/FPS, 4 phím rebind + tự động bắn, tốc độ game/hitbox + `GraphicsSettings`, đọc/ghi `settings.cfg` (KEY=VALUE) | — |
+| `graphics_settings.h` | `GraphicsSettings` — preset Low/Medium/High, CRT, giảm nhấp nháy, độ rung, lọc màu mù màu; 1 nguồn cho "preset nào bật gì" (tab Đồ họa / Trợ năng) | — |
+| `launch_options.h/.cpp` | Tham số dòng lệnh chỉ để kiểm chứng đồ họa: `--scene` (cả cảnh GUI)/`--capture`/`--quality`/`--lang`/`--tab`/`--bench` (xem `scripts/capture_showcase.sh`) | — |
 | `text_utils.h` | `TextUtils::Trim`/`IEquals` — tiện ích `string_view` dùng chung bởi 2 parser KEY=VALUE (`level_config.cpp`, `settings.cpp`), không copy chuỗi | — |
 | `save_checksum.h` | Checksum FNV-1a cho file save | — |
 | `atomic_file.h/.cpp` | `AtomicFile::Replace()` — bước "đổi tên `.tmp` đè lên file thật" của cả 3 file save; `rename(2)` trên POSIX, `MoveFileEx(REPLACE_EXISTING)` trên Windows (`std::rename()` của Windows không ghi đè được). Tách `.cpp` riêng để `<windows.h>` không đụng `raylib.h` | — |
@@ -243,7 +248,7 @@ nâng cấp thành hàng đợi có timestamp — chưa cần ở quy mô hiện
 | `draw_helpers.h` | Hàm vẽ dùng chung nhiều file (khiên lục giác `DrawHexShield`) | — |
 | `post_process.h/.cpp` | `PostProcess` — bloom Dual Kawase + pass cuối hợp nhất `final.fs` (CRT/cong, sóng xung kích, chỉnh màu, khử bão hoà, viền enrage) lúc upscale `renderTarget`; pass nào chạy do `GraphicsSettings` quyết định MỖI FRAME; tự fallback về 1 `DrawTexturePro` nếu shader lỗi | — |
 | `post_fx.h` | `ShockwaveField` + `PostFxFrame` + `HurtDesaturation` — phần thuần của pass cuối (test headless) | — |
-| `localization.h` | `Loc::` — chuỗi hiển thị, 1 nguồn duy nhất cho RenderSystem và `GetRebindableActions()` | Không hardcode chuỗi UI rải rác trong `render_system.cpp` |
+| `localization.h/.cpp` | Bảng chuỗi EN/VI `LOC_STRINGS(X)` (X-macro sinh cả `enum class Str` lẫn bảng dịch), `Tr()`, phát hiện ngôn ngữ OS, `FontCharset()` cho `LoadFontEx` | Không hardcode chuỗi UI; bảng tĩnh giữ `Str` chứ không giữ `const char*` đã dịch (xem docs/GUI_UPGRADE.md §3) |
 | `palette.h` | `Palette::` — 1 nguồn duy nhất cho MỌI màu; thi hành luật LẠNH (nền + mọi loại địch) vs NÓNG (đạn, đe doạ tức thì, phần thưởng). Kèm `Lerp()`/`Shade()` để dẫn xuất sắc độ thay vì khai thêm hằng số | Không gọi thẳng hằng số màu của raylib (`PURPLE`, `RED`, `GREEN`...) ở bất kỳ đâu trong đường gameplay — thêm 1 tên vào `Palette::` |
 | `process_metrics.h` | Đọc RAM (RSS) thật từ `/proc/self/status` | — |
 
@@ -294,7 +299,10 @@ mạng lúc build). 2 nhóm:
   (`test_player.cpp`), `Settings` (`test_settings.cpp`), hành vi tĩnh của
   Boss (`test_boss.cpp` — hành vi ĐỘNG như dao động/triệu hồi được xác minh
   thủ công qua Xvfb, không có test tự động, xem comment đầu file đó),
-  `MetaProgress` (`test_meta_progress.cpp`). `test_achievements.cpp` nằm ở CẢ 2 nhóm:
+  `MetaProgress` (`test_meta_progress.cpp`), bảng dịch EN/VI (`test_localization.cpp` —
+  đủ bản dịch, cùng đặc tả `%d/%s`, mọi ký tự nằm trong bảng mã font). `test_ui.cpp` (GUI:
+  điều hướng, đổi toạ độ chuột, gõ chữ UTF-8, bố cục nút, bảng Cài đặt, cột ASSIST) và
+  `test_achievements.cpp` nằm ở CẢ 2 nhóm:
   nửa đầu thuần (`AchievementProgress`), nửa sau tích hợp qua `GameManagerTestAccess`.
 - **`GameManager`/`PhysicsSystem`** (`test_game_manager.cpp`,
   `test_physics_system.cpp`): state machine (MENU/PLAYING/GAME_OVER/

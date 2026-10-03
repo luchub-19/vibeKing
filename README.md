@@ -44,7 +44,7 @@ tới lần mở khoá kế tiếp.
 1 wave không mất mạng, 25.000 điểm, 1.000 địch trọn đời) - mỗi cái thưởng thêm CR. Mở khoá
 giữa ván thì hiện thông báo trượt xuống đầu màn hình; phần CR thưởng được trả cùng lúc với
 CR quy đổi từ điểm khi ván kết thúc (nên con số "CURRENCY EARNED" ở bảng tổng kết đã gồm
-cả hai). Xem danh sách + tiến độ bằng `Tab` trong menu.
+cả hai). Xem danh sách + tiến độ ở mục THÀNH TỰU trong menu chính.
 
 **Độ khó.** Chọn EASY/NORMAL/HARD trong menu, và bên trên đó còn một tầng **DDA** (dynamic
 difficulty adjustment) tự điều chỉnh: mỗi lần hạ Boss, game xem bạn mất bao nhiêu mạng
@@ -124,28 +124,50 @@ trắng, không crash.
 | Phím | Chức năng |
 |---|---|
 | `A` / `D` hoặc mũi tên trái/phải | Di chuyển (`A`/`D` đổi được, mũi tên luôn là phím dự phòng cố định) |
-| `Space` | Bắn (đổi được) |
-| `P` / `Esc` | Tạm dừng (`P` đổi được, `Esc` luôn là phím dự phòng cố định) |
-| `K` (lúc đang Pause) | Đổi phím điều khiển (Trái/Phải/Bắn/Pause) |
+| `Space` | Bắn (đổi được; có tuỳ chọn **Tự động bắn**) |
+| `P` / `Esc` | Tạm dừng → menu Pause: Tiếp tục / Cài đặt / Chơi lại / Về menu chính |
 | `R` | Chơi lại từ đầu |
-| `F11` | Bật/tắt Fullscreen |
+| `F11` | Bật/tắt toàn màn hình (đồng bộ với Cài đặt > Đồ họa) |
 | `F3` | Bật/tắt lớp phủ đo lường (FPS, số thực thể, RAM) — hoạt động ở MỌI màn hình |
-| `Enter` | Xác nhận (menu, next wave...) |
-| Trái/Phải | Trong MENU: đổi độ khó. Ở màn hình WAVE CLEAR: chọn nâng cấp |
-| `Q` / `E` | Trong MENU: đổi loadout (dừng trên loadout đang khoá mà đủ currency thì tự mở khoá luôn) |
-| Lên/Xuống | Tăng/giảm âm lượng (menu và lúc Pause) |
-| `Tab` | Trong MENU: mở/đóng màn hình thành tựu (`Esc`/`Enter` cũng quay lại) |
-| `G` | Trong MENU: mở/đóng trang GRAPHICS - preset chất lượng Low/Medium/High, bật/tắt CRT, giảm nhấp nháy, độ rung màn hình (lưu ngay vào `settings.cfg`) |
+| Lên/Xuống (`W`/`S`) | Chọn mục trong mọi menu (giữ phím để lặp) |
+| Trái/Phải | Đổi giá trị (độ khó, trang bị, cài đặt, thẻ nâng cấp, trang hướng dẫn) |
+| `Enter` | Xác nhận |
+| `Esc` / `Backspace` | Quay lại màn trước |
+| `Q` / `E` (`PgUp`/`PgDn`) | Đổi tab trong Cài đặt / Hướng dẫn |
 
-Màn hình đổi phím (`K` lúc Pause): bấm `1`-`4` để chọn hành động, rồi bấm phím mới muốn
-gán. `0` hoặc `R` khôi phục cả 4 về mặc định. `Esc` để huỷ/quay lại. Phím hệ thống
-(`Esc`/`Enter`/`R`/`F3`/`F11`/`K`/mũi tên) không thể gán đè lên - tránh tự khoá mình
-khỏi menu. Lưu lại vào `settings.cfg`, còn nguyên sau khi tắt/mở lại game.
+**Chuột**: rê để chọn, nhấp trái để xác nhận, nhấp phải để quay lại, kéo/lăn để chỉnh thanh âm
+lượng, nút "< QUAY LẠI" góc trên trái. Con trỏ tự ẩn khi đang chơi.
 
-Có hỗ trợ tay cầm (gamepad) nếu cắm sẵn - hoạt động ở cả lúc chơi (stick trái/D-pad di
-chuyển, A/Cross bắn) lẫn menu/pause/end-screen (D-pad đổi độ khó/âm lượng, A/Cross xác
-nhận, X/Square chơi lại, Start tạm dừng, Select mở màn hình thành tựu). Màn hình đổi phím bàn phím ở trên và `F11`
-(fullscreen) là 2 chỗ còn giới hạn bàn phím.
+**Tay cầm**: stick trái/D-pad di chuyển, A bắn/xác nhận, B quay lại, X chơi lại, Start tạm dừng,
+LB/RB đổi tab.
+
+## Giao diện & ngôn ngữ
+
+GUI phong cách **retro arcade** (khung pixel góc bậc thang, con trỏ tam giác nhảy, chữ gõ từng
+ký tự kèm tiếng bíp, glitch tách RGB khi vào màn, chữ mục đang chọn nhún kiểu Balatro). Chữ tiêu
+đề dùng **Bungee**, chữ thường **VT323** — cả 2 đủ dấu tiếng Việt. Chi tiết thiết kế, nguồn tham
+khảo và ý tưởng tiếp theo: [`docs/GUI_UPGRADE.md`](docs/GUI_UPGRADE.md).
+
+- **Menu chính**: Chơi ngay / Bảng xếp hạng / Thành tựu / Hướng dẫn / Cài đặt / Thoát. Để yên
+  20 giây → **attract mode** như tủ máy arcade (bảng điểm thưởng, top 10, điều khiển, "INSERT COIN").
+- **Xưởng tàu** (sau CHƠI NGAY): chọn độ khó + trang bị; trang bị khoá thì bấm Enter/nhấp lần 2 để
+  mở bằng CR (trước đây chỉ cần lướt qua là bị trừ tiền).
+- **Hướng dẫn**: điều khiển (phím THẬT đang gán), 9 loại địch kèm điểm, 6 vật phẩm, mẹo chơi.
+- **Ngôn ngữ**: English / Tiếng Việt, đổi là áp dụng ngay. Lần đầu mở game tự theo ngôn ngữ hệ
+  điều hành (`LC_ALL`/`LC_MESSAGES`/`LANG` bắt đầu bằng `vi` → tiếng Việt).
+
+### Cài đặt (4 tab, lưu ngay vào `settings.cfg`)
+
+| Tab | Tuỳ chọn |
+|---|---|
+| Chung | Ngôn ngữ, âm lượng tổng / nhạc nền / hiệu ứng, âm thanh menu |
+| Đồ họa | Chất lượng Low/Medium/High, CRT, toàn màn hình, hiện FPS |
+| Điều khiển | Đổi phím Trái/Phải/Bắn/Tạm dừng (Enter hoặc nhấp rồi bấm phím mới), tự động bắn, khôi phục phím |
+| Trợ năng | Giảm nhấp nháy, rung màn hình 100/50/tắt, **tốc độ game** 100/90/80/70%, **lọc màu** cho người mù màu (đỏ/lục/lam), hiện vùng trúng đạn |
+
+Chơi với tốc độ game dưới 100% vẫn được lưu điểm, nhưng dòng đó mang nhãn **HỖ TRỢ/ASSIST** trên
+bảng xếp hạng (kiểu Assist Mode của Celeste). Phím hệ thống (`Esc`/`Enter`/`Backspace`/`R`/`F3`/
+`F11`/mũi tên) không gán được, và 2 hành động không thể chung 1 phím - tránh tự khoá mình khỏi menu.
 
 ## Đồ họa
 
@@ -153,7 +175,7 @@ Phong cách **neon-vector arcade** (Geometry Wars / Galaga Legions), giữ luậ
 loại địch) / NÓNG (đạn, đe doạ, phần thưởng). Chi tiết thiết kế và nguồn tham khảo:
 [`docs/GRAPHICS_UPGRADE_PLAN.md`](docs/GRAPHICS_UPGRADE_PLAN.md).
 
-Trang **GRAPHICS** (phím `G` ở menu chính) - đổi là có hiệu lực ngay, lưu vào `settings.cfg`:
+Tab **Đồ họa** trong Cài đặt - đổi là có hiệu lực ngay, lưu vào `settings.cfg`:
 
 | Tuỳ chọn | Low | Medium (mặc định) | High |
 |---|---|---|---|
@@ -164,10 +186,10 @@ Trang **GRAPHICS** (phím `G` ở menu chính) - đổi là có hiệu lực nga
 | Hạt hiệu ứng | 0,5x | 1x | 1,5x |
 | CRT cong | - | - | có (nếu bật CRT) |
 
-- **CRT SCANLINES**: bật/tắt scanline + vignette + nhấp nháy nhẹ.
-- **REDUCE FLASHING**: tắt mọi nhấp nháy (CRT flicker, tàu chớp khi bất tử -> mờ đều, sao lấp
-  lánh, đạn địch "thở", logo "bật đèn" -> sáng dần). Theo WCAG 2.3.1 / Xbox Accessibility 118.
-- **SCREEN SHAKE**: 100% / 50% / tắt.
+- **Hiệu ứng CRT**: bật/tắt scanline + vignette + nhấp nháy nhẹ.
+- **Giảm nhấp nháy** (tab Trợ năng): tắt mọi nhấp nháy (CRT flicker, tàu chớp khi bất tử -> mờ
+  đều, sao lấp lánh, đạn địch "thở", chữ INSERT COIN/con trỏ nhấp nháy, glitch tiêu đề, chữ nhún).
+  Theo WCAG 2.3.1 / Xbox Accessibility 118.
 
 **Tự đo hiệu năng trên máy bạn** (số đo trong repo là renderer CPU, không phải GPU thật):
 
@@ -177,16 +199,17 @@ Trang **GRAPHICS** (phím `G` ở menu chính) - đổi là có hiệu lực nga
 ```
 
 Tham số dòng lệnh khác (chỉ để kiểm chứng đồ họa, xem `src/launch_options.h`):
-`--scene=combat|boss|gameover|waveclear` dựng cảnh cố định, `--capture=<file.png>` chụp rồi thoát;
-`scripts/capture_showcase.sh` chụp cả 4 cảnh dưới Xvfb.
+`--scene=combat|boss|gameover|waveclear|menu|hangar|settings|howto|attract|leaderboard|achievements|pause`
+dựng cảnh cố định, `--lang=en|vi` ép ngôn ngữ, `--tab=0..3` chọn tab Cài đặt, `--capture=<file.png>`
+chụp rồi thoát; `scripts/capture_showcase.sh` chụp mọi cảnh (cả 2 ngôn ngữ) dưới Xvfb.
 
 ## Tài nguyên
 
 - **Đồ hoạ**: [Kenney](https://kenney.nl) — *Space Shooter Remastered* và *Space Shooter
   Extension* (CC0). Ảnh được khử màu rồi nhuộm màu lúc vẽ, nên `atlas.png` là ảnh xám; xem
   `docs/ASSET_INTEGRATION.md` nếu muốn thay pack khác.
-- **Font**: DejaVu Sans Mono (`assets/fonts/LICENSE-DejaVuSansMono.txt`); tiêu đề dùng
-  Audiowide của Astigmatic (SIL OFL 1.1, `assets/fonts/LICENSE-Audiowide.txt`).
+- **Font**: VT323 của Peter Hull (chữ thường) và Bungee của David Jonathan Ross (tiêu đề) —
+  cả 2 SIL OFL 1.1 (`assets/fonts/LICENSE-VT323.txt`, `assets/fonts/LICENSE-Bungee.txt`).
 - **Âm thanh**: không dùng file `.wav` nào — toàn bộ hiệu ứng và nhạc nền được tổng hợp
   bằng code lúc chạy (`src/audio_system.cpp`).
 - **Mã nguồn**: MIT (xem `LICENSE`).

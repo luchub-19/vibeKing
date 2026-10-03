@@ -56,7 +56,9 @@ chạy từ gốc repo là 2 bộ save/asset khác nhau:
 Cần `assets/` (font/sprite/shader/balance.json) và `level.cfg` ở cwd; thiếu thì game vẫn
 chạy được với giá trị mặc định (fallback có chủ đích, không crash) nhưng khác hẳn cấu hình
 thật. `settings.cfg`/`leaderboard.dat`/`meta_progress.dat`/`achievements.dat` được ghi ra chính
-cwd đó và đều nằm trong `.gitignore`.
+cwd đó và đều nằm trong `.gitignore`. Ngôn ngữ lần đầu theo `LC_ALL`/`LC_MESSAGES`/`LANG`
+(`LANG=vi_VN.UTF-8 ./build/space_invaders` để thử tiếng Việt), sau đó theo `LANGUAGE=` trong
+`settings.cfg`.
 
 ## Test
 
@@ -93,8 +95,10 @@ cmake --build build-strict -j"$(nproc)"
   getter/setter. Cả 2 đều là hàm `static` nhận `GameManager&` làm tham số đầu.
 - **1-nguồn-duy-nhất**: dữ liệu nhiều nơi cùng cần phải đọc từ 1 định nghĩa chung, ví
   dụ `BossStage(boss)` (enemy_types.h) suy giai đoạn boss trực tiếp từ %HP thay vì lưu
-  biến `stage` rời rạc dễ lệch; `GetRebindableActions()` (game_manager.h) liệt kê 4
-  phím rebind 1 lần cho cả màn KEYBIND lẫn RenderSystem. Cùng tinh thần: **`hitEdge` của
+  biến `stage` rời rạc dễ lệch; `SettingsTabRows()` (settings_menu.h) liệt kê dòng Cài đặt
+  1 lần cho cả `UpdateSettingsScreen()` lẫn `DrawSettings()`, và `ui_layout.h` là toạ độ DUY
+  NHẤT của mọi nút GUI (hit-test chuột và code vẽ cùng đọc - lệch 1px = bấm nút A kích hoạt
+  nút B). Cùng tinh thần: **`hitEdge` của
   đội hình là 1 quyết định DUY NHẤT**, gom từ cả 5 pool (Basic/Tanky/Zigzag/Warden/Medic)
   rồi mới đổi hướng + tụt hàng một lần cho tất cả trong `PhysicsSystem::UpdateEnemies()`.
   Warden/Medic từng tự tính `hitEdge` riêng trong 2 hàm gọi riêng — hệ quả là con nào nằm
@@ -126,9 +130,22 @@ cmake --build build-strict -j"$(nproc)"
   balance data (không vào balance.json). Muốn biết "preset này có bật X không" thì gọi hàm của
   struct đó (`BloomEnabled()`, `ParticleScale()`...), đừng tự so `quality == High`. Mọi flash
   toàn màn hình mới phải tôn trọng `reduceFlashing` (WCAG 2.3.1: không quá 3 lần/giây).
-- **2 font**: `gameFont` (DejaVu Sans Mono, có dấu tiếng Việt) cho MỌI chữ thường; `titleFont`
-  (Audiowide, qua `DrawNeonText()` trong draw_helpers.h) CHỈ cho tiêu đề/banner tiếng Anh - font này
-  chỉ có bộ Latin cơ bản, đưa chuỗi tiếng Việt vào sẽ mất dấu ÂM THẦM (raylib vẽ ô trống, không báo lỗi).
+- **2 font + 2 ngôn ngữ**: `gameFont` (VT323, pixel kiểu CRT) cho MỌI chữ thường; `titleFont`
+  (Bungee, qua `DrawNeonText()`/`RetroUi::GlitchTitle()`) cho tiêu đề/banner. Cả 2 đủ dấu tiếng
+  Việt, NHƯNG chỉ khi nạp với `Loc::FontCharset()` - `LoadFontEx(..., nullptr, 0)` chỉ có ASCII và
+  chữ có dấu ra ô trống ÂM THẦM. Mọi chuỗi hiển thị đi qua `Tr(Str::X)` (localization.h, bảng
+  X-macro `LOC_STRINGS` - 1 dòng = id + EN + VI); `test_localization.cpp` khoá: đủ bản dịch, cùng
+  `%d/%s` ở 2 ngôn ngữ, mọi ký tự nằm trong bảng mã font. VT323 KHÔNG có mũi tên/tam giác - vẽ
+  bằng hình (`RetroUi::PixelArrow`), đừng đưa ký hiệu đó vào chuỗi. Bảng mô tả tĩnh giữ `Str`,
+  không giữ `const char*` đã dịch (sẽ kẹt ngôn ngữ lúc khởi động).
+- **GUI** (chi tiết + các bẫy đã gặp: `docs/GUI_UPGRADE.md`): mỗi màn menu là 1 `GameState`
+  với `Update*Screen()` trong `game_manager_ui.cpp` + `Draw*()` trong `render_screens.cpp`; trạng
+  thái con trỏ/đồng hồ UI gom trong `GameManager::ui` (`UiState`). Đổi màn menu dùng
+  `GoToScreen()` (không fade, reset glitch/chữ gõ), vào/ra gameplay vẫn `RequestTransition()`.
+  Chuột chỉ giành con trỏ khi THẬT SỰ di chuyển. F11 xử lý 1 chỗ trong `UpdateUi()` - đừng gọi
+  `ToggleFullscreen()` ở `Update*()` khác (bật/tắt 2 lần 1 frame). Đừng gọi `GetKeyPressed()`
+  ngoài màn đổi phím: nó LẤY RA khỏi hàng đợi phím. Tốc độ game (Trợ năng) chỉ nhân `dt` của
+  `UpdatePlaying()`; ván có lúc < 100% mang nhãn ASSIST (`runAssisted`, theo VÁN).
 - **Fade transition 2 pha**: `RequestTransition()` KHÔNG đổi `state` ngay - chỉ đặt
   `pendingState` + bắt đầu `FADE_OUT`; `state` đổi thật bên trong `UpdateTransition()`
   sau đủ `Config::TRANSITION_DURATION` giây, rồi `FADE_IN` trước khi về `NONE`.
@@ -195,7 +212,7 @@ cũng tự no-op (raylib tự kiểm tra `IsSoundValid()` nội bộ), không cr
 `InitLevel()`:
 
 - **Theo VÁN** - chỉ reset ở nhánh `newGame == true`: `runKills`/`runBestCombo`/
-  `runCurrencyEarned` (bảng tổng kết Game Over), `hintTimer` (gợi ý phím, chỉ hiện cho
+  `runCurrencyEarned` (bảng tổng kết Game Over), `runAssisted` (nhãn ASSIST trên bảng xếp hạng), `hintTimer` (gợi ý phím, chỉ hiện cho
   người chơi mới), bộ DDA (`ddaSpeedMul`/`ddaLivesLostSinceCheck`/`ddaLastKnownLives`), và
   `runAchievementBonus` (CR thưởng thành tựu chờ trả - được TRẢ chứ không chỉ xoá: xem dưới).
 - **Theo WAVE** - reset ở CẢ 2 nhánh: mọi pool địch, bullet/particle/power-up, combo,
@@ -285,7 +302,7 @@ export khoá GPU (`~/.config/environment.d/50-gpu-lock.conf`) trước khi chạ
 nếu không dGPU sẽ thức - xem mục GPU lai trong CLAUDE.md toàn cục.
 
 Trong container không có màn hình (cloud/CI): `scripts/capture_showcase.sh [binary] [out]`
-dựng 2 cảnh cố định (`--scene=combat|boss`), chụp ảnh sau post-process và đo frame time
+dựng các cảnh cố định (`--scene=combat|boss|...` + 8 cảnh GUI × `--lang=en|vi`), chụp ảnh sau post-process và đo frame time
 (`--bench`) - chỉ cần Xvfb. Đó là cách chuẩn để có ảnh trước/sau cho mọi thay đổi khâu vẽ (xem
 `src/launch_options.h`, `docs/GRAPHICS_UPGRADE_PLAN.md`). Số liệu bench dưới Xvfb là llvmpipe
 (render bằng CPU): chỉ so tương đối, không phải frame time trên GPU thật. **Đo A/B XEN KẼ trên

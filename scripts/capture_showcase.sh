@@ -13,7 +13,8 @@
 #     thu_muc_output  Mac dinh <repo>/screenshots (nam trong .gitignore)
 #     so_frame_bench  Mac dinh 600; 0 = chi chup, khong do
 #
-# KET QUA: <output>/showcase_{combat,boss,gameover,waveclear}.png va <output>/bench.txt
+# KET QUA: <output>/showcase_{combat,boss,gameover,waveclear}.png, <output>/gui_<man>_{en,vi}.png
+#          (8 man GUI x 2 ngon ngu + 3 tab Cai dat) va <output>/bench.txt
 #
 # LUU Y VE SO LIEU: trong Xvfb, OpenGL chay bang llvmpipe (render bang CPU) - frame time o day
 # KHONG phai frame time tren iGPU that. Chi dung de so TUONG DOI: cung may, cung moi truong,
@@ -26,6 +27,9 @@ BINARY="${1:-$REPO_ROOT/build/space_invaders}"
 OUT_DIR="${2:-$REPO_ROOT/screenshots}"
 BENCH_FRAMES="${3:-600}"
 SCENES=(combat boss gameover waveclear)
+# Canh GUI (nang cap GUI - docs/GUI_UPGRADE.md): chup CA 2 ngon ngu - chu tieng Viet thieu glyph
+# chi lo ra tren anh, khong co log nao bao.
+GUI_SCENES=(menu hangar settings howto attract leaderboard achievements pause)
 BENCH_SCENES=(combat boss) # Man tong ket gan nhu tinh, do frame time khong co y nghia
 
 if ! command -v Xvfb >/dev/null 2>&1; then
@@ -54,6 +58,19 @@ for scene in "${SCENES[@]}"; do
     out="$OUT_DIR/showcase_$scene.png"
     run_game --scene="$scene" --capture="$out" >/dev/null
     [ -f "$out" ] && echo "  -> $out" || { echo "LOI: khong chup duoc canh $scene" >&2; exit 1; }
+done
+
+for scene in "${GUI_SCENES[@]}"; do
+    for lang in en vi; do
+        out="$OUT_DIR/gui_${scene}_${lang}.png"
+        run_game --scene="$scene" --lang="$lang" --capture="$out" >/dev/null
+        [ -f "$out" ] && echo "  -> $out" || { echo "LOI: khong chup duoc canh $scene ($lang)" >&2; exit 1; }
+    done
+done
+for tab in 1 2 3; do # Tab 0 (Chung) da co o vong tren
+    out="$OUT_DIR/gui_settings_tab${tab}_vi.png"
+    run_game --scene=settings --tab="$tab" --lang=vi --capture="$out" >/dev/null
+    [ -f "$out" ] && echo "  -> $out" || { echo "LOI: khong chup duoc tab cai dat $tab" >&2; exit 1; }
 done
 
 if [ "$BENCH_FRAMES" -gt 0 ]; then
