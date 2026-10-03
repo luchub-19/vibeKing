@@ -26,8 +26,11 @@ enum class UpgradeType : uint8_t { MoveSpeed, ExtraLife, BonusScore };
 constexpr int UPGRADE_TYPE_COUNT = 3;
 
 struct UpgradeTypeDescriptor {
-    const char* name;        // Loc:: - ten hien thi ngan, dong dau the nang cap (xem DrawUpgradeCards, render_system.cpp)
-    const char* description; // Loc:: - mo ta 1 dong, chi la nhan hien thi (so lieu THAT su luon doc tu *coefficient, khong parse tu chuoi nay)
+    // Ma chuoi (localization.h), KHONG phai const char*: bang nay khoi tao 1 lan luc nap
+    // chuong trinh, con ngon ngu doi duoc luc chay - giu con tro chuoi thi the nang cap ket
+    // cung o ngon ngu luc khoi dong. Noi ve goi Tr(name) moi frame.
+    Str name;        // Ten hien thi ngan, dong dau the nang cap (xem DrawUpgradeCards, render_system.cpp)
+    Str description; // Mo ta 1 dong, chi la nhan hien thi (so lieu THAT su luon doc tu *coefficient, khong parse tu chuoi nay)
 
     // Y NGHIA TUY LOAI (xem Player::ApplyRunUpgrade()):
     //   MoveSpeed   -> he so NHAN truc tiep vao Player::speed moi lan chon (vd 1.08 = +8%)
@@ -41,9 +44,9 @@ struct UpgradeTypeDescriptor {
 // Index THANG bang (int)UpgradeType (MoveSpeed=0, ExtraLife=1, BonusScore=2) - dung khuon
 // voi g_bossTypeDescriptors, KHONG switch/case.
 inline UpgradeTypeDescriptor g_upgradeTypeDescriptors[UPGRADE_TYPE_COUNT] = {
-    { Loc::UpgradeMoveSpeedName,  Loc::UpgradeMoveSpeedDesc,  &Config::UPGRADE_MOVE_SPEED_MUL },
-    { Loc::UpgradeExtraLifeName,  Loc::UpgradeExtraLifeDesc,  nullptr },
-    { Loc::UpgradeBonusScoreName, Loc::UpgradeBonusScoreDesc, &Config::UPGRADE_BONUS_SCORE },
+    { Str::UpgradeMoveSpeedName,  Str::UpgradeMoveSpeedDesc,  &Config::UPGRADE_MOVE_SPEED_MUL },
+    { Str::UpgradeExtraLifeName,  Str::UpgradeExtraLifeDesc,  nullptr },
+    { Str::UpgradeBonusScoreName, Str::UpgradeBonusScoreDesc, &Config::UPGRADE_BONUS_SCORE },
 };
 
 inline const UpgradeTypeDescriptor& GetUpgradeTypeDescriptor(UpgradeType type) {

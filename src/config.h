@@ -92,11 +92,13 @@ namespace Config {
     inline const char* AchievementsFilePath() { return "achievements.dat"; }
     inline const char* LevelConfigFilePath() { return "level.cfg"; }
     inline const char* SettingsFilePath() { return "settings.cfg"; }
-    inline const char* FontFilePath() { return "assets/fonts/DejaVuSansMono.ttf"; }
-    // Font TIEU DE (GD 5): Audiowide (SIL OFL 1.1, Google Fonts - xem assets/fonts/LICENSE-
-    // Audiowide.txt). CHI bo Latin co ban -> chi dung cho chuoi tieng Anh (logo, banner). Moi chu
-    // nho/tieng Viet van la DejaVu. Thieu file -> fallback ve gameFont, khong crash.
-    inline const char* TitleFontFilePath() { return "assets/fonts/Audiowide-Regular.ttf"; }
+    // FONT (nang cap GUI - phong cach retro arcade): VT323 cho moi chu thuong (font pixel kieu
+    // man CRT terminal), Bungee cho tieu de/banner (chu khoi kieu bien hieu arcade). Ca 2 SIL OFL
+    // 1.1 (assets/fonts/LICENSE-*.txt) va DU 134 chu cai tieng Viet co dau - kiem bang fontTools
+    // truoc khi chon. Thay cho DejaVu Sans Mono + Audiowide (Audiowide khong co dau tieng Viet).
+    // Thieu file -> fallback (gameFont: font mac dinh raylib; titleFont: gameFont), khong crash.
+    inline const char* FontFilePath() { return "assets/fonts/VT323-Regular.ttf"; }
+    inline const char* TitleFontFilePath() { return "assets/fonts/Bungee-Regular.ttf"; }
     constexpr int TITLE_FONT_BASE_SIZE = 72; // Logo ve ~44px; rasterize lon hon de thu nho van net
     inline const char* BalanceFilePath() { return "assets/balance.json"; }
     inline const char* AtlasImagePath() { return "assets/sprites/atlas.png"; }
@@ -328,7 +330,7 @@ namespace Config {
     // upgrade_types.h cho enum UpgradeType/UpgradeTypeDescriptor. Chi 2 hang so o day vi
     // ExtraLife khong can he so rieng (luon +1 mang/lan, cap san o Config::MAX_LIVES da co
     // - xem Player::ApplyRunUpgrade trong player.cpp). Doi so o day nho sua lai nhan hien
-    // thi tuong ung trong Loc::Upgrade*Desc (localization.h) - 2 cho KHONG tu dong dong bo.
+    // thi tuong ung trong Str::Upgrade*Desc (LOC_STRINGS trong localization.h, CA 2 ngon ngu) - 2 cho KHONG tu dong dong bo.
     // ==========================================
     inline float UPGRADE_MOVE_SPEED_MUL = 1.08f; // Nhan truc tiep vao Player::speed moi lan chon (khong doi Update(), field da duoc doc san moi frame)
     inline float UPGRADE_BONUS_SCORE    = 1000.0f; // Cong thang qua Player::AddScore() co san moi lan chon

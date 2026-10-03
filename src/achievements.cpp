@@ -9,14 +9,14 @@ const AchievementDescriptor& GetAchievementDescriptor(AchievementId id) {
     // Thứ tự PHẢI khớp enum AchievementId - static_assert bên dưới bắt trường hợp thêm enum
     // mà quên thêm dòng (khi đó index cuối sẽ đọc ra ngoài mảng).
     static const AchievementDescriptor table[] = {
-        { "FIRST CONTACT",    "Destroy your first enemy",           1,     5 },
-        { "CHAIN REACTION",   "Reach a x%d combo in one run",       10,    20 },
-        { "HOLDING THE LINE", "Reach wave %d",                      5,     15 },
-        { "VETERAN",          "Reach wave %d",                      10,    40 },
-        { "GIANT SLAYER",     "Defeat a boss",                      1,     25 },
-        { "UNTOUCHABLE",      "Clear a wave without losing a life", 0,     20 },
-        { "HIGH ROLLER",      "Score %d points in one run",         25000, 30 },
-        { "EXTERMINATOR",     "Destroy %d enemies in total",        1000,  50 },
+        { Str::AchFirstContact, Str::AchFirstContactDesc, 1,     5 },
+        { Str::AchChainReaction, Str::AchChainReactionDesc, 10,    20 },
+        { Str::AchHoldingTheLine, Str::AchHoldingTheLineDesc, 5,     15 },
+        { Str::AchVeteran, Str::AchVeteranDesc, 10,    40 },
+        { Str::AchGiantSlayer, Str::AchGiantSlayerDesc, 1,     25 },
+        { Str::AchUntouchable, Str::AchUntouchableDesc, 0,     20 },
+        { Str::AchHighRoller, Str::AchHighRollerDesc, 25000, 30 },
+        { Str::AchExterminator, Str::AchExterminatorDesc, 1000,  50 },
     };
     static_assert(sizeof(table) / sizeof(table[0]) == ACHIEVEMENT_COUNT,
                   "Moi AchievementId phai co dung 1 dong trong bang descriptor");

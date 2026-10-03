@@ -28,7 +28,7 @@ private:
     Color color;
     bool active = false;
 
-    static constexpr float FONT_SIZE = 18.0f;
+    static constexpr float FONT_SIZE = 24.0f; // VT323 (font pixel) hep + thap hon DejaVu cu ~1/3 - 24 ~ 18 cu
     static constexpr float RISE_SPEED = 40.0f; // px/s - bay len DEU, khong trong luc/easing, giu don gian
 
 public:

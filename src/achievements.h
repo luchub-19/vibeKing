@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 #include <cstdint>
+#include "localization.h"
 
 // ==========================================
 // THANH TỰU (ACHIEVEMENTS) - lớp meta-progression thứ hai, song song với MetaProgress
@@ -35,11 +36,13 @@ constexpr int ACHIEVEMENT_COUNT = (int)AchievementId::COUNT;
 
 // 1-NGUỒN-DUY-NHẤT cho tên/mô tả/ngưỡng/phần thưởng: `descriptionFmt` nhận đúng `threshold`
 // qua TextFormat - con số người chơi đọc trên màn hình và con số IsAchievementMet() so sánh
-// là CÙNG 1 field, không thể lệch nhau như Loc::Upgrade*Desc (phải đồng bộ tay với config).
+// là CÙNG 1 field, không thể lệch nhau như Str::Upgrade*Desc (phải đồng bộ tay với config).
 // Hardcode ở đây (không qua balance.json) theo cùng tiền lệ GetLoadoutUnlockCost().
+// Tên/mô tả là MÃ CHUỖI (localization.h) chứ không phải const char*: bảng tĩnh khởi tạo 1 lần,
+// còn ngôn ngữ đổi được lúc chạy - nơi vẽ gọi Tr() mỗi frame.
 struct AchievementDescriptor {
-    const char* name;
-    const char* descriptionFmt; // Có đúng 1 %d = threshold (hoặc không có % nào nếu threshold vô nghĩa)
+    Str name;
+    Str descriptionFmt; // Có đúng 1 %d = threshold (hoặc không có % nào nếu threshold vô nghĩa)
     int threshold;
     int rewardCurrency;
 };

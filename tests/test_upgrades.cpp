@@ -18,16 +18,16 @@
 
 TEST_CASE("GetUpgradeTypeDescriptor: ca 3 loai co ten/mo ta hop le, coefficient dung nullptr dung cho", "[upgrade][descriptor]") {
     const UpgradeTypeDescriptor& speed = GetUpgradeTypeDescriptor(UpgradeType::MoveSpeed);
-    REQUIRE(speed.name != nullptr);
-    REQUIRE(speed.description != nullptr);
+    REQUIRE(speed.name == Str::UpgradeMoveSpeedName);
+    REQUIRE(speed.description == Str::UpgradeMoveSpeedDesc);
     REQUIRE(speed.coefficient != nullptr); // MoveSpeed dung he so nhan - PHAI co con tro
 
     const UpgradeTypeDescriptor& life = GetUpgradeTypeDescriptor(UpgradeType::ExtraLife);
-    REQUIRE(life.name != nullptr);
+    REQUIRE(life.name == Str::UpgradeExtraLifeName);
     REQUIRE(life.coefficient == nullptr); // ExtraLife luon +1 mang/lan, khong dung he so rieng (xem upgrade_types.h)
 
     const UpgradeTypeDescriptor& score = GetUpgradeTypeDescriptor(UpgradeType::BonusScore);
-    REQUIRE(score.name != nullptr);
+    REQUIRE(score.name == Str::UpgradeBonusScoreName);
     REQUIRE(score.coefficient != nullptr); // BonusScore dung he so la SO DIEM cong thang
 }
 
