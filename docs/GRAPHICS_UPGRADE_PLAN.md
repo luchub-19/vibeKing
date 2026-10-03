@@ -329,7 +329,27 @@ Cộng dồn với GĐ 1 (+20%), Medium hiện chậm hơn bản trước nâng 
 5. Mọi shader viết `#version 330`, kiểm tra hàm raylib dùng tới đúng chữ ký **raylib 5.5** (bài học
    `DrawCircleGradient` trong CLAUDE.md).
 
-### GĐ 4 - Trợ năng & hiệu năng
+### GĐ 4 - Trợ năng & hiệu năng - **CẦN ĐO TRÊN MÁY THẬT**
+
+**Số đo tổng kết** (cảnh boss, 8 lần xen kẽ trên CÙNG máy, trung vị, llvmpipe = render bằng CPU;
+"gốc" = commit GĐ 0 `34ff640`, hình ảnh y như trước nâng cấp):
+
+| | Gốc | Low | Medium | High |
+|---|---|---|---|---|
+| Có vụ nổ trong cảnh | 13,0 ms | 9,0 ms (−31%) | 21,0 ms (**+61%**) | 27,9 ms (+114%) |
+| Bỏ vụ nổ (chi phí thường trực) | 13,2 ms | 9,1 ms (−31%) | 21,1 ms (**+60%**) | 27,3 ms (+107%) |
+
+**Đính chính:** các báo cáo giữa chừng ghi Medium "chậm hơn khoảng 1/3" - SAI, thực tế +60%. Các
+mức tăng từng giai đoạn (+~10% GĐ 2, +20% GĐ 1, +13% GĐ 3) nhân dồn, cộng sai lệch giữa các phiên
+máy khác nhau. Bài học đã ghi trong CLAUDE.md: chỉ so A/B trong cùng 1 phiên, ≥ 8 lần, trung vị.
+
+Trên renderer CPU, phần lớn chi phí là tô pixel (bloom, lưới, tinh vân, pass cuối toàn màn hình) -
+thứ GPU thật làm rẻ hơn hàng chục lần. **Chưa có số đo trên iGPU thật** - đó là việc còn lại duy
+nhất của GĐ 4: `./build/space_invaders --scene=boss --bench=600` trên máy đích, cho cả 3 preset.
+Nếu Medium > 16,6 ms trên iGPU: phương án sẵn có là chuyển lưới lò xo lên High (Medium chỉ còn
+tinh vân), hoặc đổi mặc định sang Low.
+
+**Đề xuất gốc:**
 1. **Flash governor**: struct thuần đếm flash toàn màn hình/vùng lớn, chặn > 3 lần/giây (WCAG 2.3.1);
    `reduceFlashing` thay flash trắng bằng giảm độ sáng nhẹ, tắt CRT flicker, tắt tách RGB.
 2. Tùy chọn **"quầng sau tàu"** - vòng sáng mờ quanh tàu người chơi khi màn hình đông (bài học
