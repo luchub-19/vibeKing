@@ -24,6 +24,7 @@
 #include "warp_grid.h"
 #include "nebula.h"
 #include "post_fx.h"
+#include "ui_anim.h"
 #include "post_process.h"
 #include "events.h"
 #include "localization.h"
@@ -138,6 +139,10 @@ private:
     // Pass cuoi (GD 3): song xung kich dang lan + dong ho "vua mat mang". Theo WAVE: xoa trong
     // InitLevel ca 2 nhanh (song cua wave truoc khong duoc lan sang man moi).
     ShockwaveField shockwaves;
+    // HUD (GD 5): diem dang HIEN (lan so ve diem that) - theo VAN (reset o newGame); vet sat
+    // thuong thanh mau boss - theo WAVE. Chi la hinh anh, moi logic diem van doc player.GetScore().
+    float hudScoreShown = 0.0f;
+    float hudBossTrail = 1.0f;
     float hurtTimer = 0.0f;
     PostFxFrame BuildPostFxFrame() const;           // Tinh van nen nuong san (GD 1) - Init/Shutdown trong Run(), xem nebula.h       // Luoi neon lo xo duoi moi thu (GD 1) - bi vu no day lom, xem warp_grid.h
     Parallax background;     // Starfield nhieu lop, ve o MOI man hinh (Menu/Playing/EndScreen) truoc switch-case state - xem parallax.h

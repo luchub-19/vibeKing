@@ -106,3 +106,27 @@ TEST_CASE("NeonPowerOn: chop toi da 2 lan roi sang han; reduceFlashing thi chi s
     REQUIRE(rises >= 2); // Van co hieu ung chop (khong phai test rong)
     REQUIRE(monotonicReduced);
 }
+
+#include "ui_anim.h"
+
+TEST_CASE("RollToward: diem lan ve dich, khong bao gio vuot, khong le the o doan cuoi", "[ui]") {
+    float shown = 0.0f;
+    float prev = 0.0f;
+    int frames = 0;
+    while (shown != 1000.0f && frames < 600) {
+        shown = RollToward(shown, 1000.0f, 1.0f / 60.0f);
+        REQUIRE(shown >= prev);      // tang don dieu
+        REQUIRE(shown <= 1000.0f);   // khong vuot
+        prev = shown;
+        frames++;
+    }
+    REQUIRE(shown == 1000.0f);
+    REQUIRE(frames < 60);            // < 1 giay ke ca doan cuoi (nho minRate)
+    REQUIRE(RollToward(500.0f, 0.0f, 1.0f / 60.0f) < 500.0f); // diem giam (choi lai) cung lan ve
+}
+
+TEST_CASE("DamageTrail: vet rut dan ve mau that, hoi mau thi nhay theo ngay", "[ui]") {
+    REQUIRE(DamageTrail(0.8f, 0.5f, 0.1f) == Approx(0.765f));
+    REQUIRE(DamageTrail(0.51f, 0.5f, 0.1f) == Approx(0.5f)); // khong rut qua mau that
+    REQUIRE(DamageTrail(0.5f, 0.7f, 0.1f) == Approx(0.7f));  // hoi mau -> theo ngay
+}

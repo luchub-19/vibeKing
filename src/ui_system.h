@@ -37,6 +37,11 @@ struct UIBar {
     Color bgColor;
     Color fillColor;
     Color borderColor;
+    // GD 5: phan "vua mat" (giua ratio va trail) ve mau trailColor; ticks = vach doc tai ty le
+    // do (nguong giai doan boss). trail < 0 / tick < 0 = khong ve.
+    float trail = -1.0f;
+    Color trailColor{ 0, 0, 0, 0 };
+    float ticks[2] = { -1.0f, -1.0f };
 };
 
 // PANEL/ICON (Nguoi 3 - Audio & UI): 2 widget THEM MOI, dung
@@ -48,6 +53,8 @@ struct UIPanel {
     Color fillColor;    // Thuong dat alpha < 255 (vd Config::HUD_PANEL_ALPHA) - van thay duoc gameplay phia sau
     Color borderColor;
     float borderThickness; // 0 = khong ve vien
+    // GD 5: goc ngoac kieu HUD vector - 4 chu L ngan o 4 goc, mau rieng (alpha 0 = khong ve).
+    Color cornerColor{ 0, 0, 0, 0 };
 };
 
 // texture la BAN SAO handle (Texture2D chi la id/width/height/mipmaps/format - vai
@@ -102,6 +109,24 @@ public:
         panels.push_back({ rect, fillColor, borderColor, borderThickness });
     }
 
+    // Panel HUD kieu vector (GD 5): nhu Panel() + goc ngoac sang o 4 goc.
+    void FramedPanel(Rectangle rect, Color fillColor, Color borderColor, float borderThickness, Color cornerColor) {
+        UIPanel p{ rect, fillColor, borderColor, borderThickness };
+        p.cornerColor = cornerColor;
+        panels.push_back(p);
+    }
+
+    // Thanh mau co vet sat thuong + vach nguong (thanh mau boss, GD 5).
+    void TrailBar(Rectangle rect, float ratio, float trail, Color bgColor, Color fillColor, Color trailColor,
+                  Color borderColor, float tick1, float tick2) {
+        UIBar b{ rect, ratio, bgColor, fillColor, borderColor };
+        b.trail = trail;
+        b.trailColor = trailColor;
+        b.ticks[0] = tick1;
+        b.ticks[1] = tick2;
+        bars.push_back(b);
+    }
+
     // Badge icon nho (vd trang thai power-up) - texture thuong lay tu SpriteSheet (vd
     // gm.sprites.iconShield), keo/dan gon vao destRect bang DrawTexturePro ben trong
     // Draw(), khong phu thuoc kich thuoc goc cua texture.
@@ -115,6 +140,19 @@ public:
         for (const UIPanel& p : panels) {
             DrawRectangleRec(p.rect, p.fillColor);
             if (p.borderThickness > 0.0f) DrawRectangleLinesEx(p.rect, p.borderThickness, p.borderColor);
+            if (p.cornerColor.a > 0) {
+                const float L = 7.0f, T = 2.0f;
+                const Rectangle r = p.rect;
+                // Moi goc = 1 vach ngang + 1 vach doc, chom ra ngoai vien 1px de "bam" lay khung
+                DrawRectangleRec({ r.x - 1.0f, r.y - 1.0f, L, T }, p.cornerColor);
+                DrawRectangleRec({ r.x - 1.0f, r.y - 1.0f, T, L }, p.cornerColor);
+                DrawRectangleRec({ r.x + r.width + 1.0f - L, r.y - 1.0f, L, T }, p.cornerColor);
+                DrawRectangleRec({ r.x + r.width - 1.0f, r.y - 1.0f, T, L }, p.cornerColor);
+                DrawRectangleRec({ r.x - 1.0f, r.y + r.height - 1.0f, L, T }, p.cornerColor);
+                DrawRectangleRec({ r.x - 1.0f, r.y + r.height + 1.0f - L, T, L }, p.cornerColor);
+                DrawRectangleRec({ r.x + r.width + 1.0f - L, r.y + r.height - 1.0f, L, T }, p.cornerColor);
+                DrawRectangleRec({ r.x + r.width - 1.0f, r.y + r.height + 1.0f - L, T, L }, p.cornerColor);
+            }
         }
         for (const UIBar& b : bars) {
             float ratio = b.ratio;
@@ -124,7 +162,16 @@ public:
             DrawRectangleRec(b.rect, b.bgColor);
             Rectangle fillRect = b.rect;
             fillRect.width *= ratio;
+            if (b.trail > ratio) {
+                float trail = b.trail > 1.0f ? 1.0f : b.trail;
+                DrawRectangleRec({ b.rect.x + b.rect.width * ratio, b.rect.y, b.rect.width * (trail - ratio), b.rect.height }, b.trailColor);
+            }
             DrawRectangleRec(fillRect, b.fillColor);
+            for (float tk : b.ticks) {
+                if (tk <= 0.0f || tk >= 1.0f) continue;
+                float x = b.rect.x + b.rect.width * tk;
+                DrawRectangleRec({ x - 1.0f, b.rect.y - 2.0f, 2.0f, b.rect.height + 4.0f }, b.borderColor);
+            }
             DrawRectangleLinesEx(b.rect, 1.0f, b.borderColor);
         }
         for (const UIIcon& ic : icons) {

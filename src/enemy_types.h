@@ -211,11 +211,16 @@ struct Boss {
 
 // 3 giai doan suy ra truc tiep tu % HP con lai (khong luu "stage" roi rac rieng - tranh
 // state co the lech khoi hp that).
+// Nguong %HP chuyen giai doan - dung chung cho BossStage() VA cac vach tren thanh mau boss o HUD
+// (GD 5), de vach luon nam dung cho boss doi hanh vi.
+constexpr float BOSS_STAGE2_RATIO = 0.66f;
+constexpr float BOSS_STAGE3_RATIO = 0.33f;
+
 inline int BossStage(const Boss& boss) {
     if (boss.maxHp <= 0) return 1;
     float ratio = (float)boss.hp / (float)boss.maxHp;
-    if (ratio > 0.66f) return 1;
-    if (ratio > 0.33f) return 2;
+    if (ratio > BOSS_STAGE2_RATIO) return 1;
+    if (ratio > BOSS_STAGE3_RATIO) return 2;
     return 3;
 }
 

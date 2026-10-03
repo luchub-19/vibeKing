@@ -318,6 +318,12 @@ static Color HitFlashTint(Color base, float flash) {
 // hitFlash (dem nguoc tu HIT_FLASH_DURATION ve 0) lam dong ho: k=1 dung luc trung -> 0.
 //   - Giat len 3px: dan player bay tu duoi len, dich bi "day" theo huong do (knockback).
 //   - Bep ngang/lun doc 8% quanh tam: squash kieu "Juice it or lose it".
+// Mau boss theo giai doan - 1 NGUON cho ca sprite boss (DrawPlaying) lan thanh mau tren HUD:
+// thanh mau doi mau CUNG LUC voi con boss, mat thay ngay "no vua sang giai doan moi".
+static Color BossTint(int stage) {
+    return (stage == 1) ? Palette::Boss : (stage == 2) ? Palette::BossEnrage1 : Palette::BossEnrage2; // Cang yeu cang NONG, bao hieu "enrage" (xem palette.h)
+}
+
 static Rectangle HitReact(Rectangle r, float flash) {
     if (flash <= 0.0f) return r;
     float k = fminf(flash / Config::HIT_FLASH_DURATION, 1.0f);
@@ -484,7 +490,7 @@ void RenderSystem::DrawPlaying(const GameManager& gm) {
         const Boss& boss = gm.bossPool[0];
         if (Culling::IsVisible(boss.rect)) {
             int stage = BossStage(boss);
-            Color tint = (stage == 1) ? Palette::Boss : (stage == 2) ? Palette::BossEnrage1 : Palette::BossEnrage2; // Cang yeu cang NONG, bao hieu "enrage" (xem palette.h)
+            Color tint = BossTint(stage);
 
             const Texture2D& tex = (boss.type == BossType::Sentinel) ? gm.sprites.bossSentinel
                                   : (boss.type == BossType::Swarmer) ? gm.sprites.bossSwarmer
@@ -631,9 +637,13 @@ void RenderSystem::DrawHUD(const GameManager& gm) {
     // Chi cum NAY tung de len doi hinh: cum LIVES (x >= SCREEN_W-110 = 690) va cum icon
     // power-up (x >= SCREEN_W-130 = 670) deu nam PHAI cot dich ngoai cung (startX + 9*
     // spacingX + rong = 645), nen khong can dong den.
-    canvas.Panel({ 6.0f, 6.0f, 236.0f, Config::HUD_TOP_BAND_H }, panelFill, panelBorder, Config::HUD_PANEL_BORDER_THICKNESS);
-    canvas.Text(14, 13, 17, WHITE, TextFormat("SCORE %d", gm.player.GetScore()));
-    canvas.Text(140, 14, 15, SKYBLUE, TextFormat("W%d", gm.wave));
+    // GD 5: panel kieu vector (goc ngoac) + diem LAN SO (hudScoreShown) - so nhay thang tu 1200
+    // len 1450 thi mat khong kip doc; lan so cho thay "vua an bao nhieu" nhu may arcade.
+    const Color corner = Fade(Palette::UiAccent, 0.55f);
+    canvas.FramedPanel({ 6.0f, 6.0f, 236.0f, Config::HUD_TOP_BAND_H }, panelFill, panelBorder, Config::HUD_PANEL_BORDER_THICKNESS, corner);
+    const bool rolling = (int)gm.hudScoreShown != gm.player.GetScore();
+    canvas.Text(14, 13, 17, rolling ? Palette::ScoreText : Palette::UiText, TextFormat("SCORE %d", (int)gm.hudScoreShown));
+    canvas.Text(140, 14, 15, Palette::UiDim, TextFormat("W%d", gm.wave));
     if (gm.comboCount > 1) {
         canvas.Text(180, 14, 15, Palette::ScoreText, TextFormat("x%d", gm.comboCount));
     }
@@ -644,12 +654,26 @@ void RenderSystem::DrawHUD(const GameManager& gm) {
     // A4: van an luc Boss active - panel Boss chiem dung vung ngang nay.
     if (gm.bossPool.Size() == 0 && gm.hintTimer > 0.0f) {
         float alpha = (gm.hintTimer < Config::HUD_HINT_FADE) ? (gm.hintTimer / Config::HUD_HINT_FADE) : 1.0f;
-        canvas.CenteredText(Config::SCREEN_W / 2, 14, 15, Fade(GRAY, alpha), "P: PAUSE   R: RESTART");
+        canvas.CenteredText(Config::SCREEN_W / 2, 14, 15, Fade(Palette::UiDim, alpha), "P: PAUSE   R: RESTART");
     }
 
     // --- Mang (top-right) ---
-    canvas.Panel({ (float)Config::SCREEN_W - 110.0f, 6.0f, 104.0f, Config::HUD_TOP_BAND_H }, panelFill, panelBorder, Config::HUD_PANEL_BORDER_THICKNESS);
-    canvas.Text(Config::SCREEN_W - 100, 13, 17, WHITE, TextFormat("LIVES %d", gm.player.GetLives()));
+    // GD 5: tau mini thay chu "LIVES 3" - dem bang mat nhanh hon doc so, va dung CHINH sprite
+    // + mau tau nguoi choi nen khong can nhan. Panel giu do rong cu (104px) - vua 5 tau
+    // (Config::MAX_LIVES); vuot 5 (khong xay ra) thi hien so thay vi tran panel.
+    canvas.FramedPanel({ (float)Config::SCREEN_W - 110.0f, 6.0f, 104.0f, Config::HUD_TOP_BAND_H }, panelFill, panelBorder, Config::HUD_PANEL_BORDER_THICKNESS, corner);
+    {
+        const int lives = gm.player.GetLives();
+        const float iconW = 16.0f, iconH = 12.0f, gap = 3.0f;
+        if (lives <= 5) {
+            for (int i = 0; i < lives; i++) {
+                canvas.Icon({ (float)Config::SCREEN_W - 101.0f + (float)i * (iconW + gap), 16.0f, iconW, iconH },
+                            gm.sprites.player, Palette::PlayerShip);
+            }
+        } else {
+            canvas.Text(Config::SCREEN_W - 100, 13, 17, Palette::UiText, TextFormat("LIVES %d", lives));
+        }
+    }
 
     // --- Trang thai power-up: icon badge thay chu, CHI ve panel khi co it nhat 1
     // power-up active (giu HUD trong khi khong co gi active, dung tinh than code cu) -
@@ -664,22 +688,23 @@ void RenderSystem::DrawHUD(const GameManager& gm) {
         float iconY = 46.0f;
         float iconX = (float)Config::SCREEN_W - 121.0f;
         float slot = Config::HUD_ICON_SIZE + 4.0f;
-        canvas.Panel({ (float)Config::SCREEN_W - 130.0f, 40.0f, 124.0f, Config::HUD_ICON_SIZE + 12.0f },
-                     panelFill, panelBorder, Config::HUD_PANEL_BORDER_THICKNESS);
+        canvas.FramedPanel({ (float)Config::SCREEN_W - 130.0f, 40.0f, 124.0f, Config::HUD_ICON_SIZE + 12.0f },
+                           panelFill, panelBorder, Config::HUD_PANEL_BORDER_THICKNESS, corner);
         if (gm.player.HasShield()) {
             canvas.Icon({ iconX, iconY, Config::HUD_ICON_SIZE, Config::HUD_ICON_SIZE }, gm.sprites.iconShield, Palette::ShieldBarrier);
         }
         if (gm.player.HasRapidFire()) {
-            canvas.Icon({ iconX + slot, iconY, Config::HUD_ICON_SIZE, Config::HUD_ICON_SIZE }, gm.sprites.iconRapidFire, ORANGE);
+            canvas.Icon({ iconX + slot, iconY, Config::HUD_ICON_SIZE, Config::HUD_ICON_SIZE }, gm.sprites.iconRapidFire, Palette::PowerUp);
         }
         if (gm.player.HasPiercing()) {
-            canvas.Icon({ iconX + slot * 2.0f, iconY, Config::HUD_ICON_SIZE, Config::HUD_ICON_SIZE }, gm.sprites.iconPiercing, MAGENTA);
+            canvas.Icon({ iconX + slot * 2.0f, iconY, Config::HUD_ICON_SIZE, Config::HUD_ICON_SIZE }, gm.sprites.iconPiercing, Palette::PowerUp);
         }
         if (gm.player.HasSpreadShot()) { // Phase 1b, Nguoi 1
-            canvas.Icon({ iconX + slot * 3.0f, iconY, Config::HUD_ICON_SIZE, Config::HUD_ICON_SIZE }, gm.sprites.iconSpreadShot, GOLD);
+            canvas.Icon({ iconX + slot * 3.0f, iconY, Config::HUD_ICON_SIZE, Config::HUD_ICON_SIZE }, gm.sprites.iconSpreadShot, Palette::PowerUp);
         }
         if (gm.player.HasOverdrive()) { // Phase 1b, Nguoi 1
-            canvas.Icon({ iconX + slot * 4.0f, iconY, Config::HUD_ICON_SIZE, Config::HUD_ICON_SIZE }, gm.sprites.iconOverdrive, RED);
+            // Do = nhac rui ro "trung don mat 2 mang" dang active (khop pip duoi tau)
+            canvas.Icon({ iconX + slot * 4.0f, iconY, Config::HUD_ICON_SIZE, Config::HUD_ICON_SIZE }, gm.sprites.iconOverdrive, Palette::EnemyBullet);
         }
     }
 
@@ -690,9 +715,12 @@ void RenderSystem::DrawHUD(const GameManager& gm) {
         float barW = 300.0f;
         float ratio = (boss.maxHp > 0) ? ((float)boss.hp / (float)boss.maxHp) : 0.0f;
         float barX = (Config::SCREEN_W - barW) / 2.0f;
-        Color barFill = (boss.type == BossType::Sentinel && boss.shieldActive) ? Palette::ShieldBarrier : RED;
-        canvas.Panel({ barX - 10.0f, 4.0f, barW + 20.0f, 36.0f }, panelFill, panelBorder, Config::HUD_PANEL_BORDER_THICKNESS);
-        canvas.Bar({ barX, 8.0f, barW, 14.0f }, ratio, DARKGRAY, barFill, WHITE);
+        // GD 5: mau thanh = mau boss theo giai doan (BossTint, cung nguon voi sprite), vach tai 2
+        // nguong BOSS_STAGE*_RATIO (cho boss doi hanh vi), vet trang mo = sat thuong vua gay.
+        Color barFill = (boss.type == BossType::Sentinel && boss.shieldActive) ? Palette::ShieldBarrier : BossTint(BossStage(boss));
+        canvas.FramedPanel({ barX - 10.0f, 4.0f, barW + 20.0f, 36.0f }, panelFill, panelBorder, Config::HUD_PANEL_BORDER_THICKNESS, corner);
+        canvas.TrailBar({ barX, 8.0f, barW, 14.0f }, ratio, gm.hudBossTrail, Palette::UiPanelFill, barFill,
+                        Fade(Palette::UiText, 0.55f), Palette::UiPanelEdge, BOSS_STAGE3_RATIO, BOSS_STAGE2_RATIO);
         // A4: nhan ten Boss can GIUA thanh mau (truoc day can trai theo canh barX) -
         // nhat quan voi cach cac man hinh khac trong track nay deu can giua theo tam
         // vung lien quan, khong con toa do trai hardcode.

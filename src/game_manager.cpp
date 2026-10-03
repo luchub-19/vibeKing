@@ -197,6 +197,7 @@ void GameManager::InitLevel(bool newGame) {
         runKills = 0;
         runBestCombo = 0;
         runCurrencyEarned = 0;
+        hudScoreShown = 0.0f;
         gameOverTriggered = false; // Van MOI - mo lai "cong" GAME_OVER (xem TriggerGameOver)
         leaderboard.BeginRun();    // Van MOI = 1 dong MOI tren bang; moi lan nop sau do trong van nay chi cap nhat dong do
     } else {
@@ -237,6 +238,7 @@ void GameManager::InitLevel(bool newGame) {
     warpBoostTimer = isBossWave ? Parallax::WARP_DURATION : 0.0f;
     shockwaves.Clear();
     hurtTimer = 0.0f;
+    hudBossTrail = 1.0f;
 
     if (isBossWave) {
         SpawnBoss();
@@ -682,6 +684,11 @@ void GameManager::UpdatePlaying(float dt) {
     floatingTexts.Update(dt);
     shockwaves.Update(dt);
     if (hurtTimer > 0.0f) hurtTimer = fmaxf(0.0f, hurtTimer - dt);
+    // HUD chay ca trong hit-stop - cung nhom "hieu ung", khong phai gameplay
+    hudScoreShown = RollToward(hudScoreShown, (float)player.GetScore(), dt);
+    if (bossPool.Size() > 0 && bossPool[0].maxHp > 0) {
+        hudBossTrail = DamageTrail(hudBossTrail, (float)bossPool[0].hp / (float)bossPool[0].maxHp, dt);
+    }
     if (hitStop.IsActive()) return; // Dong bang toan bo logic ben duoi - Run() ngoai vong lap van goi Draw() binh thuong nen hinh khong dung, chi gameplay dung khung trong choc lat
 
     MenuInput menuInput = InputSystem::PollMenu(settings);
