@@ -84,36 +84,72 @@ public:
     // doi state), chi kiem chung duoc bang mat. Doi 2 hang so ben duoi thi chup lai anh de
     // xac nhan, dung tin code doc suong la dung.
     // ==========================================
-    void Draw(Color color) const {
+    // VE 2 LUOT (GD 2 - docs/GRAPHICS_UPGRADE_PLAN.md): BulletPool::DrawGlows() ve quang
+    // sang cua MOI vien trong 1 khoi BLEND_ADDITIVE duy nhat, roi BulletPool::DrawCores() moi
+    // ve loi dac. Truoc day Draw() bat/tat blend mode CHO TUNG VIEN - moi lan doi blend mode
+    // la 1 lan xa batch GPU, 500 vien dan dich = ~1000 lan xa/frame. Tach luot con cho phep
+    // RenderSystem dat loi dan dich TREN moi lop hieu ung (luat R1: dan dich luon doc duoc).
+
+    // Quang sang (gia dinh dang trong BeginBlendMode(BLEND_ADDITIVE) - BulletPool lo viec do).
+    // Vach mo nguoc huong bay + 1 quang tron nho o dau dan de mat bat duoc vi tri ngay ca khi
+    // vach ngan (dan bay cham).
+    void DrawGlow(Color color) const {
         float speed = sqrtf(vel.x * vel.x + vel.y * vel.y);
-        if (speed > 1.0f) {
-            constexpr int GLOW_SEGMENTS = 4; // Du de mat doc ra do nhat dan, khong du nhieu de ton lenh ve
+        if (speed <= 1.0f) return;
+        constexpr int GLOW_SEGMENTS = 4; // Du de mat doc ra do nhat dan, khong du nhieu de ton lenh ve
 
-            Vector2 center = { rect.x + rect.width / 2.0f, rect.y + rect.height / 2.0f };
-            Vector2 dir = { vel.x / speed, vel.y / speed };
-            // fminf: TIET DIEN vuong goc huong bay (xem BUG 1 o tren), khong phai fmaxf.
-            float headThickness = fminf(rect.width, rect.height) * Config::BULLET_GLOW_THICKNESS_MUL;
+        Vector2 center = { rect.x + rect.width / 2.0f, rect.y + rect.height / 2.0f };
+        Vector2 dir = { vel.x / speed, vel.y / speed };
+        // fminf: TIET DIEN vien dan, khong phai chieu dai (xem bai hoc fmaxf trong CLAUDE.md)
+        float headThickness = fminf(rect.width, rect.height) * Config::BULLET_GLOW_THICKNESS_MUL;
 
-            BeginBlendMode(BLEND_ADDITIVE); // Cong don anh sang thay vi che phu - moi ra cam giac "phat sang"
-            for (int i = 0; i < GLOW_SEGMENTS; i++) {
-                float t0 = (float)i / (float)GLOW_SEGMENTS;
-                float t1 = (float)(i + 1) / (float)GLOW_SEGMENTS;
-                // Lay do mo/be day tai DIEM GIUA doan: neu lay tai t1 thi doan cuoi cung
-                // luon co he so 0 (vo hinh), phi mat 1/4 chieu dai vet.
-                float falloff = 1.0f - (t0 + t1) * 0.5f;
+        for (int i = 0; i < GLOW_SEGMENTS; i++) {
+            float t0 = (float)i / (float)GLOW_SEGMENTS;
+            float t1 = (float)(i + 1) / (float)GLOW_SEGMENTS;
+            float falloff = 1.0f - (t0 + t1) * 0.5f;
 
-                Vector2 p0 = { center.x - dir.x * Config::BULLET_GLOW_TRAIL_LENGTH * t0,
-                                center.y - dir.y * Config::BULLET_GLOW_TRAIL_LENGTH * t0 };
-                Vector2 p1 = { center.x - dir.x * Config::BULLET_GLOW_TRAIL_LENGTH * t1,
-                                center.y - dir.y * Config::BULLET_GLOW_TRAIL_LENGTH * t1 };
+            Vector2 p0 = { center.x - dir.x * Config::BULLET_GLOW_TRAIL_LENGTH * t0,
+                            center.y - dir.y * Config::BULLET_GLOW_TRAIL_LENGTH * t0 };
+            Vector2 p1 = { center.x - dir.x * Config::BULLET_GLOW_TRAIL_LENGTH * t1,
+                            center.y - dir.y * Config::BULLET_GLOW_TRAIL_LENGTH * t1 };
 
-                Color glow = color;
-                glow.a = (unsigned char)(255.0f * Config::BULLET_GLOW_ALPHA * falloff);
-                DrawLineEx(p0, p1, headThickness * (0.3f + 0.7f * falloff), glow);
-            }
-            EndBlendMode();
+            Color glow = color;
+            glow.a = (unsigned char)(255.0f * Config::BULLET_GLOW_ALPHA * falloff);
+            DrawLineEx(p0, p1, headThickness * (0.3f + 0.7f * falloff), glow);
         }
-        DrawRectangleRec(rect, color);
+        // Quang dau dan: 2 vong dong tam alpha thap thay cho 1 gradient that - DrawCircleGradient
+        // doi chu ky giua raylib 5.5 va 5.6 (xem CLAUDE.md), 2 vong la du mem o kich thuoc nay.
+        Color halo = color;
+        // Ban kinh < nua chieu dai dan: ban dau dung 1.1x headThickness (~10px) -> anh chup cho
+        // thay 1 dia do viền cung to hon ca vien dan, nuot mat vach duoi. Quang chi de "viền"
+        // loi dan, phan toa sang rong do bloom lo.
+        halo.a = (unsigned char)(255.0f * Config::BULLET_GLOW_ALPHA * 0.3f);
+        DrawCircleV(center, headThickness * 0.6f, halo);
+        DrawCircleV(center, headThickness * 0.38f, halo);
+    }
+
+    // Loi dac XOAY theo huong bay. Truoc day DrawRectangleRec() luon dung thang -> dan bay
+    // cheo (vong dan boss, dan nham) thanh thanh doc trong khi vach sang di cheo: nhin nhu
+    // que gay (thay ro o anh canh boss GD 0). Them 1 soi "nong" sang hon chay doc than dan:
+    // kieu ong neon, va giup phan biet loi dan voi quang cua chinh no.
+    void DrawCore(Color color) const {
+        Vector2 center = { rect.x + rect.width / 2.0f, rect.y + rect.height / 2.0f };
+        float speed = sqrtf(vel.x * vel.x + vel.y * vel.y);
+        // Truc dai cua rect (0,1) sau khi xoay goc theta (raylib xoay theo chieu kim dong ho,
+        // Y huong xuong) thanh (-sin, cos) -> muon trung (dx, dy) thi theta = atan2(-dx, dy).
+        float angleDeg = (speed > 1.0f) ? atan2f(-vel.x, vel.y) * (180.0f / 3.14159265f) : 0.0f;
+        Rectangle r{ center.x, center.y, rect.width, rect.height };
+        DrawRectanglePro(r, { rect.width / 2.0f, rect.height / 2.0f }, angleDeg, color);
+
+        Vector2 axis = (speed > 1.0f) ? Vector2{ vel.x / speed, vel.y / speed } : Vector2{ 0.0f, 1.0f };
+        float half = rect.height * 0.5f - 1.5f;
+        Color hot = {
+            (unsigned char)(color.r + (255 - color.r) * 0.65f),
+            (unsigned char)(color.g + (255 - color.g) * 0.65f),
+            (unsigned char)(color.b + (255 - color.b) * 0.65f), 255 };
+        DrawLineEx({ center.x - axis.x * half, center.y - axis.y * half },
+                   { center.x + axis.x * half, center.y + axis.y * half },
+                   fmaxf(1.0f, rect.width * 0.4f), hot);
     }
 
     bool IsActive() const { return active; }
@@ -206,8 +242,16 @@ public:
         }
     }
 
-    void Draw(Color color) const {
-        for (size_t i = 0; i < activeCount; i++) pool[i].Draw(color);
+    // Xem chu thich DrawGlow/DrawCore trong Bullet: 1 khoi additive cho CA pool.
+    void DrawGlows(Color color) const {
+        if (activeCount == 0) return;
+        BeginBlendMode(BLEND_ADDITIVE);
+        for (size_t i = 0; i < activeCount; i++) pool[i].DrawGlow(color);
+        EndBlendMode();
+    }
+
+    void DrawCores(Color color) const {
+        for (size_t i = 0; i < activeCount; i++) pool[i].DrawCore(color);
     }
 
     size_t GetActiveCount() const { return activeCount; }

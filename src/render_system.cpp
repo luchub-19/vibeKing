@@ -481,10 +481,14 @@ void RenderSystem::DrawPlaying(const GameManager& gm) {
         }
     }
     for (const auto& bunker : gm.bunkers) bunker.Draw();
-    gm.playerBullets.Draw(Palette::PlayerBullet);
-    gm.enemyBullets.Draw(Palette::EnemyBullet);
+    // THU TU LOP (luat R1, docs/GRAPHICS_UPGRADE_PLAN.md): particle -> quang dan (additive,
+    // PHIA SAU) -> power-up -> loi dan player -> loi dan dich TREN CUNG trong the gioi game ->
+    // player. Truoc day particle ve SAU dan nen 1 cum no co the de len dung vien dan dang lao
+    // toi - nguy hiem nhat lai bi che boi thu vo hai nhat.
     gm.particles.Draw();
-    gm.floatingTexts.Draw(gm.gameFont);
+    gm.floatingTexts.Draw(gm.gameFont); // Chu diem/combo cung la hieu ung -> DUOI loi dan
+    gm.playerBullets.DrawGlows(Palette::PlayerBullet);
+    gm.enemyBullets.DrawGlows(Palette::EnemyBullet);
 
     // POWER-UP: icon rieng theo tung loai (xem PowerUpType trong powerup.h + 4 ham
     // BuildIcon*() trong sprites.cpp) thay vi hinh chu nhat mau tron - cung khuon chon
@@ -515,6 +519,8 @@ void RenderSystem::DrawPlaying(const GameManager& gm) {
         DrawSprite(tex, p.rect, tint);
     }
 
+    gm.playerBullets.DrawCores(Palette::PlayerBullet);
+    gm.enemyBullets.DrawCores(Palette::EnemyBullet);
     gm.player.Draw(gm.sprites.player);
     EndMode2D();
 
