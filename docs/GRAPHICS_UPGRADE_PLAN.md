@@ -1,6 +1,7 @@
 # Kế hoạch nâng cấp đồ họa toàn diện - "Neon-vector arcade"
 
-> Trạng thái: **BẢN ĐỀ XUẤT, CHỜ DUYỆT** - chưa có dòng code nào được sửa theo tài liệu này.
+> Trạng thái: **BẢN ĐỀ XUẤT, CHỜ DUYỆT**. Đã làm: sửa bug `tint` power-up (mục 1.1).
+> Ảnh baseline chụp headless bằng Xvfb (thư mục `screenshots/` nằm trong `.gitignore`, ảnh trước/sau gửi kèm PR thay vì commit).
 > Nhánh: `claude/upgrade-vibking-graphics-cwhbn3`. Ngày lập: 2026-10-03.
 
 ## 0. Những gì người dùng đã chốt
@@ -15,6 +16,9 @@
 | Settings mới | **Preset chất lượng** (Low/Medium/High), **chế độ giảm nhấp nháy/rung**, **bật/tắt CRT riêng** |
 | Không được đổi | **Luật màu LẠNH (nền + địch) / NÓNG (đạn, đe doạ, phần thưởng)** - xem `src/palette.h` |
 | Giao nộp | Lập kế hoạch trước, duyệt rồi mới code |
+| Thứ tự | **VFX trước**: GĐ 0 -> hạ tầng settings (mục 4) -> GĐ 2 -> GĐ 1 -> GĐ 3 -> GĐ 5 -> GĐ 4/6 |
+| CRT cong | **Thêm barrel distortion, chỉ ở preset High** (tắt được) |
+| Font tiêu đề | **Audiowide** (OFL) cho logo/tiêu đề; chữ nhỏ giữ DejaVu Sans Mono |
 
 Những thứ KHÔNG bị khoá (có thể đổi nếu có lý do): sprite Kenney, độ phân giải nội bộ 800x600,
 hitbox. Tuy vậy kế hoạch dưới đây **cố ý không đụng gameplay/hitbox** - mọi thay đổi là trình bày.
@@ -172,8 +176,11 @@ vi phạm luật "màu đi qua `Palette::`". Gom lại ở Giai đoạn 5 (UI).
    vòng sóng**, không áp chromatic aberration toàn màn hình thường trực (làm nhoè đạn - trái R1).
 3. **Color grading nhẹ**: LUT/curve đơn giản trong pass cuối - nâng độ tương phản tông lạnh, giữ
    tông nóng bão hoà. Khi boss enrage: vignette ngả đỏ rất nhẹ.
-4. **CRT**: giữ quyết định cũ KHÔNG barrel distortion; thêm tuỳ chọn tắt; nhân flicker = 0 khi
-   `reduceFlashing`. (Xem Q2 nếu muốn đổi.)
+4. **CRT**: thêm tuỳ chọn tắt; flicker = 0 khi `reduceFlashing`. **Barrel distortion chỉ ở preset
+   High** (người dùng chốt). Cái giá đã ghi trong `crt.fs`: đổi UV làm lệch viền/toạ độ letterbox
+   -> xử lý bằng cách cong ảnh BÊN TRONG `destRec` (vùng ngoài cong tô đen + viền bo góc), không
+   đổi toạ độ input/chuột; `DrawDebugOverlay` vẽ sau pass CRT nên không bị cong. Cường độ nhỏ
+   (k ~ 0.03-0.05) để đạn ở góc màn hình không bị méo khó đọc (R1).
 5. Mọi shader viết `#version 330`, kiểm tra hàm raylib dùng tới đúng chữ ký **raylib 5.5** (bài học
    `DrawCircleGradient` trong CLAUDE.md).
 
@@ -193,8 +200,10 @@ vi phạm luật "màu đi qua `Palette::`". Gom lại ở Giai đoạn 5 (UI).
 4. **Chuyển cảnh**: thay fade đen thuần bằng wipe dạng quét scanline/xoá lưới - giữ nguyên cơ chế 2
    pha `RequestTransition()`/`UpdateTransition()`, chỉ đổi cách vẽ.
 5. **Màn chọn nâng cấp / toast thành tựu**: thẻ có viền sáng, hover nảy (squash), tween vào.
-6. **Font**: giữ DejaVu Sans Mono cho chữ nhỏ (dễ đọc, có dấu tiếng Việt); thêm 1 font display
-   OFL cho tiêu đề (xem Q3).
+6. **Font**: giữ DejaVu Sans Mono cho chữ nhỏ (dễ đọc, có dấu tiếng Việt); thêm **Audiowide** (SIL
+   OFL, Google Fonts) cho logo/tiêu đề, kèm file license trong `assets/fonts/` như DejaVu. Lưu ý:
+   Audiowide chỉ có bộ Latin cơ bản - chỉ dùng cho chuỗi tiếng Anh (tiêu đề hiện đều là tiếng
+   Anh); fallback về DejaVu nếu thiếu file.
 7. Gom hết hằng màu raylib còn sót trong `render_system.cpp` về `Palette::`.
 
 ### GĐ 6 - Tài liệu
@@ -213,18 +222,15 @@ Cập nhật `ARCHITECTURE.md` (pipeline render mới + thứ tự lớp), `CLAU
 
 ---
 
-## 7. Câu hỏi mở - cần bạn trả lời trước khi bắt đầu code
+## 7. Câu hỏi mở
 
-- **Q1 - Lưới lò xo**: hiện cả ở menu lẫn trong trận, hay chỉ trong trận? Có muốn lưới bị "đè
-  lõm" theo đội hình địch (đội hình càng xuống thấp lưới càng cong) không?
-- **Q2 - CRT**: giữ quyết định cũ "không cong màn hình", hay thêm barrel distortion như 1 lựa chọn
-  ở preset High (sẽ phải xử lý lại toạ độ letterbox)?
-- **Q3 - Font tiêu đề**: đồng ý thêm 1 font display giấy phép OFL (ứng viên: *Orbitron*, *Audiowide*,
-  *Press Start 2P*) chỉ cho logo/tiêu đề? Lưu ý cần font có dấu tiếng Việt nếu tiêu đề có tiếng Việt.
-- **Q4 - Vị trí menu Graphics**: thêm vào màn Settings đang có hay tách 1 trang riêng?
-- **Q5 - Thứ tự ưu tiên**: đề xuất GĐ 0 -> 4(hạ tầng mục 4) -> 2 -> 1 -> 3 -> 5 (VFX chiến đấu
-  là thứ người chơi cảm nhận nhiều nhất). Bạn muốn đổi thứ tự?
-- **Q6 - Sửa bug `tint`**: cho phép sửa ngay (1 dòng) dù đang ở bước lập kế hoạch không?
+Đã chốt: Q2 (CRT cong ở High), Q3 (Audiowide), Q5 (VFX trước), Q6 (đã sửa bug `tint`).
+Còn lại - nếu không có ý kiến khác sẽ dùng mặc định trong ngoặc:
+
+- **Q1 - Lưới lò xo**: hiện cả ở menu lẫn trong trận? Lưới có "lõm" theo đội hình địch?
+  (Mặc định: cả menu và trận; KHÔNG lõm theo đội hình - tránh nhiễu nền, R2.)
+- **Q4 - Vị trí menu Graphics**: (Mặc định: trang riêng mở từ menu chính, vì panel phải của menu
+  hiện tại đã kín - xem ảnh baseline.)
 
 ---
 

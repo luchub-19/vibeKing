@@ -490,7 +490,10 @@ void RenderSystem::DrawPlaying(const GameManager& gm) {
     for (size_t i = 0; i < gm.powerUps.Size(); i++) {
         const PowerUp& p = gm.powerUps[i];
         Texture2D tex;
-        Color tint;
+        // Gan 1 LAN o day, KHONG theo tung case: commit ae951c4 xoa cac vế `tint = ORANGE/...`
+        // trong switch nhung quen gan lai -> bien chua khoi tao, power-up ve bang mau rac cua
+        // stack (UB, khong test nao bat duoc vi day la ham ve thuan).
+        const Color tint = Palette::PowerUp;
         switch (p.type) {
             // MAU: moi power-up ROI TREN MAT DAT deu dung Palette::PowerUp (dai NONG) - "co
             // thu de nhat" la thong tin quan trong nhat luc no dang roi, phan biet LOAI nao
