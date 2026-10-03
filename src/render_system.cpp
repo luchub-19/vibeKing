@@ -1,4 +1,5 @@
 #include "render_system.h"
+#include "draw_helpers.h"
 #include "game_manager.h"
 #include "ui_system.h"
 #include "culling.h"
@@ -310,6 +311,35 @@ static Color HitFlashTint(Color base, float flash) {
     return Palette::Lerp(base, Color{ 255, 255, 255, base.a }, t);
 }
 
+// PHAN UNG TRUNG DON (GD 2) - chi la HINH VE, hitbox (e.rect) khong doi. Dung lai chinh
+// hitFlash (dem nguoc tu HIT_FLASH_DURATION ve 0) lam dong ho: k=1 dung luc trung -> 0.
+//   - Giat len 3px: dan player bay tu duoi len, dich bi "day" theo huong do (knockback).
+//   - Bep ngang/lun doc 8% quanh tam: squash kieu "Juice it or lose it".
+static Rectangle HitReact(Rectangle r, float flash) {
+    if (flash <= 0.0f) return r;
+    float k = fminf(flash / Config::HIT_FLASH_DURATION, 1.0f);
+    float w = r.width * (1.0f + 0.08f * k);
+    float h = r.height * (1.0f - 0.08f * k);
+    return { r.x + (r.width - w) / 2.0f, r.y + (r.height - h) / 2.0f - 3.0f * k, w, h };
+}
+
+// VACH HP duoi dich nhieu mau (Tanky/Warden) - thay cho khung DrawRectangleLinesEx TRANG cu:
+// khung vuong cung lech tong neon (thay ro o anh GD 0) va chi noi "da trung", khong noi "con
+// bao nhieu". Mau lay tu chinh mau dich (dai LANH) - vach con = sang hon, vach mat = mo.
+// Dat theo hitbox (khong phai drawRect co wobble) vi day la chi bao, khong phai trang tri.
+static void DrawHpPips(Rectangle hitbox, int hp, int maxHp, Color base) {
+    if (maxHp <= 1 || hp >= maxHp) return; // Nguyen ven -> khong ve, giu doi hinh gon
+    constexpr float pipW = 6.0f, pipH = 2.0f, gap = 2.0f;
+    float total = (float)maxHp * pipW + (float)(maxHp - 1) * gap;
+    float x = hitbox.x + (hitbox.width - total) / 2.0f;
+    float y = hitbox.y + hitbox.height + 3.0f;
+    Color lit = Palette::Lerp(base, WHITE, 0.55f);
+    Color lost = Fade(base, 0.3f);
+    for (int i = 0; i < maxHp; i++) {
+        DrawRectangleRec({ x + (float)i * (pipW + gap), y, pipW, pipH }, i < hp ? lit : lost);
+    }
+}
+
 static Rectangle IdleWobble(Rectangle r, float time, float phase, float bobAmp, float bobFreq, float scaleAmp) {
     float s = sinf(time * bobFreq + phase);
     float bob = bobAmp * s;
@@ -390,13 +420,8 @@ void RenderSystem::DrawPlaying(const GameManager& gm) {
         float phase = (float)e.column * Config::ANIM_IDLE_PHASE_STEP;
         Rectangle drawRect = IdleWobble(e.rect, animTime, phase, Config::ANIM_IDLE_BOB_AMPLITUDE,
                                          Config::ANIM_IDLE_BOB_FREQUENCY, Config::ANIM_IDLE_SCALE_AMPLITUDE);
-        DrawSprite(gm.sprites.tankyAlien, drawRect, HitFlashTint(e.color, e.hitFlash));
-        if (e.hp < TankyEnemy::HP) {
-            // Dich mau day bi thuong -> vien sang de nguoi choi thay ro da gay sat thuong
-            // - dung e.rect GOC (khong phai drawRect) cho vien nay: day la chi bao gan
-            // voi hitbox that, khong phai trang tri thuan tuy nhu sprite o tren.
-            DrawRectangleLinesEx(e.rect, 2.0f, WHITE);
-        }
+        DrawSprite(gm.sprites.tankyAlien, HitReact(drawRect, e.hitFlash), HitFlashTint(e.color, e.hitFlash));
+        DrawHpPips(e.rect, e.hp, TankyEnemy::HP, e.color);
     }
     for (size_t i = 0; i < gm.zigzagEnemies.Size(); i++) {
         const ZigzagEnemy& e = gm.zigzagEnemies[i];
@@ -415,12 +440,8 @@ void RenderSystem::DrawPlaying(const GameManager& gm) {
         float phase = (float)e.column * Config::ANIM_IDLE_PHASE_STEP;
         Rectangle drawRect = IdleWobble(e.rect, animTime, phase, Config::ANIM_IDLE_BOB_AMPLITUDE,
                                          Config::ANIM_IDLE_BOB_FREQUENCY, Config::ANIM_IDLE_SCALE_AMPLITUDE);
-        DrawSprite(gm.sprites.warden, drawRect, HitFlashTint(e.color, e.hitFlash));
-        if (e.hp < WardenEnemy::HP) {
-            // Dung khuon Tanky: vien sang khi da an don nhung chua chet han - chi bao gan
-            // voi hitbox that (e.rect goc), khong phai drawRect co wobble.
-            DrawRectangleLinesEx(e.rect, 2.0f, WHITE);
-        }
+        DrawSprite(gm.sprites.warden, HitReact(drawRect, e.hitFlash), HitFlashTint(e.color, e.hitFlash));
+        DrawHpPips(e.rect, e.hp, WardenEnemy::HP, e.color);
     }
     for (size_t i = 0; i < gm.medicEnemies.Size(); i++) {
         const MedicEnemy& e = gm.medicEnemies[i];
@@ -465,7 +486,7 @@ void RenderSystem::DrawPlaying(const GameManager& gm) {
             // nen khong can lech pha (phase=0), khac Basic/Tanky/Zigzag o tren.
             Rectangle drawRect = IdleWobble(boss.rect, animTime, 0.0f, Config::ANIM_BOSS_IDLE_BOB_AMPLITUDE,
                                              Config::ANIM_BOSS_IDLE_BOB_FREQUENCY, Config::ANIM_BOSS_IDLE_SCALE_AMPLITUDE);
-            DrawSprite(tex, drawRect, HitFlashTint(tint, boss.hitFlash));
+            DrawSprite(tex, HitReact(drawRect, boss.hitFlash), HitFlashTint(tint, boss.hitFlash));
 
             // VONG KHIEN: chi ve khi Sentinel dang bat kha xam pham - vien tron xanh bao
             // quanh toan bo rect, bao hieu ro rang "dan khong an thua luc nay" (khop voi
@@ -473,10 +494,8 @@ void RenderSystem::DrawPlaying(const GameManager& gm) {
             // boss.rect GOC (khong phai drawRect) vi day la chi bao gan voi vung mien sat
             // thuong THAT, khong phai trang tri.
             if (boss.type == BossType::Sentinel && boss.shieldActive) {
-                Vector2 center = EnemyCenter(boss.rect);
                 float radius = fmaxf(boss.rect.width, boss.rect.height) * 0.62f;
-                DrawCircleLines((int)center.x, (int)center.y, radius, SKYBLUE);
-                DrawCircleLines((int)center.x, (int)center.y, radius - 2.0f, Fade(SKYBLUE, 0.5f));
+                DrawHexShield(EnemyCenter(boss.rect), radius, animTime, animTime * 12.0f);
             }
         }
     }
@@ -521,7 +540,7 @@ void RenderSystem::DrawPlaying(const GameManager& gm) {
 
     gm.playerBullets.DrawCores(Palette::PlayerBullet);
     gm.enemyBullets.DrawCores(Palette::EnemyBullet);
-    gm.player.Draw(gm.sprites.player);
+    gm.player.Draw(gm.sprites.player, gm.settings.graphics.reduceFlashing);
     EndMode2D();
 
     // HUD ve ngoai camera de khong bi rung theo
@@ -640,7 +659,7 @@ void RenderSystem::DrawHUD(const GameManager& gm) {
         canvas.Panel({ (float)Config::SCREEN_W - 130.0f, 40.0f, 124.0f, Config::HUD_ICON_SIZE + 12.0f },
                      panelFill, panelBorder, Config::HUD_PANEL_BORDER_THICKNESS);
         if (gm.player.HasShield()) {
-            canvas.Icon({ iconX, iconY, Config::HUD_ICON_SIZE, Config::HUD_ICON_SIZE }, gm.sprites.iconShield, SKYBLUE);
+            canvas.Icon({ iconX, iconY, Config::HUD_ICON_SIZE, Config::HUD_ICON_SIZE }, gm.sprites.iconShield, Palette::ShieldBarrier);
         }
         if (gm.player.HasRapidFire()) {
             canvas.Icon({ iconX + slot, iconY, Config::HUD_ICON_SIZE, Config::HUD_ICON_SIZE }, gm.sprites.iconRapidFire, ORANGE);
@@ -663,7 +682,7 @@ void RenderSystem::DrawHUD(const GameManager& gm) {
         float barW = 300.0f;
         float ratio = (boss.maxHp > 0) ? ((float)boss.hp / (float)boss.maxHp) : 0.0f;
         float barX = (Config::SCREEN_W - barW) / 2.0f;
-        Color barFill = (boss.type == BossType::Sentinel && boss.shieldActive) ? SKYBLUE : RED;
+        Color barFill = (boss.type == BossType::Sentinel && boss.shieldActive) ? Palette::ShieldBarrier : RED;
         canvas.Panel({ barX - 10.0f, 4.0f, barW + 20.0f, 36.0f }, panelFill, panelBorder, Config::HUD_PANEL_BORDER_THICKNESS);
         canvas.Bar({ barX, 8.0f, barW, 14.0f }, ratio, DARKGRAY, barFill, WHITE);
         // A4: nhan ten Boss can GIUA thanh mau (truoc day can trai theo canh barX) -
@@ -671,7 +690,7 @@ void RenderSystem::DrawHUD(const GameManager& gm) {
         // vung lien quan, khong con toa do trai hardcode.
         canvas.CenteredText((int)(barX + barW / 2.0f), 24, 14, barFill, TextFormat("BOSS - %s", BossTypeName(boss.type)));
         if (boss.type == BossType::Sentinel && boss.shieldActive) {
-            canvas.Text((int)(barX + barW - 60.0f), 24, 14, SKYBLUE, Loc::ShieldTag);
+            canvas.Text((int)(barX + barW - 60.0f), 24, 14, Palette::ShieldBarrier, Loc::ShieldTag);
         }
     }
 

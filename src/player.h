@@ -42,6 +42,17 @@ private:
     // 1 field de "nho" skin dang chon thay vi hardcode mau thang trong Draw().
     Color skinTint = Palette::PlayerShip;
 
+    // TRANG THAI THUAN HINH ANH (GD 2 ke hoach do hoa) - khong anh huong hitbox/gameplay:
+    //   visualTilt  -1..1, bam theo huong di chuyen co do tre -> tau nghieng khi luot ngang
+    //   recoilTimer dem nguoc tu RECOIL_DURATION moi lan ban -> tau giat lui + bep 1 nhip
+    // constexpr (trinh bay), khong phai balance data -> khong vao balance.json.
+    float visualTilt = 0.0f;
+    float recoilTimer = 0.0f;
+    static constexpr float TILT_RESPONSE = 12.0f;   // 1/s - lon hon = nghieng/thang lai nhanh hon
+    static constexpr float TILT_MAX_DEG = 9.0f;
+    static constexpr float RECOIL_DURATION = 0.09f;
+    static constexpr float RECOIL_PX = 3.0f;
+
 public:
     Player();
 
@@ -104,7 +115,10 @@ public:
     // sprite tu ngoai truyen vao (giong cach render_system.cpp truyen gm.sprites.X cho
     // dich) thay vi Player tu include SpriteSheet, giu dung huong "Player khong biet gi
     // ve he thong render ngoai chinh no".
-    void Draw(const Texture2D& sprite) const;
+    // reduceFlashing (GraphicsSettings): khi bat tu, tau MO ON DINH thay vi an/hien 5 lan/giay.
+    void Draw(const Texture2D& sprite, bool reduceFlashing = false) const;
+    float GetVisualTilt() const { return visualTilt; }   // Cho test - xem test_player.cpp [vfx]
+    float GetRecoil() const { return recoilTimer; }
 
     Rectangle GetRect() const { return rect; }
     int GetLives() const { return lives; }

@@ -66,6 +66,12 @@ constexpr Color PowerUp      = { 255, 201, 66, 255 };  // #FFC942
 constexpr Color Ufo          = { 255, 176, 58, 255 };  // #FFB03A - muc tieu thuong diem, khong phai de doa
 constexpr Color ScoreText    = { 255, 216, 77, 255 };  // #FFD84D - popup diem/combo
 
+// --- RAO CHAN (khien) - dung CHUNG cho khien power-up cua player VA khien Sentinel ---
+// 1 mau = 1 nghia: "dan khong xuyen qua cho nay", bat ke ben nao dang duoc bao ve. Truoc day
+// ca 2 la SKYBLUE goi thang (vi pham luat Palette::) va ve 2 kieu khac nhau (khung vuong vs
+// vong tron). Xanh bang sang thuoc dai LANH: khien la trang thai, khong phai de doa/phan thuong.
+constexpr Color ShieldBarrier = { 120, 210, 255, 255 }; // #78D2FF
+
 // --- DAI NONG: loi vu no (ParticlePool::Explosion) ---
 // Trang ngả vang, chi song ~0.1s. Day la ngoai le CO Y cua luat lanh/nong: vu no dich thuong
 // van la "su kien" can mat bat ngay, nhung qua ngan de bi nham voi dan/phan thuong - phan con

@@ -888,6 +888,11 @@ void GameManager::SetupShowcase(ShowcaseScene scene) {
         // Dich bi thuong -> hien vien "da an don" (chi bao can soi khi doi phong cach ve)
         if (tankyEnemies.Size() > 0) tankyEnemies[0].hp = TankyEnemy::HP - 1;
         if (wardenEnemies.Size() > 0) wardenEnemies[0].hp = WardenEnemy::HP - 1;
+        // Tanky thu 2 dang giua nhip "vua trung don" (giat + bep + chop trang) - GD 2
+        if (tankyEnemies.Size() > 1) {
+            tankyEnemies[1].hp = 1;
+            tankyEnemies[1].hitFlash = Config::HIT_FLASH_DURATION * 0.8f;
+        }
         SpawnKamikaze();
         SpawnWeaver();
         SpawnBomber();
@@ -913,6 +918,7 @@ void GameManager::SetupShowcase(ShowcaseScene scene) {
         particles.Burst({ 620.0f, 230.0f }, 18, Palette::Kamikaze);
         particles.Burst({ cx, 320.0f }, 14, Palette::Zigzag);
     } else {
+        player.GrantShield(10.0f); // Khien player + khien Sentinel cung khung hinh: phai cung 1 kieu
         if (bossPool.Size() > 0) {
             Boss& b = bossPool[0];
             b.shieldActive = true;
@@ -930,6 +936,14 @@ void GameManager::SetupShowcase(ShowcaseScene scene) {
     }
     for (int i = 0; i < 5; i++) {
         playerBullets.Fire(cx, 500.0f - (float)i * 55.0f, { 0.0f, -Config::BULLET_SPEED });
+    }
+    // Tau dang luot sang phai + vua ban (nghieng + giat lui, GD 2): chay Player::Update that
+    // vai frame thay vi ghi field rieng - trang thai hinh anh di dung duong code that.
+    if (scene == ShowcaseScene::Combat) {
+        InputState steer;
+        steer.Action_MoveRight = true;
+        steer.Action_Shoot = true;
+        for (int i = 0; i < 8; i++) player.Update(1.0f / 60.0f, steer, playerBullets);
     }
     particles.Update(0.12f); // Cho manh vo toa ra 1 chut - Burst() spawn tat ca chong tai 1 diem
 

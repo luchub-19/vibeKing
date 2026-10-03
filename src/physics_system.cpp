@@ -575,7 +575,7 @@ void PhysicsSystem::UpdateBoss(GameManager& gm, float dt) {
             // nua (xem giai thich dau ham do). Chuyen khoi nay sang push GameEvent la hoan
             // toan an toan neu sau nay muon dong nhat, chi la chua can thiet.
             gm.audio.PlayBossPhase();
-            gm.particles.Burst(EnemyCenter(boss.rect), 20, boss.shieldActive ? SKYBLUE : Palette::UiDim);
+            gm.particles.Burst(EnemyCenter(boss.rect), 20, boss.shieldActive ? Palette::ShieldBarrier : Palette::UiDim);
             gm.screenShake.Trigger(0.15f, 4.0f);
         }
     }

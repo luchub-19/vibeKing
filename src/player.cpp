@@ -1,4 +1,5 @@
 #include "player.h"
+#include "draw_helpers.h"
 #include "palette.h"
 #include "sprites.h"
 #include <cmath> // sinf/cosf - Spread Shot (Phase 1b, Nguoi 1)
@@ -12,6 +13,8 @@ void Player::Reset() {
     score = 0;
     nextExtraLifeScore = Config::EXTRA_LIFE_SCORE_THRESHOLD;
     invincibleTimer = 0.0f;
+    visualTilt = 0.0f;   // Vi tri xuat phat moi -> khong mang do nghieng/giat cua frame cuoi wave truoc
+    recoilTimer = 0.0f;
     shieldTimer = 0.0f;
     rapidFireTimer = 0.0f;
     pierceTimer = 0.0f;
@@ -27,6 +30,8 @@ void Player::ResetForNewWave() {
     rect.x = Config::PLAYER_SPAWN_X;
     rect.y = Config::PLAYER_SPAWN_Y;
     invincibleTimer = 0.0f;
+    visualTilt = 0.0f;   // Vi tri xuat phat moi -> khong mang do nghieng/giat cua frame cuoi wave truoc
+    recoilTimer = 0.0f;
     shieldTimer = 0.0f;
     rapidFireTimer = 0.0f;
     pierceTimer = 0.0f;
@@ -43,6 +48,12 @@ bool Player::Update(float dt, const InputState& input, BulletPool<Config::MAX_PL
     if (input.Action_MoveLeft)  rect.x -= speed * dt;
     if (rect.x < 0) rect.x = 0;
     if (rect.x + rect.width > Config::SCREEN_W) rect.x = Config::SCREEN_W - rect.width;
+
+    // Hinh anh: nghieng bam theo input (khong theo van toc that - dung sat mep van giu phim
+    // thi van nghieng, dung cam giac "dang ghi lai"). Noi suy mu, khong vuot qua dich.
+    float targetTilt = (input.Action_MoveRight ? 1.0f : 0.0f) - (input.Action_MoveLeft ? 1.0f : 0.0f);
+    visualTilt += (targetTilt - visualTilt) * fminf(1.0f, TILT_RESPONSE * dt);
+    if (recoilTimer > 0.0f) recoilTimer = fmaxf(0.0f, recoilTimer - dt);
 
     if (invincibleTimer > 0.0f) invincibleTimer -= dt;
     if (shieldTimer > 0.0f) shieldTimer -= dt;
@@ -64,6 +75,7 @@ bool Player::Update(float dt, const InputState& input, BulletPool<Config::MAX_PL
 
     if (input.Action_Shoot && fireTimer >= effectiveFireRate) {
         fireTimer = 0.0f;
+        recoilTimer = RECOIL_DURATION;
         int pierceHits = HasPiercing() ? Config::POWERUP_PIERCE_HITS : 0;
         float spawnX = rect.x + rect.width / 2 - Config::BULLET_WIDTH / 2.0f;
 
@@ -177,9 +189,13 @@ void Player::ApplyRunUpgrade(UpgradeType type) {
     }
 }
 
-void Player::Draw(const Texture2D& sprite) const {
+void Player::Draw(const Texture2D& sprite, bool reduceFlashing) const {
+    float bodyAlpha = 1.0f;
     if (invincibleTimer > 0.0f) {
-        if (((int)(invincibleTimer * 10) % 2) != 0) return; // Nhap nhay khi bat tu
+        // Nhap nhay khi bat tu = an/hien 5 lan/GIAY, vuot nguong 3 lan/giay cua WCAG 2.3.1.
+        // Che do giam nhap nhay: mo deu 45% - van doc ra "dang bat tu", khong chop.
+        if (reduceFlashing) bodyAlpha = 0.45f;
+        else if (((int)(invincibleTimer * 10) % 2) != 0) return;
     }
 
     // HOAN THIEN: truoc day than tau doi mau theo THU TU UU TIEN Shield > Piercing >
@@ -211,7 +227,8 @@ void Player::Draw(const Texture2D& sprite) const {
         for (int i = -1; i <= 1; i++) {
             float len = (i == 0 ? 9.0f : 5.5f) * flicker;
             float x = cx + (float)i * 7.0f;
-            DrawLineEx({ x, baseY }, { x, baseY + len }, 2.5f, thrust);
+            // Duoi lua lech NGUOC huong nghieng - lua "bi gio thoi lai" khi tau luot ngang
+            DrawLineEx({ x, baseY }, { x - visualTilt * 4.0f, baseY + len }, 2.5f, thrust);
         }
         // QUANG SANG: DrawCircleGradient (mo dan tu tam ra vien), KHONG phai DrawRectangleRec.
         // Ban dau dung 1 hinh chu nhat mo phu len than tau - ket qua nhin thay ro trong anh
@@ -234,13 +251,23 @@ void Player::Draw(const Texture2D& sprite) const {
         EndBlendMode();
     }
 
-    DrawSprite(sprite, rect, skinTint);
+    // Than tau: giat xuong + bep ngang theo recoil, xoay theo visualTilt quanh TAM. Ve bang
+    // DrawTexturePro voi origin = tam (DrawSprite khong xoay duoc).
+    {
+        float k = recoilTimer / RECOIL_DURATION;
+        float w = rect.width * (1.0f + 0.05f * k);
+        float h = rect.height * (1.0f - 0.07f * k);
+        Rectangle dst{ rect.x + rect.width / 2.0f, rect.y + rect.height / 2.0f + RECOIL_PX * k, w, h };
+        Rectangle src{ 0.0f, 0.0f, (float)sprite.width, (float)sprite.height };
+        DrawTexturePro(sprite, src, dst, { w / 2.0f, h / 2.0f }, visualTilt * TILT_MAX_DEG, Fade(skinTint, bodyAlpha));
+    }
 
     if (HasShield()) {
-        // Vong khien bao quanh - giu lai rieng vi no truyen dat y nghia khac voi pip
-        // status thuan tuy (khong gian bao ve THAT SU quanh tau, khong chi la 1 nhan).
-        Rectangle ring{ rect.x - 4.0f, rect.y - 4.0f, rect.width + 8.0f, rect.height + 8.0f };
-        DrawRectangleLinesEx(ring, 2.0f, SKYBLUE);
+        // Khien luc giac CHUNG kieu voi khien Sentinel (draw_helpers.h) - cung 1 nghia "dan
+        // khong xuyen qua". Truoc day la khung vuong SKYBLUE, khac han khien boss (vong tron).
+        float t = (float)GetTime();
+        DrawHexShield({ rect.x + rect.width / 2.0f, rect.y + rect.height / 2.0f },
+                      fmaxf(rect.width, rect.height) * 0.72f, t, -t * 20.0f);
     }
 
     struct PipStatus { bool active; Color color; };

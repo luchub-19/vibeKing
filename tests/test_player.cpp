@@ -141,3 +141,29 @@ TEST_CASE("Update: co Spread Shot active thi ban 3 dan cung luc thay vi 1, dung 
     REQUIRE(centerCount == 1);
     REQUIRE(sumVelX == Approx(0.0f).margin(0.01f));
 }
+
+TEST_CASE("Player: nghieng bam theo huong di chuyen roi tu thang lai, ban thi giat lui (chi hinh anh)", "[player][vfx]") {
+    Player p;
+    p.Reset();
+    BulletPool<Config::MAX_PLAYER_BULLETS> bullets;
+    const Rectangle before = p.GetRect();
+
+    InputState right;
+    right.Action_MoveRight = true;
+    for (int i = 0; i < 30; i++) p.Update(1.0f / 60.0f, right, bullets);
+    REQUIRE(p.GetVisualTilt() > 0.9f);   // 0.5s giu phim -> gan nghieng toi da
+
+    InputState idle;
+    for (int i = 0; i < 30; i++) p.Update(1.0f / 60.0f, idle, bullets);
+    REQUIRE(std::fabs(p.GetVisualTilt()) < 0.05f); // tha phim -> thang lai
+
+    REQUIRE(p.GetRecoil() == Approx(0.0f));
+    InputState shoot;
+    shoot.Action_Shoot = true;
+    p.Update(1.0f, shoot, bullets); // dt lon de chac chan qua nhip ban
+    REQUIRE(p.GetRecoil() > 0.0f);
+
+    // Hitbox chi doi theo di chuyen that (X), giat lui/nghieng khong dong toi Y/kich thuoc
+    REQUIRE(p.GetRect().y == Approx(before.y));
+    REQUIRE(p.GetRect().width == Approx(before.width));
+}
