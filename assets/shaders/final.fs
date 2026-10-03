@@ -61,6 +61,9 @@ void main()
             offsetPx += (d / dist) * waves[i].w * sin(x * 3.14159265) * (1.0 - x * x);
         }
     }
+    // Dai HUD tren cung (diem/mang/mau boss - Config::HUD_TOP_BAND_H + le): tat dan do meo de so
+    // lieu quan trong luon doc duoc. Truoc day song di qua lam HUD "chay" theo (thay o anh GD 5).
+    offsetPx *= smoothstep(44.0, 60.0, p.y);
     vec2 offsetUV = offsetPx / gameSize;
     offsetUV.y *= mix(1.0, -1.0, flipY);
 
