@@ -44,6 +44,8 @@ void Parallax::Init() {
             unsigned char b = layer.brightness;
             unsigned char blueBoost = (b > 235) ? 255 : (unsigned char)(b + 20); // Hoi nga xanh nhe - tranh trang/xam thuan tuy
             s.color = { b, b, blueBoost, 255 };
+            s.layer = (unsigned char)(&layer - layers);
+            s.phase = (float)GetRandomValue(0, 628) / 100.0f;
         }
     }
 }
@@ -54,11 +56,41 @@ float Parallax::WrappedY(float baseY, float speed, float time, float screenH) {
     return (y < 0.0f) ? y + screenH : y; // (baseY, speed, time deu >= 0 nen thuc te luon >= 0 - giu phong ve cho ro nghia)
 }
 
-void Parallax::Draw() const {
-    const float t = (float)GetTime();
+float Parallax::WarpSpeedMul(float remaining) {
+    if (remaining <= 0.0f) return 1.0f;
+    if (remaining > WARP_DURATION) remaining = WARP_DURATION;
+    float elapsed = 1.0f - remaining / WARP_DURATION; // 0 -> 1
+    float env = (elapsed < 0.15f) ? elapsed / 0.15f : 1.0f - (elapsed - 0.15f) / 0.85f;
+    env = env * env * (3.0f - 2.0f * env); // smoothstep - khong co goc gay o 2 dau
+    return 1.0f + (WARP_PEAK_MUL - 1.0f) * env;
+}
+
+void Parallax::Update(float dt, float speedMul) {
+    scrollTime += dt * speedMul;
+    twinklePhase += dt;
+    currentMul = speedMul;
+}
+
+void Parallax::Draw(bool twinkle) const {
     const float screenH = (float)Config::SCREEN_H;
     for (const Star& s : stars) {
-        float y = WrappedY(s.baseY, s.speed, t, screenH);
-        DrawCircle((int)s.x, (int)y, s.radius, s.color);
+        float y = WrappedY(s.baseY, s.speed, scrollTime, screenH);
+        if (s.layer == 2) {
+            // Vet: dai = ban kinh + quang duong ~60ms o toc do hien tai. Binh thuong ~6px,
+            // luc warp x8 thanh vach ~25px - mat tu doc ra "dang lao nhanh".
+            float len = s.radius * 1.5f + s.speed * currentMul * 0.06f;
+            Color c = s.color;
+            DrawLineEx({ s.x, y }, { s.x, y - len }, s.radius, Fade(c, 0.55f));
+            DrawCircleV({ s.x, y }, s.radius * 0.8f, c);
+            continue;
+        }
+        Color c = s.color;
+        if (twinkle && s.layer == 0) {
+            // 0.8 Hz, bien do 0.35-1.0 - cham va nho (cham 1px) nen khong tinh la "nhap nhay"
+            // theo WCAG, nhung van tat theo reduceFlashing cho chac.
+            float k = 0.675f + 0.325f * sinf(twinklePhase * 5.0f + s.phase);
+            c = Fade(c, k);
+        }
+        DrawCircle((int)s.x, (int)y, s.radius, c);
     }
 }

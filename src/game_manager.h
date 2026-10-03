@@ -127,6 +127,9 @@ private:
     Font gameFont{}; // Tai qua LoadFontEx() trong Run() - Texture Atlas rieng thay the font mac dinh mo cua raylib
     RenderTexture2D renderTarget{}; // Canvas noi bo co dinh SCREEN_W x SCREEN_H, upscale len man hinh that trong Run()
     PostProcess postProcess; // Bloom + CRT ap dung luc upscale renderTarget - xem post_process.h, Config::BLOOM_ENABLED/CRT_ENABLED
+    // WARP vao wave boss (GD 1): giay con lai cua hieu ung sao tang toc - xem Parallax::
+    // WarpSpeedMul. Field THEO WAVE: gan o CA 2 nhanh InitLevel (boss wave -> day, con lai -> 0).
+    float warpBoostTimer = 0.0f;
     WarpGrid warpGrid;       // Luoi neon lo xo duoi moi thu (GD 1) - bi vu no day lom, xem warp_grid.h
     Parallax background;     // Starfield nhieu lop, ve o MOI man hinh (Menu/Playing/EndScreen) truoc switch-case state - xem parallax.h
     LevelGridConfig levelGrid; // Doc tu level.cfg luc Run() - thay cho hardcode r<4,c<10

@@ -907,3 +907,18 @@ TEST_CASE("ProcessEvents: vu no day luoi nen tai dung vi tri vu no", "[game_mana
     }
     REQUIRE(worst > 1.0f);
 }
+
+TEST_CASE("warpBoostTimer theo WAVE: wave boss bat warp, wave thuong tat (ca nhanh newGame lan khong)", "[game_manager][vfx][banner]") {
+    GameManager gm;
+    QuarantinePersistence(gm);
+    GTA::CallInitLevel(gm, true);
+    REQUIRE(GTA::WarpBoostTimer(gm) == Approx(0.0f)); // wave 1
+
+    GTA::SetWave(gm, Config::BOSS_WAVE_INTERVAL);
+    GTA::CallInitLevel(gm, false);
+    REQUIRE(GTA::WarpBoostTimer(gm) == Approx(Parallax::WARP_DURATION));
+
+    GTA::SetWave(gm, Config::BOSS_WAVE_INTERVAL + 1);
+    GTA::CallInitLevel(gm, false);
+    REQUIRE(GTA::WarpBoostTimer(gm) == Approx(0.0f)); // khong "mang" warp sang wave thuong
+}

@@ -234,6 +234,7 @@ void GameManager::InitLevel(bool newGame) {
     // (xem PhysicsSystem::UpdateEnemies/UpdateBoss + UpdatePlaying), khong phai khi
     // activeCount==0.
     isBossWave = (wave % Config::BOSS_WAVE_INTERVAL == 0);
+    warpBoostTimer = isBossWave ? Parallax::WARP_DURATION : 0.0f;
 
     if (isBossWave) {
         SpawnBoss();
@@ -1105,6 +1106,10 @@ void GameManager::Run(const LaunchOptions& opts) {
         if (!showcaseFrozen && state != GameState::PAUSED && state != GameState::KEYBIND) {
             warpGrid.Update(dt, settings.graphics.GridEnabled());
         }
+        // Warp chi dem nguoc khi THAT SU dang choi (khong trong fade vao wave) - neu khong, phan
+        // "lao vao tran" dien ra sau man den chuyen canh va nguoi choi chi thay doan phanh.
+        if (!frozen && state == GameState::PLAYING && warpBoostTimer > 0.0f) warpBoostTimer -= dt;
+        background.Update(dt, Parallax::WarpSpeedMul(warpBoostTimer));
 
         if (!frozen) {
             switch (state) {
@@ -1125,7 +1130,7 @@ void GameManager::Run(const LaunchOptions& opts) {
         BeginTextureMode(renderTarget);
         ClearBackground(Palette::Background);
 
-        background.Draw(); // Starfield - duoi cung MOI trang thai (Menu/Playing/EndScreen...), truoc noi dung tung state
+        background.Draw(!settings.graphics.reduceFlashing); // Starfield - duoi cung MOI trang thai (Menu/Playing/EndScreen...), truoc noi dung tung state
         if (settings.graphics.GridEnabled()) warpGrid.Draw(WarpGrid::CalmFactor((int)enemyBullets.GetActiveCount())); // Tren sao, duoi moi noi dung (luat R2)
 
         switch (state) {

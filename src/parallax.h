@@ -11,11 +11,13 @@
 // Init() 1 lan trong Run() (khong co logic gi trong constructor), khong destructor tu
 // dong don rac (xem game_manager.h/.cpp).
 //
-// KHONG luu rieng dt/accumulator: vi tri Y cua 1 ngoi sao tai bat ky thoi diem nao la HAM
-// THUAN cua GetTime() (cuon xuong roi quay vong ve dinh khi qua day man hinh) - dung y
-// het triet ly "transform truoc" cua DrawTitleLogo() (render_system.cpp, dung
-// sin(GetTime()) thay vi tu cong don van toc moi frame). Nho vay chi can Draw(), khong
-// can 1 Update(dt) rieng goi moi frame.
+// GD 1 (docs/GRAPHICS_UPGRADE_PLAN.md) - TRUOC DAY vi tri sao la ham thuan cua GetTime(), khong
+// can Update(). Doi sang CONG DON `scrollTime += dt * speedMul` vi hieu ung WARP (bat dau wave
+// boss: ca bau troi tang toc roi cham lai) can doi toc do GIUA CHUNG: nhan thang toc do vao
+// GetTime() thi moi sao nhay coc toi vi tri "nhu the da bay nhanh tu dau van". WrappedY() van
+// la ham thuan - chi doi tham so thoi gian truyen vao.
+//   - Lop GAN ve thanh VET doc (dai theo toc do hien tai) thay vi cham tron -> cam giac lao toi.
+//   - Lop XA lap lanh rat nhe (pha rieng tung sao) - tat khi reduceFlashing.
 // ==========================================
 class Parallax {
 public:
@@ -28,7 +30,14 @@ public:
     // Ve toan bo sao len canvas hien hanh - gia dinh dang trong BeginTextureMode(
     // renderTarget), xem diem goi trong GameManager::Run(). KHONG doi state noi bo, an
     // toan goi moi frame.
-    void Draw() const;
+    void Update(float dt, float speedMul);
+    void Draw(bool twinkle) const;
+
+    // He so toc do cuon theo thoi gian warp CON LAI (0 = khong warp). Ham thuan - test duoc.
+    // Bao: tang nhanh trong 15% dau, roi giam dan (smoothstep) - "phong" vao tran roi phanh.
+    static float WarpSpeedMul(float remaining);
+    static constexpr float WARP_DURATION = 1.6f;
+    static constexpr float WARP_PEAK_MUL = 8.0f;
 
     // Ham THUAN, khong dung GetTime()/bat ky trang thai raylib nao - tach rieng de test
     // headless duoc (xem tests/test_parallax.cpp). Tra ve toa do Y hien tai cua 1 sao:
@@ -42,7 +51,12 @@ private:
         float speed = 0.0f;
         float radius = 0.0f;
         Color color = BLACK;
+        unsigned char layer = 0; // 0 xa, 1 giua, 2 gan
+        float phase = 0.0f;      // Lech pha lap lanh
     };
 
     std::array<Star, Config::PARALLAX_STAR_COUNT> stars{};
+    float scrollTime = 0.0f;   // Tong dt * speedMul - thay GetTime() trong WrappedY
+    float currentMul = 1.0f;   // Toc do frame nay - do dai vet sao gan
+    float twinklePhase = 0.0f; // Dong ho rieng cho lap lanh (khong theo warp)
 };

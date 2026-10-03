@@ -79,6 +79,7 @@ public:
     static Settings& SettingsRef(GameManager& gm) { return gm.settings; }
     static void CallApplyGraphicsSettings(GameManager& gm) { gm.ApplyGraphicsSettings(); }
     static WarpGrid& WarpGridRef(GameManager& gm) { return gm.warpGrid; }
+    static float WarpBoostTimer(const GameManager& gm) { return gm.warpBoostTimer; }
 
     // ----- Du lieu the gioi (giong het tinh than friend PhysicsSystem/RenderSystem) -----
     static Player& PlayerRef(GameManager& gm) { return gm.player; }

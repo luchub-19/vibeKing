@@ -49,3 +49,21 @@ TEST_CASE("Parallax::WrappedY: lop toc do nhanh hon di duoc quang duong xa hon t
     float yNear = Parallax::WrappedY(0.0f, Config::PARALLAX_SPEED_NEAR, 1.0f, screenH);
     REQUIRE(yNear > yFar); // lop gan (nhanh hon) di xa hon lop xa (cham hon) trong cung 1 giay
 }
+
+TEST_CASE("Parallax::WarpSpeedMul: khong warp = 1, len dinh roi ve lai 1, khong bao gio duoi 1", "[parallax][vfx]") {
+    REQUIRE(Parallax::WarpSpeedMul(0.0f) == Approx(1.0f));
+    REQUIRE(Parallax::WarpSpeedMul(-1.0f) == Approx(1.0f));
+    // Vua bat dau (con nguyen thoi gian) -> chua tang: tranh giat cuc tu 1 len 8 trong 1 frame
+    REQUIRE(Parallax::WarpSpeedMul(Parallax::WARP_DURATION) == Approx(1.0f));
+    // Dinh o 15% thoi gian
+    float peak = Parallax::WarpSpeedMul(Parallax::WARP_DURATION * 0.85f);
+    REQUIRE(peak == Approx(Parallax::WARP_PEAK_MUL));
+    float prev = peak;
+    for (int i = 1; i <= 20; i++) {
+        float remaining = Parallax::WARP_DURATION * 0.85f * (1.0f - (float)i / 20.0f);
+        float m = Parallax::WarpSpeedMul(remaining);
+        REQUIRE(m <= prev + 1e-4f); // pha phanh: giam don dieu
+        REQUIRE(m >= 1.0f);
+        prev = m;
+    }
+}
