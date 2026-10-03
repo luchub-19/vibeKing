@@ -31,20 +31,36 @@ struct InputState {
     bool Action_Shoot = false;
 };
 
+// TIN HIEU MENU theo NGU NGHIA (nang cap GUI): truoc day ten field gan voi chuc nang cua 1 man
+// cu the (CycleDifficultyLeft, VolumeUp, OpenGraphics...) roi cac man khac "muon tam" - vd man
+// nang cap dung CycleDifficulty* de doi the. Gio moi man deu dieu huong cung 1 bo Len/Xuong/
+// Trai/Phai/Xac nhan/Quay lai/Tab, phim tat rieng tung man khong con can.
 struct MenuInput {
-    bool CycleDifficultyLeft = false;  // KEY_LEFT
-    bool CycleDifficultyRight = false; // KEY_RIGHT
-    bool VolumeUp = false;             // KEY_UP
-    bool VolumeDown = false;           // KEY_DOWN
-    bool Confirm = false;              // KEY_ENTER
-    bool Restart = false;              // KEY_R
-    bool PauseToggle = false;          // settings.keyPause hoac KEY_ESCAPE (fallback co dinh)
-    bool ToggleFullscreen = false;     // KEY_F11
-    bool OpenKeybinds = false;         // KEY_K - chi co y nghia luc dang PAUSED (xem UpdateKeybindScreen)
-    bool CycleLoadoutLeft = false;     // KEY_Q - chi co y nghia luc dang MENU (xem UpdateMenu/DrawLoadoutSelect)
-    bool CycleLoadoutRight = false;    // KEY_E - chi co y nghia luc dang MENU
-    bool OpenAchievements = false;     // KEY_TAB / gamepad SELECT - mo/dong man ACHIEVEMENTS tu MENU (xem UpdateAchievementsScreen)
-    bool OpenGraphics = false;         // KEY_G - mo/dong trang GRAPHICS tu MENU (xem UpdateGraphicsScreen). Khong anh xa gamepad, cung ly do OpenKeybinds
+    bool Up = false;        // KEY_UP / W / D-pad len - lap lai khi giu phim (IsKeyPressedRepeat)
+    bool Down = false;      // KEY_DOWN / S / D-pad xuong
+    bool Left = false;      // KEY_LEFT / phim Trai da rebind / D-pad trai
+    bool Right = false;     // KEY_RIGHT / phim Phai da rebind / D-pad phai
+    bool Confirm = false;   // ENTER / KP_ENTER / nut A (khong gom SPACE: nguoi choi dang giu Ban luc chet se bo qua luon man tong ket)
+    bool Back = false;      // ESC / BACKSPACE / nut B
+    bool TabPrev = false;   // Q / PAGE_UP / LB
+    bool TabNext = false;   // E / PAGE_DOWN / RB
+    bool Restart = false;   // R / nut X
+    bool PauseToggle = false;     // settings.keyPause hoac ESC (fallback co dinh) / START
+    bool ToggleFullscreen = false; // F11
+    bool AnyKey = false;    // Bat ky phim/nut nao - thoat attract mode
+};
+
+// CHUOT trong toa do canvas 800x600 (GameManager doi tu toa do cua so moi frame - xem
+// UiNav::ScreenToVirtual). `moved` = chuot vua di chuyen frame nay: chi khi do con tro menu moi
+// nhay theo chuot (xem ui_nav.h).
+struct PointerInput {
+    Vector2 pos{ -1.0f, -1.0f };
+    bool inside = false;
+    bool moved = false;
+    bool clicked = false;      // Nut trai - canh xuong
+    bool held = false;         // Nut trai dang giu (keo thanh truot)
+    bool rightClicked = false; // Nut phai = Quay lai
+    float wheel = 0.0f;
 };
 
 class InputSystem {
@@ -58,7 +74,9 @@ public:
         InputState in;
         in.Action_MoveRight = IsKeyDown(settings.keyMoveRight) || IsKeyDown(KEY_RIGHT);
         in.Action_MoveLeft  = IsKeyDown(settings.keyMoveLeft)  || IsKeyDown(KEY_LEFT);
-        in.Action_Shoot     = IsKeyDown(settings.keyShoot);
+        // Tu dong ban (Cai dat > Dieu khien): giu nguyen nhip ban cua Player (fireTimer) - chi
+        // thay viec giu phim, khong ban nhanh hon nguoi giu phim that.
+        in.Action_Shoot     = IsKeyDown(settings.keyShoot) || settings.autoFire;
 
         // Gamepad (tuy chon) - stick trai / D-pad de di chuyen, nut A (button 0) de
         // ban. Chi doc khi gamepad 0 thuc su cam vao, khong ep buoc nguoi choi phai
@@ -92,30 +110,35 @@ public:
     // ToggleFullscreen/OpenKeybinds co tinh khai niem PC/desktop (fullscreen) hoac chi
     // dung de mo 1 man hinh REBIND BAN PHIM (vo nghia tren gamepad) - khong anh xa gamepad.
     static MenuInput PollMenu(const Settings& settings) {
+        auto pressed = [](int key) { return IsKeyPressed(key) || IsKeyPressedRepeat(key); };
         MenuInput m;
-        m.CycleDifficultyLeft  = IsKeyPressed(KEY_LEFT);
-        m.CycleDifficultyRight = IsKeyPressed(KEY_RIGHT);
-        m.VolumeUp             = IsKeyPressed(KEY_UP);
-        m.VolumeDown           = IsKeyPressed(KEY_DOWN);
-        m.Confirm               = IsKeyPressed(KEY_ENTER);
-        m.Restart               = IsKeyPressed(KEY_R);
-        m.PauseToggle           = IsKeyPressed(settings.keyPause) || IsKeyPressed(KEY_ESCAPE);
-        m.ToggleFullscreen      = IsKeyPressed(KEY_F11);
-        m.OpenKeybinds          = IsKeyPressed(KEY_K);
-        m.CycleLoadoutLeft      = IsKeyPressed(KEY_Q);
-        m.CycleLoadoutRight     = IsKeyPressed(KEY_E);
-        m.OpenAchievements      = IsKeyPressed(KEY_TAB);
-        m.OpenGraphics          = IsKeyPressed(KEY_G);
+        m.Up    = pressed(KEY_UP) || pressed(KEY_W);
+        m.Down  = pressed(KEY_DOWN) || pressed(KEY_S);
+        m.Left  = pressed(KEY_LEFT) || pressed(settings.keyMoveLeft);
+        m.Right = pressed(KEY_RIGHT) || pressed(settings.keyMoveRight);
+        m.Confirm = IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER);
+        m.Back    = IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_BACKSPACE);
+        m.TabPrev = IsKeyPressed(KEY_Q) || IsKeyPressed(KEY_PAGE_UP);
+        m.TabNext = IsKeyPressed(KEY_E) || IsKeyPressed(KEY_PAGE_DOWN);
+        m.Restart = IsKeyPressed(KEY_R);
+        m.PauseToggle = IsKeyPressed(settings.keyPause) || IsKeyPressed(KEY_ESCAPE);
+        m.ToggleFullscreen = IsKeyPressed(KEY_F11);
+        // KHONG dung GetKeyPressed(): ham do LAY RA khoi hang doi phim cua raylib, goi o day thi man
+        // doi phim (PollAnyKeyPressed) se khong bao gio thay phim nao. Quet IsKeyPressed (chi doc).
+        for (int k = KEY_SPACE; k <= KEY_KB_MENU && !m.AnyKey; k++) m.AnyKey = IsKeyPressed(k);
 
         if (IsGamepadAvailable(0)) {
-            if (IsGamepadButtonPressed(0, GAMEPAD_BUTTON_LEFT_FACE_LEFT))   m.CycleDifficultyLeft  = true;
-            if (IsGamepadButtonPressed(0, GAMEPAD_BUTTON_LEFT_FACE_RIGHT))  m.CycleDifficultyRight = true;
-            if (IsGamepadButtonPressed(0, GAMEPAD_BUTTON_LEFT_FACE_UP))     m.VolumeUp   = true;
-            if (IsGamepadButtonPressed(0, GAMEPAD_BUTTON_LEFT_FACE_DOWN))   m.VolumeDown = true;
-            if (IsGamepadButtonPressed(0, GAMEPAD_BUTTON_RIGHT_FACE_DOWN))  m.Confirm    = true;
-            if (IsGamepadButtonPressed(0, GAMEPAD_BUTTON_RIGHT_FACE_LEFT))  m.Restart    = true;
+            if (IsGamepadButtonPressed(0, GAMEPAD_BUTTON_LEFT_FACE_UP))     m.Up = true;
+            if (IsGamepadButtonPressed(0, GAMEPAD_BUTTON_LEFT_FACE_DOWN))   m.Down = true;
+            if (IsGamepadButtonPressed(0, GAMEPAD_BUTTON_LEFT_FACE_LEFT))   m.Left = true;
+            if (IsGamepadButtonPressed(0, GAMEPAD_BUTTON_LEFT_FACE_RIGHT))  m.Right = true;
+            if (IsGamepadButtonPressed(0, GAMEPAD_BUTTON_RIGHT_FACE_DOWN))  m.Confirm = true;
+            if (IsGamepadButtonPressed(0, GAMEPAD_BUTTON_RIGHT_FACE_RIGHT)) m.Back = true;
+            if (IsGamepadButtonPressed(0, GAMEPAD_BUTTON_RIGHT_FACE_LEFT))  m.Restart = true;
+            if (IsGamepadButtonPressed(0, GAMEPAD_BUTTON_LEFT_TRIGGER_1))   m.TabPrev = true;
+            if (IsGamepadButtonPressed(0, GAMEPAD_BUTTON_RIGHT_TRIGGER_1))  m.TabNext = true;
             if (IsGamepadButtonPressed(0, GAMEPAD_BUTTON_MIDDLE_RIGHT))     m.PauseToggle = true;
-            if (IsGamepadButtonPressed(0, GAMEPAD_BUTTON_MIDDLE_LEFT))      m.OpenAchievements = true; // Select/Back
+            if (GetGamepadButtonPressed() != GAMEPAD_BUTTON_UNKNOWN)       m.AnyKey = true;
         }
         return m;
     }
@@ -123,7 +146,7 @@ public:
     // Tra ve MA PHIM vua duoc nhan (canh len) trong frame nay, hoac 0 neu khong co phim
     // nao - bao boc GetKeyPressed() cua raylib (thiet ke SAN cho dung "cho phim ke tiep"
     // kieu rebind UI, khong can tu kiem tra tung KeyboardKey 1). CHI dung trong man hinh
-    // KEYBIND (xem GameManager::UpdateKeybindScreen) - moi noi khac deu qua Poll()/
+    // doi phim cua Cai dat (xem GameManager::UpdateRebind) - moi noi khac deu qua Poll()/
     // PollMenu() nhu binh thuong.
     static int PollAnyKeyPressed() {
         return GetKeyPressed();
