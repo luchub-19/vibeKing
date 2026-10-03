@@ -80,6 +80,8 @@ public:
     static void CallApplyGraphicsSettings(GameManager& gm) { gm.ApplyGraphicsSettings(); }
     static WarpGrid& WarpGridRef(GameManager& gm) { return gm.warpGrid; }
     static float WarpBoostTimer(const GameManager& gm) { return gm.warpBoostTimer; }
+    static PostFxFrame CallBuildPostFxFrame(const GameManager& gm) { return gm.BuildPostFxFrame(); }
+    static ShockwaveField& ShockwavesRef(GameManager& gm) { return gm.shockwaves; }
 
     // ----- Du lieu the gioi (giong het tinh than friend PhysicsSystem/RenderSystem) -----
     static Player& PlayerRef(GameManager& gm) { return gm.player; }

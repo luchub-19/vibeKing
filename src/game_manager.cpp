@@ -235,6 +235,8 @@ void GameManager::InitLevel(bool newGame) {
     // activeCount==0.
     isBossWave = (wave % Config::BOSS_WAVE_INTERVAL == 0);
     warpBoostTimer = isBossWave ? Parallax::WARP_DURATION : 0.0f;
+    shockwaves.Clear();
+    hurtTimer = 0.0f;
 
     if (isBossWave) {
         SpawnBoss();
@@ -678,6 +680,8 @@ void GameManager::UpdatePlaying(float dt) {
     screenShake.Update(dt);
     particles.Update(dt);
     floatingTexts.Update(dt);
+    shockwaves.Update(dt);
+    if (hurtTimer > 0.0f) hurtTimer = fmaxf(0.0f, hurtTimer - dt);
     if (hitStop.IsActive()) return; // Dong bang toan bo logic ben duoi - Run() ngoai vong lap van goi Draw() binh thuong nen hinh khong dung, chi gameplay dung khung trong choc lat
 
     MenuInput menuInput = InputSystem::PollMenu(settings);
@@ -750,6 +754,7 @@ void GameManager::UpdatePlaying(float dt) {
         particles.Burst(bossCenter, 40, Palette::BossEnrage2);
         particles.Explosion(bossCenter, Palette::Boss, ExplosionSize::Large);
         warpGrid.ApplyExplosiveForce(bossCenter, Config::GRID_PUSH_LARGE, Config::GRID_RADIUS_LARGE);
+        shockwaves.Add(bossCenter, Config::SHOCKWAVE_LARGE_RADIUS, Config::SHOCKWAVE_LARGE_DURATION, Config::SHOCKWAVE_LARGE_STRENGTH);
         screenShake.Trigger(0.4f, 12.0f);
         hitStop.Trigger(0.1f); // Nang do hon dong bang thuong (0.04f) - xem physics_system.cpp
         ApplyComboAndScore(Config::BOSS_SCORE_VALUE, bossCenter);
@@ -836,8 +841,14 @@ void GameManager::ProcessEvents() {
         const GameEvent ev = pendingEvents[i];
         if (ev.particleCount > 0) particles.Burst(ev.position, ev.particleCount, ev.color);
         particles.Explosion(ev.position, ev.color, ev.explosion); // No-op khi ExplosionSize::None
-        if (ev.explosion == ExplosionSize::Small) warpGrid.ApplyExplosiveForce(ev.position, Config::GRID_PUSH_SMALL, Config::GRID_RADIUS_SMALL);
-        else if (ev.explosion == ExplosionSize::Large) warpGrid.ApplyExplosiveForce(ev.position, Config::GRID_PUSH_LARGE, Config::GRID_RADIUS_LARGE);
+        if (ev.explosion == ExplosionSize::Small) {
+            warpGrid.ApplyExplosiveForce(ev.position, Config::GRID_PUSH_SMALL, Config::GRID_RADIUS_SMALL);
+            shockwaves.Add(ev.position, Config::SHOCKWAVE_SMALL_RADIUS, Config::SHOCKWAVE_SMALL_DURATION, Config::SHOCKWAVE_SMALL_STRENGTH);
+        } else if (ev.explosion == ExplosionSize::Large) {
+            warpGrid.ApplyExplosiveForce(ev.position, Config::GRID_PUSH_LARGE, Config::GRID_RADIUS_LARGE);
+            shockwaves.Add(ev.position, Config::SHOCKWAVE_LARGE_RADIUS, Config::SHOCKWAVE_LARGE_DURATION, Config::SHOCKWAVE_LARGE_STRENGTH);
+        }
+        if (ev.playerHurt) hurtTimer = Config::HURT_DESAT_DURATION;
         // HIT-FLASH (Nguoi 3 - Audio & UI): cum particle TRANG rieng, CONG DON voi burst
         // mau thuong o tren neu co (khong thay the) - bao "chi trung", tach voi burst mau
         // dang bao "loai gi/khien hay khong" (xem events.h + physics_system.cpp).
@@ -971,17 +982,37 @@ void GameManager::SetupShowcase(ShowcaseScene scene) {
         particles.Explosion({ 620.0f, 230.0f }, Palette::Kamikaze, ExplosionSize::Small);
         warpGrid.ApplyExplosiveForce({ 160.0f, 200.0f }, Config::GRID_PUSH_SMALL, Config::GRID_RADIUS_SMALL);
         warpGrid.ApplyExplosiveForce({ 620.0f, 230.0f }, Config::GRID_PUSH_SMALL, Config::GRID_RADIUS_SMALL);
+        shockwaves.Add({ 160.0f, 200.0f }, Config::SHOCKWAVE_SMALL_RADIUS, Config::SHOCKWAVE_SMALL_DURATION, Config::SHOCKWAVE_SMALL_STRENGTH);
+        shockwaves.Add({ 620.0f, 230.0f }, Config::SHOCKWAVE_SMALL_RADIUS, Config::SHOCKWAVE_SMALL_DURATION, Config::SHOCKWAVE_SMALL_STRENGTH);
     } else if (bossPool.Size() > 0) {
         // Xem truoc vu no co Large (boss guc) canh con boss con song
         Vector2 c = EnemyCenter(bossPool[0].rect);
         Vector2 at{ c.x + 150.0f, c.y + 170.0f };
         particles.Explosion(at, Palette::Boss, ExplosionSize::Large);
         warpGrid.ApplyExplosiveForce(at, Config::GRID_PUSH_LARGE, Config::GRID_RADIUS_LARGE);
+        shockwaves.Add(at, Config::SHOCKWAVE_LARGE_RADIUS, Config::SHOCKWAVE_LARGE_DURATION, Config::SHOCKWAVE_LARGE_STRENGTH);
     }
     particles.Update(0.05f);
+    // Song: tua lau hon lop no (0.15s) - luc 0.05s vong moi ~40% ban kinh, nam gon trong loi flash
+    // nen anh chup khong thay meo gi. 0.15s = vong da ra khoi tam, van con manh.
+    shockwaves.Update(0.15f);
     // Luoi: tua cung khoang thoi gian voi lop no (3 buoc ~ 0.05s) - song lom dang lan ra
     for (int i = 0; i < 3; i++) warpGrid.Update(WarpGrid::STEP, settings.graphics.GridEnabled());
     showcaseFrozen = true;
+}
+
+PostFxFrame GameManager::BuildPostFxFrame() const {
+    PostFxFrame fx;
+    fx.waveCount = shockwaves.Fill(fx.waves, ShockwaveField::CAPACITY);
+    fx.hurt = HurtDesaturation(hurtTimer, Config::HURT_DESAT_DURATION);
+    // Vien do theo giai doan boss (1 nguon: BossStage) - CHI khi dang choi/pause man boss, khong
+    // keo sang man tong ket. Stage 2 = nua, stage 3 = day du.
+    const bool inFight = (state == GameState::PLAYING || state == GameState::PAUSED || state == GameState::KEYBIND);
+    if (inFight && bossPool.Size() > 0) {
+        int stage = BossStage(bossPool[0]);
+        fx.enrage = (stage >= 3) ? 1.0f : (stage == 2 ? 0.5f : 0.0f);
+    }
+    return fx;
 }
 
 void GameManager::Run(const LaunchOptions& opts) {
@@ -1177,7 +1208,7 @@ void GameManager::Run(const LaunchOptions& opts) {
         // thuong (quy uoc OpenGL) - day la buoc lat lai chuan, khong phai 1 hack.
         Rectangle src{ 0.0f, 0.0f, (float)renderTarget.texture.width, -(float)renderTarget.texture.height };
         Rectangle dst{ destX, destY, destW, destH };
-        postProcess.Render(renderTarget, src, dst, settings.graphics); // Bloom + CRT (neu bat) - fallback ve dung 1 DrawTexturePro nhu truoc neu ca 2 tat/loi luc Init()
+        postProcess.Render(renderTarget, src, dst, settings.graphics, BuildPostFxFrame()); // Bloom + CRT (neu bat) - fallback ve dung 1 DrawTexturePro nhu truoc neu ca 2 tat/loi luc Init()
 
         // OVERLAY DO LUONG: ve o TOA DO MAN HINH THAT (ngoai canh render texture noi bo
         // 800x600 vua upscale o tren) - luon sac net va o dung goc man hinh du dang

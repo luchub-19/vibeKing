@@ -62,6 +62,9 @@ struct GameEvent {
     // Doc lap voi particleCount (tia lua): 1 event co the co ca 2.
     ExplosionSize explosion = ExplosionSize::None;
 
+    // Player vua MAT MANG (khong tinh do bang khien) -> pass cuoi khu bao hoa thoang qua (GD 3).
+    bool playerHurt = false;
+
     // WARDEN (Phase 1a - Enemy & Item Revolution, Nguoi 1): >0 khi day la don HA GUC 1
     // WardenEnemy - bao ProcessEvents() sinh them tung nay BasicEnemy yeu hon tai `position`
     // (xem GameManager::ProcessEvents(), Config::WARDEN_REINFORCEMENT_COUNT). 0 (mac dinh)

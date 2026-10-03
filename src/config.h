@@ -487,6 +487,15 @@ namespace Config {
     constexpr float GRID_PUSH_BULLET  = 0.25f; // Moi frame moi vien - nho, chi de luoi "gon song"
     constexpr float GRID_RADIUS_BULLET = 28.0f;
 
+    // SONG XUNG KICH + "VUA TRUNG DON" (pass cuoi final.fs, GD 3) - trinh bay, constexpr.
+    constexpr float SHOCKWAVE_SMALL_RADIUS   = 70.0f;  // px
+    constexpr float SHOCKWAVE_SMALL_DURATION = 0.4f;
+    constexpr float SHOCKWAVE_SMALL_STRENGTH = 5.0f;   // px dich toi da
+    constexpr float SHOCKWAVE_LARGE_RADIUS   = 260.0f;
+    constexpr float SHOCKWAVE_LARGE_DURATION = 0.8f;
+    constexpr float SHOCKWAVE_LARGE_STRENGTH = 14.0f;
+    constexpr float HURT_DESAT_DURATION      = 0.35f;
+
     constexpr int   PARALLAX_STAR_COUNT  = 90; // Tong so sao ca 3 lop cong lai - kich thuoc std::array trong Parallax (xem parallax.h)
     constexpr int   PARALLAX_LAYER_COUNT = 3;  // Lop xa/giua/gan - xem Parallax::Init() (parallax.cpp)
     constexpr float PARALLAX_SPEED_FAR   = 12.0f; // px/giay, lop xa nhat (nho + mo + cham nhat)
@@ -497,6 +506,6 @@ namespace Config {
     inline const char* BloomExtractShaderPath() { return "assets/shaders/bloom_extract.fs"; }
     inline const char* KawaseDownShaderPath()   { return "assets/shaders/kawase_down.fs"; }
     inline const char* KawaseUpShaderPath()     { return "assets/shaders/kawase_up.fs"; }
-    inline const char* CrtShaderPath()          { return "assets/shaders/crt.fs"; }
+    inline const char* FinalShaderPath()        { return "assets/shaders/final.fs"; } // CRT + song xung kich + chinh mau (GD 3)
     inline const char* NebulaShaderPath()       { return "assets/shaders/nebula.fs"; }
 }

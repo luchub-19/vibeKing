@@ -407,6 +407,7 @@ void PhysicsSystem::UpdateKamikaze(GameManager& gm, float dt) {
             if (gm.player.TakeDamage()) {
                 GameEvent hitEv;
                 hitEv.sfx = SfxType::Hit;
+                hitEv.playerHurt = true;
                 gm.pendingEvents.push_back(hitEv);
             }
             gm.hitStop.Trigger(0.04f); // Kamikaze chet that (lao vao player) - duong chet con lai ngoai ResolveOneHitKillCollision
@@ -1005,6 +1006,7 @@ void PhysicsSystem::CheckCollisions(GameManager& gm) {
                 ev.color = Palette::EnemyBullet;
                 ev.particleCount = 18;
                 ev.explosion = ExplosionSize::Small; // Vong song do quanh tau: "MINH vua trung" phai to nhat man hinh
+                ev.playerHurt = true;
                 ev.sfx = SfxType::Hit;
                 ev.shakeDuration = 0.22f;
                 ev.shakeIntensity = 8.0f;

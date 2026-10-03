@@ -1,6 +1,6 @@
 # Kế hoạch nâng cấp đồ họa toàn diện - "Neon-vector arcade"
 
-> Trạng thái: **ĐÃ DUYỆT** (2026-10-03). Xong: GĐ 0, hạ tầng settings (mục 4), phần chính GĐ 2, GĐ 1. Tiếp theo: GĐ 3 - post-process/shader.
+> Trạng thái: **ĐÃ DUYỆT** (2026-10-03). Xong: GĐ 0, hạ tầng settings (mục 4), phần chính GĐ 2, GĐ 1, GĐ 3. Tiếp theo: GĐ 5 - UI/HUD/menu.
 > Ảnh baseline chụp headless bằng Xvfb (thư mục `screenshots/` nằm trong `.gitignore`, ảnh trước/sau gửi kèm PR thay vì commit).
 > Nhánh: `claude/upgrade-vibking-graphics-cwhbn3`. Ngày lập: 2026-10-03.
 
@@ -281,7 +281,33 @@ trình diễn giờ có thêm 3 vụ nổ đứng yên; Medium vẫn dưới ng�
    `screenShakeScale` của settings.
 7. **Chết của người chơi**: slow-motion 0.3 s + vòng sóng lớn + màn hình khử bão hoà ngắn.
 
-### GĐ 3 - Post-process / shader
+### GĐ 3 - Post-process / shader - **XONG**
+
+**Đã làm** (2 commit):
+- Bloom **Dual Kawase** (`kawase_down.fs`/`kawase_up.fs`), Medium 1 mức, High 3 mức; xoá `blur.fs`.
+- **Pass cuối hợp nhất** `final.fs` (thay `crt.fs`): CRT cong (chỉ High + CRT bật, cong BÊN TRONG
+  destRec) -> sóng xung kích (`ShockwaveField`, post_fx.h, Medium 4 / High 8 sóng) -> tách RGB chỉ
+  ở mép sóng (High) -> S-curve + bão hoà +8% -> khử bão hoà 0,35 s khi mất mạng
+  (`GameEvent::playerHurt`) -> viền ngả đỏ theo `BossStage` (enrage, không nhấp nháy) -> scanline/
+  vignette/flicker. Mọi thứ trong 1 lần vẽ vì mỗi pass thêm đều đắt (xem số đo).
+- Mục 7 của GĐ 2 (player chết: khử bão hoà) làm ở đây dưới dạng "mỗi lần mất mạng" - dễ thấy hơn
+  và không chen vào fade sang GAME_OVER. Slow-motion: KHÔNG làm (sẽ làm chậm luồng Game Over).
+- Test `[post_fx]`: vòng đời sóng, thay sóng cũ nhất, giới hạn preset, khử bão hoà, enrage theo
+  stage + chỉ khi đang đánh, sóng/đồng hồ là trạng thái THEO WAVE.
+
+**Đính chính + hiệu năng:** commit Kawase ghi "nhanh hơn Gauss ~5%" - **sai**, 5 lần trung bình bị
+nhiễu kéo lệch. Đo lại 8 lần xen kẽ, lấy trung vị (llvmpipe, cảnh boss Medium):
+
+| | trung vị | min |
+|---|---|---|
+| Trước GĐ 3 (Gauss) | 19,1 ms | 17,9 |
+| Kawase | 20,1 ms (+5%) | 18,5 |
+| + pass cuối hợp nhất | 21,6 ms (+13% so với trước GĐ 3) | 20,4 |
+
+Giữ Kawase vì lý do GPU (tài liệu ARM: ~7% băng thông Gauss) nhưng **chưa đo được trên iGPU thật**.
+Cộng dồn với GĐ 1 (+20%), Medium hiện chậm hơn bản trước nâng cấp khoảng 1/3 trên renderer CPU.
+
+**Đề xuất gốc:**
 1. **Bloom Dual Kawase** thay Gauss 2 chiều (rẻ hơn rõ trên iGPU, quầng mềm hơn). Giữ ngưỡng luma
    - nhờ bảng NÓNG nó vẫn sáng đúng chỗ.
 2. **Shockwave distortion**: 1 pass toàn màn hình nhận mảng uniform `vec4 waves[8]` (x, y, bán kính,

@@ -41,23 +41,29 @@ void PostProcess::Init() {
         }
     }
 
-    if (Config::CRT_ENABLED) {
-        crtShader = LoadShader(nullptr, Config::CrtShaderPath());
-        crtReady = IsShaderValid(crtShader);
-
-        if (crtReady) {
-            crtTimeLoc = GetShaderLocation(crtShader, "time");
-            crtResolutionLoc = GetShaderLocation(crtShader, "resolution");
-            int scanlineLoc = GetShaderLocation(crtShader, "scanlineStrength");
-            int vignetteLoc = GetShaderLocation(crtShader, "vignetteStrength");
-            crtFlickerLoc = GetShaderLocation(crtShader, "flickerStrength");
-            float scanline = Config::CRT_SCANLINE_STRENGTH;
-            float vignette = Config::CRT_VIGNETTE_STRENGTH;
-            SetShaderValue(crtShader, scanlineLoc, &scanline, SHADER_UNIFORM_FLOAT);
-            SetShaderValue(crtShader, vignetteLoc, &vignette, SHADER_UNIFORM_FLOAT);
-        } else {
-            TraceLog(LOG_WARNING, "PostProcess: khong the khoi tao shader CRT - tat CRT cho phien nay.");
-        }
+    // Pass cuoi LUON load (khong con gate theo CRT_ENABLED): chinh mau/song xung kich can no ca
+    // khi tat CRT. Config::CRT_ENABLED = false gio nghia la "scanline/vignette/flicker = 0".
+    finalShader = LoadShader(nullptr, Config::FinalShaderPath());
+    finalReady = IsShaderValid(finalShader);
+    if (finalReady) {
+        fl.resolution = GetShaderLocation(finalShader, "resolution");
+        fl.gameSize   = GetShaderLocation(finalShader, "gameSize");
+        fl.time       = GetShaderLocation(finalShader, "time");
+        fl.scanline   = GetShaderLocation(finalShader, "scanlineStrength");
+        fl.vignette   = GetShaderLocation(finalShader, "vignetteStrength");
+        fl.flicker    = GetShaderLocation(finalShader, "flickerStrength");
+        fl.barrel     = GetShaderLocation(finalShader, "barrel");
+        fl.waves      = GetShaderLocation(finalShader, "waves");
+        fl.waveCount  = GetShaderLocation(finalShader, "waveCount");
+        fl.chromatic  = GetShaderLocation(finalShader, "chromatic");
+        fl.enrage     = GetShaderLocation(finalShader, "enrage");
+        fl.hurt       = GetShaderLocation(finalShader, "hurt");
+        fl.grade      = GetShaderLocation(finalShader, "grade");
+        fl.flipY      = GetShaderLocation(finalShader, "flipY");
+        float gameSize[2] = { (float)Config::SCREEN_W, (float)Config::SCREEN_H };
+        SetShaderValue(finalShader, fl.gameSize, gameSize, SHADER_UNIFORM_VEC2);
+    } else {
+        TraceLog(LOG_WARNING, "PostProcess: khong the khoi tao final.fs - tat CRT/song xung kich/chinh mau cho phien nay.");
     }
 }
 
@@ -72,13 +78,14 @@ void PostProcess::Shutdown() {
     }
     if (IsRenderTextureValid(compositeTex)) UnloadRenderTexture(compositeTex);
     bloomReady = false;
-    if (crtReady) {
-        UnloadShader(crtShader);
-        crtReady = false;
+    if (finalReady) {
+        UnloadShader(finalShader);
+        finalReady = false;
     }
 }
 
-void PostProcess::Render(const RenderTexture2D& source, Rectangle srcRec, Rectangle destRec, const GraphicsSettings& gfx) {
+void PostProcess::Render(const RenderTexture2D& source, Rectangle srcRec, Rectangle destRec, const GraphicsSettings& gfx,
+                         const PostFxFrame& fx) {
     const RenderTexture2D* finalSource = &source;
     Rectangle finalSrcRec = srcRec;
 
@@ -135,15 +142,27 @@ void PostProcess::Render(const RenderTexture2D& source, Rectangle srcRec, Rectan
         finalSrcRec = fullSrc(compositeTex);
     }
 
-    if (crtReady && gfx.crtEnabled) {
-        float t = (float)GetTime();
-        float flicker = Config::CRT_FLICKER_STRENGTH * gfx.CrtFlickerScale();
-        SetShaderValue(crtShader, crtFlickerLoc, &flicker, SHADER_UNIFORM_FLOAT);
+    if (finalReady) {
+        auto setF = [this](int loc, float v) { SetShaderValue(finalShader, loc, &v, SHADER_UNIFORM_FLOAT); };
+        const bool crt = gfx.crtEnabled && Config::CRT_ENABLED;
         float res[2] = { destRec.width, destRec.height };
-        SetShaderValue(crtShader, crtTimeLoc, &t, SHADER_UNIFORM_FLOAT);
-        SetShaderValue(crtShader, crtResolutionLoc, res, SHADER_UNIFORM_VEC2);
+        SetShaderValue(finalShader, fl.resolution, res, SHADER_UNIFORM_VEC2);
+        setF(fl.time, (float)GetTime());
+        setF(fl.scanline, crt ? Config::CRT_SCANLINE_STRENGTH : 0.0f);
+        setF(fl.vignette, crt ? Config::CRT_VIGNETTE_STRENGTH : 0.0f);
+        setF(fl.flicker, crt ? Config::CRT_FLICKER_STRENGTH * gfx.CrtFlickerScale() : 0.0f);
+        setF(fl.barrel, gfx.BarrelAmount());
+        int count = fx.waveCount < gfx.ShockwaveMax() ? fx.waveCount : gfx.ShockwaveMax();
+        if (count > 0) SetShaderValueV(finalShader, fl.waves, fx.waves, SHADER_UNIFORM_VEC4, count);
+        SetShaderValue(finalShader, fl.waveCount, &count, SHADER_UNIFORM_INT);
+        setF(fl.chromatic, gfx.ChromaticShockwave() ? 1.0f : 0.0f);
+        setF(fl.enrage, fx.enrage);
+        setF(fl.hurt, fx.hurt);
+        setF(fl.grade, 1.0f);
+        // finalSrcRec luon co chieu cao AM (lat render texture) -> fragTexCoord.y nguoc chieu Y game
+        setF(fl.flipY, finalSrcRec.height < 0.0f ? 1.0f : 0.0f);
 
-        BeginShaderMode(crtShader);
+        BeginShaderMode(finalShader);
             DrawTexturePro(finalSource->texture, finalSrcRec, destRec, { 0.0f, 0.0f }, 0.0f, WHITE);
         EndShaderMode();
     } else {

@@ -289,7 +289,9 @@ dựng 2 cảnh cố định (`--scene=combat|boss`), chụp ảnh sau post-proc
 cùng một lần chạy máy** (build commit gốc vào `git worktree` riêng, chạy base/new lần lượt 3 lần):
 container có thể khởi động lại trên phần cứng khác giữa 2 phiên, số đo của phiên trước KHÔNG còn
 là mốc (đã gặp: cùng 1 binary, mốc cảnh boss đổi từ ~17,0 sang ~17,9 ms sau khi container khởi
-động lại, và độ dao động giữa các lần chạy tăng từ <3% lên ~10%).
+động lại, và độ dao động giữa các lần chạy tăng từ <3% lên ~10%). Khi nhiễu cao: **ít nhất 8 lần
+mỗi bên, so TRUNG VỊ và MIN**, không so trung bình 3-5 lần - đã từng kết luận "Kawase nhanh hơn
+Gauss 5%" từ trung bình 5 lần, đo lại 8 lần thì thực ra CHẬM hơn 5%.
 
 ## Đối chiếu tài liệu với code thật
 

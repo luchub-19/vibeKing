@@ -37,8 +37,10 @@ struct GraphicsSettings {
     // Low tat bloom: pass dat nhat (3 lan ve full-texture), la thu dau tien bo khi may yeu.
     bool BloomEnabled() const { return quality != GraphicsQuality::Low; }
     // So muc thu nho Dual Kawase sau buoc trich (1/2 man hinh). Medium 1 muc: quang ~ bang Gauss
-    // cu (so anh) va nhanh hon ~5% (A/B llvmpipe). 2 muc ban dau CHAM hon Gauss ~8% tren renderer
-    // CPU - moi pass them = 1 lan doi render target, ton hon khoan bang thong tiet kiem duoc.
+    // cu (so anh). DINH CHINH: commit dua Kawase vao ghi "nhanh hon Gauss ~5%" - SAI, do 5 lan
+    // trung binh bi vai lan chay nhieu cua ban goc keo lech. Do lai 8 lan xen ke lay trung vi:
+    // tren llvmpipe Kawase 1 muc CHAM hon Gauss ~4% (20.1 vs 19.1 ms), 2 muc cham hon ~8%. Giu
+    // Kawase vi ly do GPU (bang thong ~7% Gauss - ARM SIGGRAPH 2015), CHUA do duoc tren iGPU that.
     // High 3 muc: quang rong gap 4 - danh cho may du suc.
     int BloomLevels() const { return quality == GraphicsQuality::High ? 3 : 1; }
 
@@ -53,6 +55,12 @@ struct GraphicsSettings {
 
     // Tinh van (Nebula): Low 0 lop (bo ca shader lan texture), Medium 1, High 2 lop parallax.
     int NebulaLayers() const { return quality == GraphicsQuality::Low ? 0 : (quality == GraphicsQuality::High ? 2 : 1); }
+
+    // Pass cuoi (final.fs, GD 3): so song xung kich toi da gui len shader, tach RGB o mep song, va
+    // do cong man hinh. CRT cong la thanh phan cua CRT: tat CRT thi khong cong du o High.
+    int ShockwaveMax() const { return quality == GraphicsQuality::Low ? 0 : (quality == GraphicsQuality::High ? 8 : 4); }
+    bool ChromaticShockwave() const { return quality == GraphicsQuality::High; }
+    float BarrelAmount() const { return (quality == GraphicsQuality::High && crtEnabled) ? 0.06f : 0.0f; }
 
     float ShakeScale() const { return (float)shakePercent / 100.0f; }
 

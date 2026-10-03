@@ -222,7 +222,8 @@ nâng cấp thành hàng đợi có timestamp — chưa cần ở quy mô hiện
 | `warp_grid.h/.cpp` | `WarpGrid` — lưới neon lò xo nền (GĐ 1); mô phỏng thuần CPU (test headless), vụ nổ đẩy qua `ProcessEvents()`; `CalmFactor()` = luật R2 | — |
 | `nebula.h/.cpp` | `Nebula` — tinh vân fbm (`assets/shaders/nebula.fs`) nướng 1 lần/chương ra texture rồi cuộn; Init/Shutdown tay trong `Run()` như `PostProcess` | — |
 | `draw_helpers.h` | Hàm vẽ dùng chung nhiều file (khiên lục giác `DrawHexShield`) | — |
-| `post_process.h/.cpp` | `PostProcess` — bloom + CRT áp lúc upscale `renderTarget`; pass nào chạy do `GraphicsSettings` quyết định MỖI FRAME; tự fallback về 1 `DrawTexturePro` nếu shader lỗi/tắt | — |
+| `post_process.h/.cpp` | `PostProcess` — bloom Dual Kawase + pass cuối hợp nhất `final.fs` (CRT/cong, sóng xung kích, chỉnh màu, khử bão hoà, viền enrage) lúc upscale `renderTarget`; pass nào chạy do `GraphicsSettings` quyết định MỖI FRAME; tự fallback về 1 `DrawTexturePro` nếu shader lỗi | — |
+| `post_fx.h` | `ShockwaveField` + `PostFxFrame` + `HurtDesaturation` — phần thuần của pass cuối (test headless) | — |
 | `localization.h` | `Loc::` — chuỗi hiển thị, 1 nguồn duy nhất cho RenderSystem và `GetRebindableActions()` | Không hardcode chuỗi UI rải rác trong `render_system.cpp` |
 | `palette.h` | `Palette::` — 1 nguồn duy nhất cho MỌI màu; thi hành luật LẠNH (nền + mọi loại địch) vs NÓNG (đạn, đe doạ tức thì, phần thưởng). Kèm `Lerp()`/`Shade()` để dẫn xuất sắc độ thay vì khai thêm hằng số | Không gọi thẳng hằng số màu của raylib (`PURPLE`, `RED`, `GREEN`...) ở bất kỳ đâu trong đường gameplay — thêm 1 tên vào `Palette::` |
 | `process_metrics.h` | Đọc RAM (RSS) thật từ `/proc/self/status` | — |

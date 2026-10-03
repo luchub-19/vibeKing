@@ -1,6 +1,7 @@
 #pragma once
 #include "raylib.h"
 #include "graphics_settings.h"
+#include "post_fx.h"
 
 // ==========================================
 // POST-PROCESS: Bloom (trich sang + blur 2 chieu + cong don) va CRT (scanline/vignette/
@@ -42,7 +43,8 @@ public:
     // `gfx` (trang GRAPHICS) quyet dinh MOI FRAME pass nao chay: doi preset/tat CRT co hieu
     // luc ngay, khong can khoi dong lai. Init() load san moi thu Config cho phep bat ke preset
     // hien tai, de bat lai Bloom giua chung khong phai load shader luc dang choi.
-    void Render(const RenderTexture2D& source, Rectangle srcRec, Rectangle destRec, const GraphicsSettings& gfx);
+    void Render(const RenderTexture2D& source, Rectangle srcRec, Rectangle destRec, const GraphicsSettings& gfx,
+                const PostFxFrame& fx);
 
 private:
     // Muc 0 = anh vung sang o 1/BLOOM_DOWNSAMPLE do phan giai; muc i+1 = nua muc i. Dual Kawase
@@ -53,15 +55,16 @@ private:
     Shader bloomExtractShader{};
     Shader kawaseDownShader{};
     Shader kawaseUpShader{};
-    Shader crtShader{};
+    Shader finalShader{}; // assets/shaders/final.fs - CRT + song xung kich + chinh mau, 1 pass
 
     // Vi tri uniform "dong" (doi giua cac lan goi Render()) - cache lai 1 lan trong Init(),
     // tranh GetShaderLocation() (do chuoi ten) moi frame.
     int kawaseDownHalfpixelLoc = -1;
     int kawaseUpHalfpixelLoc = -1;
-    int crtTimeLoc = -1;
-    int crtResolutionLoc = -1;
-    int crtFlickerLoc = -1; // Doi theo GraphicsSettings::reduceFlashing - set moi frame
+    struct FinalLocs {
+        int resolution = -1, gameSize = -1, time = -1, scanline = -1, vignette = -1, flicker = -1;
+        int barrel = -1, waves = -1, waveCount = -1, chromatic = -1, enrage = -1, hurt = -1, grade = -1, flipY = -1;
+    } fl;
 
     RenderTexture2D bloomLevels[BLOOM_MAX_LEVELS]{};
 
@@ -70,5 +73,5 @@ private:
     RenderTexture2D compositeTex{};
 
     bool bloomReady = false; // true neu CA shader lan render texture cua Bloom deu load thanh cong
-    bool crtReady = false;   // true neu shader CRT load thanh cong
+    bool finalReady = false; // true neu final.fs load thanh cong - khong thi ve thang (khong hieu ung nao)
 };

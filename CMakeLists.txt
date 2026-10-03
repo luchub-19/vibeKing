@@ -109,6 +109,7 @@ if(BUILD_TESTS)
         tests/test_particles.cpp
         tests/test_screen_shake.cpp
         tests/test_warp_grid.cpp
+        tests/test_post_fx.cpp
         src/achievements.cpp
         src/atomic_file.cpp
         src/leaderboard.cpp

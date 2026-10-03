@@ -922,3 +922,52 @@ TEST_CASE("warpBoostTimer theo WAVE: wave boss bat warp, wave thuong tat (ca nha
     GTA::CallInitLevel(gm, false);
     REQUIRE(GTA::WarpBoostTimer(gm) == Approx(0.0f)); // khong "mang" warp sang wave thuong
 }
+
+TEST_CASE("ProcessEvents: vu no them song xung kich, player mat mang -> khu bao hoa", "[game_manager][post_fx][vfx]") {
+    GameManager gm;
+    QuarantinePersistence(gm);
+    REQUIRE(GTA::CallBuildPostFxFrame(gm).waveCount == 0);
+    REQUIRE(GTA::CallBuildPostFxFrame(gm).hurt == Approx(0.0f));
+
+    auto& q = GTA::PendingEvents(gm);
+    q.clear();
+    GameEvent boom;
+    boom.position = { 300.0f, 200.0f };
+    boom.explosion = ExplosionSize::Small;
+    GameEvent hurt;
+    hurt.playerHurt = true;
+    q.push_back(boom);
+    q.push_back(hurt);
+    GTA::CallProcessEvents(gm);
+
+    PostFxFrame fx = GTA::CallBuildPostFxFrame(gm);
+    REQUIRE(fx.waveCount == 1);
+    REQUIRE(fx.waves[0] == Approx(300.0f));
+    REQUIRE(fx.hurt == Approx(1.0f));
+
+    // Song + dong ho la trang thai THEO WAVE: sang wave moi phai sach
+    GTA::CallInitLevel(gm, false);
+    fx = GTA::CallBuildPostFxFrame(gm);
+    REQUIRE(fx.waveCount == 0);
+    REQUIRE(fx.hurt == Approx(0.0f));
+}
+
+TEST_CASE("BuildPostFxFrame: vien do enrage theo BossStage, chi khi dang danh", "[game_manager][post_fx][vfx][boss]") {
+    GameManager gm;
+    QuarantinePersistence(gm);
+    GTA::SetWave(gm, Config::BOSS_WAVE_INTERVAL);
+    GTA::CallInitLevel(gm, false);
+    REQUIRE(GTA::BossPool(gm).Size() == 1);
+    Boss& b = GTA::BossPool(gm)[0];
+    GTA::SetState(gm, GameState::PLAYING);
+
+    b.hp = b.maxHp;
+    REQUIRE(GTA::CallBuildPostFxFrame(gm).enrage == Approx(0.0f));
+    b.hp = b.maxHp / 2;
+    REQUIRE(GTA::CallBuildPostFxFrame(gm).enrage == Approx(0.5f));
+    b.hp = b.maxHp / 5;
+    REQUIRE(GTA::CallBuildPostFxFrame(gm).enrage == Approx(1.0f));
+
+    GTA::SetState(gm, GameState::WAVE_CLEAR); // man tong ket: khong keo vien do sang
+    REQUIRE(GTA::CallBuildPostFxFrame(gm).enrage == Approx(0.0f));
+}
