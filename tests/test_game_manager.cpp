@@ -851,3 +851,34 @@ TEST_CASE("Preset do hoa: Low lam MOI Burst() di qua ProcessEvents chi con nua s
     REQUIRE(particlesFromOneEvent(GraphicsQuality::Medium) == 10);
     REQUIRE(particlesFromOneEvent(GraphicsQuality::Low) == 5);
 }
+
+TEST_CASE("ProcessEvents: event khai bao explosion -> sinh vu no nhieu lop, khong can particleCount", "[game_manager][vfx]") {
+    // particleCount = 0 co y: tia lua cu khong sinh gi, nen moi hat dem duoc la tu Explosion().
+    // Neu ProcessEvents() bo qua ev.explosion, ca 2 REQUIRE duoi deu do (0 hat).
+    GameManager gm;
+    QuarantinePersistence(gm);
+    GTA::ParticlesRef(gm).Reset();
+    auto& q = GTA::PendingEvents(gm);
+    q.clear();
+    GameEvent ev;
+    ev.position = { 300.0f, 200.0f };
+    ev.explosion = ExplosionSize::Small;
+    q.push_back(ev);
+    GTA::CallProcessEvents(gm);
+    REQUIRE(GTA::ParticlesRef(gm).GetActiveCount() == 7);
+}
+
+TEST_CASE("Hit-stop dong bang gameplay nhung hieu ung van chay tiep", "[game_manager][vfx][hitstop]") {
+    // Hat song 0.05s, hit-stop 0.5s, 1 frame 0.06s: neu particles.Update() van nam sau lenh
+    // `return` cua hit-stop (hanh vi cu) thi hat con nguyen va test do.
+    GameManager gm;
+    QuarantinePersistence(gm);
+    GTA::ParticlesRef(gm).Reset();
+    GTA::ParticlesRef(gm).Spawn({ 300.0f, 200.0f }, { 0.0f, 0.0f }, 0.05f, WHITE);
+    GTA::HitStopRef(gm).Trigger(0.5f);
+
+    GTA::CallUpdatePlaying(gm, 0.06f);
+
+    REQUIRE(GTA::HitStopRef(gm).IsActive());              // van dang dung hinh
+    REQUIRE(GTA::ParticlesRef(gm).GetActiveCount() == 0); // nhung hat da het life
+}

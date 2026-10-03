@@ -66,6 +66,12 @@ constexpr Color PowerUp      = { 255, 201, 66, 255 };  // #FFC942
 constexpr Color Ufo          = { 255, 176, 58, 255 };  // #FFB03A - muc tieu thuong diem, khong phai de doa
 constexpr Color ScoreText    = { 255, 216, 77, 255 };  // #FFD84D - popup diem/combo
 
+// --- DAI NONG: loi vu no (ParticlePool::Explosion) ---
+// Trang ngả vang, chi song ~0.1s. Day la ngoai le CO Y cua luat lanh/nong: vu no dich thuong
+// van la "su kien" can mat bat ngay, nhung qua ngan de bi nham voi dan/phan thuong - phan con
+// lai cua vu no (vong song, manh vo) giu mau LANH cua chinh con dich.
+constexpr Color ExplosionCore = { 255, 246, 224, 255 }; // #FFF6E0
+
 // --- PLAYER ---
 constexpr Color PlayerShip   = { 124, 255, 178, 255 }; // #7CFFB2 - xanh bac ha sang; mau DUY NHAT nay khong thuoc dai nao khac -> mat luon tim thay tau minh
 constexpr Color PlayerThrust = { 255, 150, 60, 255 };  // #FF963C - lua day, dai nong (nhung la nguon sang cua chinh nguoi choi)

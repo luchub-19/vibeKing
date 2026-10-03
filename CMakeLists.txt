@@ -104,6 +104,7 @@ if(BUILD_TESTS)
         tests/test_parallax.cpp
         tests/test_achievements.cpp
         tests/test_launch_options.cpp
+        tests/test_particles.cpp
         src/achievements.cpp
         src/atomic_file.cpp
         src/leaderboard.cpp

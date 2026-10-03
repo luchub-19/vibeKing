@@ -2,6 +2,7 @@
 #include "raylib.h"
 #include <cstdint>
 #include "powerup.h"
+#include "particle_pool.h" // ExplosionSize
 
 // ==========================================
 // GAME EVENT QUEUE
@@ -55,6 +56,11 @@ struct GameEvent {
     // burst co the CONG DON (vd Boss: burst mau shield/damage BINH THUONG + flash trang
     // rieng chong len nhau), khong phai lam 1 trong 2.
     bool flashOnHit = false;
+
+    // Vu no nhieu lop (ParticlePool::Explosion) - CheckCollisions() chi khai bao "o day co no
+    // co nao", ProcessEvents() moi sinh hat (dung luat tach phat hien/hieu ung cua file nay).
+    // Doc lap voi particleCount (tia lua): 1 event co the co ca 2.
+    ExplosionSize explosion = ExplosionSize::None;
 
     // WARDEN (Phase 1a - Enemy & Item Revolution, Nguoi 1): >0 khi day la don HA GUC 1
     // WardenEnemy - bao ProcessEvents() sinh them tung nay BasicEnemy yeu hon tai `position`

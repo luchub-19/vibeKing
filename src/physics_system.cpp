@@ -19,6 +19,7 @@ static GameEvent MakeEnemyKilledEvent(Vector2 position, Color color, int scoreVa
     ev.shakeIntensity = 4.0f;
     ev.scoreValue = scoreValue;
     ev.dropPowerUp = true;
+    ev.explosion = ExplosionSize::Small;
     return ev;
 }
 
@@ -397,6 +398,7 @@ void PhysicsSystem::UpdateKamikaze(GameManager& gm, float dt) {
             ev.position = EnemyCenter(k.rect);
             ev.color = Palette::Kamikaze;
             ev.particleCount = 16;
+            ev.explosion = ExplosionSize::Small;
             ev.sfx = SfxType::Explosion;
             ev.shakeDuration = 0.2f;
             ev.shakeIntensity = 7.0f;
@@ -1002,6 +1004,7 @@ void PhysicsSystem::CheckCollisions(GameManager& gm) {
                 ev.position = gm.player.GetCenter();
                 ev.color = Palette::EnemyBullet;
                 ev.particleCount = 18;
+                ev.explosion = ExplosionSize::Small; // Vong song do quanh tau: "MINH vua trung" phai to nhat man hinh
                 ev.sfx = SfxType::Hit;
                 ev.shakeDuration = 0.22f;
                 ev.shakeIntensity = 8.0f;
@@ -1025,6 +1028,7 @@ void PhysicsSystem::CheckCollisions(GameManager& gm) {
                 ev.position = EnemyCenter(gm.ufoRect);
                 ev.color = Palette::Ufo;
                 ev.particleCount = 20;
+                ev.explosion = ExplosionSize::Small;
                 ev.sfx = SfxType::UfoHit;
                 ev.shakeDuration = 0.18f;
                 ev.shakeIntensity = 6.0f;

@@ -665,6 +665,13 @@ void GameManager::UpdateKeybindScreen() {
 // ==========================================
 void GameManager::UpdatePlaying(float dt) {
     hitStop.Update(dt);
+    // HIEU UNG VAN CHAY TRONG HIT-STOP (nguon KO - Jubei's Lab: "히트스탑 상태에서 이펙트가
+    // 움직여야 한다"): chi THE GIOI GAME dung hinh, con vu no/rung/chu diem phai tiep tuc
+    // chuyen dong - neu khong, khoanh khac dang le "dam" nhat lai thanh 1 tam anh tinh.
+    // Truoc day 3 dong nay nam SAU lenh return ben duoi nen bi dong bang cung luon.
+    screenShake.Update(dt);
+    particles.Update(dt);
+    floatingTexts.Update(dt);
     if (hitStop.IsActive()) return; // Dong bang toan bo logic ben duoi - Run() ngoai vong lap van goi Draw() binh thuong nen hinh khong dung, chi gameplay dung khung trong choc lat
 
     MenuInput menuInput = InputSystem::PollMenu(settings);
@@ -681,9 +688,6 @@ void GameManager::UpdatePlaying(float dt) {
     if (hintTimer > 0.0f) hintTimer -= dt;             // Goi y phim tu tat sau Config::HUD_HINT_DURATION giay
     if (waveBannerTimer > 0.0f) waveBannerTimer -= dt; // Banner dau wave tu tat sau Config::WAVE_BANNER_DURATION giay
 
-    screenShake.Update(dt);
-    particles.Update(dt);
-    floatingTexts.Update(dt);
     powerUps.Update(dt, Config::POWERUP_FALL_SPEED, (float)Config::SCREEN_H);
     PhysicsSystem::UpdateUfo(*this, dt);
     PhysicsSystem::UpdateKamikaze(*this, dt);
@@ -731,6 +735,7 @@ void GameManager::UpdatePlaying(float dt) {
         bossPool.Destroy(0);
         audio.PlayBossDefeat();
         particles.Burst(bossCenter, 40, Palette::BossEnrage2);
+        particles.Explosion(bossCenter, Palette::Boss, ExplosionSize::Large);
         screenShake.Trigger(0.4f, 12.0f);
         hitStop.Trigger(0.1f); // Nang do hon dong bang thuong (0.04f) - xem physics_system.cpp
         ApplyComboAndScore(Config::BOSS_SCORE_VALUE, bossCenter);
@@ -816,6 +821,7 @@ void GameManager::ProcessEvents() {
         // moi vong la re va cat dut hoan toan moi rui ro dangling.
         const GameEvent ev = pendingEvents[i];
         if (ev.particleCount > 0) particles.Burst(ev.position, ev.particleCount, ev.color);
+        particles.Explosion(ev.position, ev.color, ev.explosion); // No-op khi ExplosionSize::None
         // HIT-FLASH (Nguoi 3 - Audio & UI): cum particle TRANG rieng, CONG DON voi burst
         // mau thuong o tren neu co (khong thay the) - bao "chi trung", tach voi burst mau
         // dang bao "loai gi/khien hay khong" (xem events.h + physics_system.cpp).
@@ -926,6 +932,19 @@ void GameManager::SetupShowcase(ShowcaseScene scene) {
         playerBullets.Fire(cx, 500.0f - (float)i * 55.0f, { 0.0f, -Config::BULLET_SPEED });
     }
     particles.Update(0.12f); // Cho manh vo toa ra 1 chut - Burst() spawn tat ca chong tai 1 diem
+
+    // Vu no nhieu lop (GD 2) sinh SAU buoc tua tren va chi tua them 0.05s: loi flash chi song
+    // ~0.1s, tua chung 0.12s thi anh chup khong bao gio thay no. 0.05s = loi con sang, vong
+    // song da no ra ~1/3, manh vo vua tach khoi tam.
+    if (scene == ShowcaseScene::Combat) {
+        particles.Explosion({ 160.0f, 200.0f }, Palette::BasicA, ExplosionSize::Small);
+        particles.Explosion({ 620.0f, 230.0f }, Palette::Kamikaze, ExplosionSize::Small);
+    } else if (bossPool.Size() > 0) {
+        // Xem truoc vu no co Large (boss guc) canh con boss con song
+        Vector2 c = EnemyCenter(bossPool[0].rect);
+        particles.Explosion({ c.x + 150.0f, c.y + 170.0f }, Palette::Boss, ExplosionSize::Large);
+    }
+    particles.Update(0.05f);
     showcaseFrozen = true;
 }
 

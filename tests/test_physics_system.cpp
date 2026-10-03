@@ -53,6 +53,7 @@ TEST_CASE("CheckCollisions: dan player ha guc Basic enemy sau dung 1 phat, dan b
     REQUIRE(events[0].scoreValue == BasicEnemy::SCORE_VALUE);
     REQUIRE(events[0].dropPowerUp == true);
     REQUIRE(events[0].sfx == SfxType::Explosion);
+    REQUIRE(events[0].explosion == ExplosionSize::Small); // GD 2: ha guc = vu no nhieu lop
 }
 
 // ==========================================
