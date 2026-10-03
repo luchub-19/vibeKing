@@ -53,6 +53,7 @@ set(SOURCES
     src/settings.cpp
     src/sprites.cpp
     src/meta_progress.cpp
+    src/nebula.cpp
     src/wave_generator.cpp
     src/warp_grid.cpp
 )
@@ -128,6 +129,7 @@ if(BUILD_TESTS)
         src/parallax.cpp
         src/post_process.cpp
         src/warp_grid.cpp
+        src/nebula.cpp
     )
     target_include_directories(unit_tests PRIVATE src tests)
     target_link_libraries(unit_tests raylib)

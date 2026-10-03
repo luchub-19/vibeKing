@@ -22,6 +22,7 @@
 #include "sprites.h"
 #include "parallax.h"
 #include "warp_grid.h"
+#include "nebula.h"
 #include "post_process.h"
 #include "events.h"
 #include "localization.h"
@@ -130,7 +131,8 @@ private:
     // WARP vao wave boss (GD 1): giay con lai cua hieu ung sao tang toc - xem Parallax::
     // WarpSpeedMul. Field THEO WAVE: gan o CA 2 nhanh InitLevel (boss wave -> day, con lai -> 0).
     float warpBoostTimer = 0.0f;
-    WarpGrid warpGrid;       // Luoi neon lo xo duoi moi thu (GD 1) - bi vu no day lom, xem warp_grid.h
+    WarpGrid warpGrid;
+    Nebula nebula;           // Tinh van nen nuong san (GD 1) - Init/Shutdown trong Run(), xem nebula.h       // Luoi neon lo xo duoi moi thu (GD 1) - bi vu no day lom, xem warp_grid.h
     Parallax background;     // Starfield nhieu lop, ve o MOI man hinh (Menu/Playing/EndScreen) truoc switch-case state - xem parallax.h
     LevelGridConfig levelGrid; // Doc tu level.cfg luc Run() - thay cho hardcode r<4,c<10
 

@@ -285,7 +285,11 @@ Trong container không có màn hình (cloud/CI): `scripts/capture_showcase.sh [
 dựng 2 cảnh cố định (`--scene=combat|boss`), chụp ảnh sau post-process và đo frame time
 (`--bench`) - chỉ cần Xvfb. Đó là cách chuẩn để có ảnh trước/sau cho mọi thay đổi khâu vẽ (xem
 `src/launch_options.h`, `docs/GRAPHICS_UPGRADE_PLAN.md`). Số liệu bench dưới Xvfb là llvmpipe
-(render bằng CPU): chỉ so tương đối, không phải frame time trên GPU thật.
+(render bằng CPU): chỉ so tương đối, không phải frame time trên GPU thật. **Đo A/B XEN KẼ trên
+cùng một lần chạy máy** (build commit gốc vào `git worktree` riêng, chạy base/new lần lượt 3 lần):
+container có thể khởi động lại trên phần cứng khác giữa 2 phiên, số đo của phiên trước KHÔNG còn
+là mốc (đã gặp: cùng 1 binary, mốc cảnh boss đổi từ ~17,0 sang ~17,9 ms sau khi container khởi
+động lại, và độ dao động giữa các lần chạy tăng từ <3% lên ~10%).
 
 ## Đối chiếu tài liệu với code thật
 

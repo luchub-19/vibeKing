@@ -46,7 +46,10 @@ struct GraphicsSettings {
     bool GridEnabled() const { return quality != GraphicsQuality::Low; }
     float GridCellSize() const { return quality == GraphicsQuality::High ? 25.0f : 32.0f; }
 
-    float ShakeScale() const { return (float)shakePercent / 100.0f; }
+    // Tinh van (Nebula): Low 0 lop (bo ca shader lan texture), Medium 1, High 2 lop parallax.
+    int NebulaLayers() const { return quality == GraphicsQuality::Low ? 0 : (quality == GraphicsQuality::High ? 2 : 1); }
+
+        float ShakeScale() const { return (float)shakePercent / 100.0f; }
 
     float CrtFlickerScale() const { return reduceFlashing ? 0.0f : 1.0f; }
 

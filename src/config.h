@@ -498,4 +498,5 @@ namespace Config {
     inline const char* BloomExtractShaderPath() { return "assets/shaders/bloom_extract.fs"; }
     inline const char* BlurShaderPath()         { return "assets/shaders/blur.fs"; }
     inline const char* CrtShaderPath()          { return "assets/shaders/crt.fs"; }
+    inline const char* NebulaShaderPath()       { return "assets/shaders/nebula.fs"; }
 }

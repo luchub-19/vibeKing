@@ -73,6 +73,18 @@ constexpr Color ScoreText    = { 255, 216, 77, 255 };  // #FFD84D - popup diem/c
 constexpr Color GridLine      = { 40, 46, 104, 255 };  // #282E68
 constexpr Color GridLineMajor = { 64, 74, 150, 255 };  // #404A96 - moi 4 duong 1 duong
 
+// --- TINH VAN (Nebula, GD 1) - 3 "chuong", moi chuong 5 wave, quay vong. Dai LANH, dong gop
+// sang thap: tinh van la phong nen, khong phai vat the - sang hon la canh tranh voi dich (R2) va
+// vuot nguong bloom thanh 1 lop suong. 2 mau/chuong, shader tron theo nhieu.
+// Luma mau ~0.25 x do dam toi da 0.55 -> dong gop ~0.14 len man hinh: thay ro, van xa nguong
+// bloom. Ban dau luma ~0.13 -> dong gop ~0.07, anh chup gan nhu khong thay tinh van.
+constexpr Color NebulaChapter0A = { 100, 50, 180, 255 };  // tim
+constexpr Color NebulaChapter0B = { 40, 70, 190, 255 };
+constexpr Color NebulaChapter1A = { 24, 130, 150, 255 };  // xanh ngoc
+constexpr Color NebulaChapter1B = { 52, 64, 180, 255 };
+constexpr Color NebulaChapter2A = { 36, 70, 196, 255 };   // xanh tham
+constexpr Color NebulaChapter2B = { 116, 48, 180, 255 };
+
 // --- RAO CHAN (khien) - dung CHUNG cho khien power-up cua player VA khien Sentinel ---
 // 1 mau = 1 nghia: "dan khong xuyen qua cho nay", bat ke ben nao dang duoc bao ve. Truoc day
 // ca 2 la SKYBLUE goi thang (vi pham luat Palette::) va ve 2 kieu khac nhau (khung vuong vs

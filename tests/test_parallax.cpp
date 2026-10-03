@@ -67,3 +67,14 @@ TEST_CASE("Parallax::WarpSpeedMul: khong warp = 1, len dinh roi ve lai 1, khong 
         prev = m;
     }
 }
+
+#include "nebula.h"
+
+TEST_CASE("Nebula::ChapterForWave: moi 5 wave 1 chuong mau, quay vong 3 chuong, wave boss thuoc chuong cua no", "[parallax][nebula][vfx]") {
+    REQUIRE(Nebula::ChapterForWave(1) == 0);
+    REQUIRE(Nebula::ChapterForWave(5) == 0);   // boss wave 5 van la chuong dau - doi mau SAU boss, khong phai giua
+    REQUIRE(Nebula::ChapterForWave(6) == 1);
+    REQUIRE(Nebula::ChapterForWave(11) == 2);
+    REQUIRE(Nebula::ChapterForWave(16) == 0);  // quay vong
+    REQUIRE(Nebula::ChapterForWave(0) == 0);   // phong ve
+}

@@ -204,3 +204,17 @@ TEST_CASE("ParticlePool::ScaledCount: giam theo preset nhung khong bao gio xoa m
     REQUIRE(ParticlePool<8>::ScaledCount(0, 0.5f) == 0);
     REQUIRE(ParticlePool<8>::ScaledCount(7, 1.0f) == 7);
 }
+
+TEST_CASE("GraphicsSettings: lop nen theo preset - Low tat luoi + tinh van, High luoi day hon + 2 lop tinh van", "[graphics][vfx]") {
+    GraphicsSettings g;
+    g.quality = GraphicsQuality::Low;
+    REQUIRE_FALSE(g.GridEnabled());
+    REQUIRE(g.NebulaLayers() == 0);
+    g.quality = GraphicsQuality::Medium;
+    REQUIRE(g.GridEnabled());
+    REQUIRE(g.NebulaLayers() == 1);
+    const float mediumCell = g.GridCellSize();
+    g.quality = GraphicsQuality::High;
+    REQUIRE(g.NebulaLayers() == 2);
+    REQUIRE(g.GridCellSize() < mediumCell);
+}

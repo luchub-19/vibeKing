@@ -1,6 +1,6 @@
 # Kế hoạch nâng cấp đồ họa toàn diện - "Neon-vector arcade"
 
-> Trạng thái: **ĐÃ DUYỆT** (2026-10-03). Xong: GĐ 0, hạ tầng settings (mục 4), phần chính GĐ 2. Tiếp theo: GĐ 1 - nền & lưới.
+> Trạng thái: **ĐÃ DUYỆT** (2026-10-03). Xong: GĐ 0, hạ tầng settings (mục 4), phần chính GĐ 2, GĐ 1. Tiếp theo: GĐ 3 - post-process/shader.
 > Ảnh baseline chụp headless bằng Xvfb (thư mục `screenshots/` nằm trong `.gitignore`, ảnh trước/sau gửi kèm PR thay vì commit).
 > Nhánh: `claude/upgrade-vibking-graphics-cwhbn3`. Ngày lập: 2026-10-03.
 
@@ -195,7 +195,34 @@ không tụt). Bloom là gần một nửa chi phí frame trên renderer CPU - l
 - Vòng đạn boss đè lên thanh HP boss ở HUD -> HUD cần nền mờ/viền tách lớp ở GĐ 5.
 - Vòng khiên Sentinel vẽ 1 nét `SKYBLUE` mảnh, khó thấy trên nền tối -> GĐ 2 mục 3 (khiên lục giác).
 
-### GĐ 1 - Nền & parallax "sống"
+### GĐ 1 - Nền & parallax "sống" - **XONG**
+
+**Đã làm** (3 commit):
+- `WarpGrid` (warp_grid.h/.cpp): lưới khối lượng-lò xo, lò xo chỉ kéo, viền neo, bước cố định
+  60 Hz. Nổ Small/Large + đạn player đẩy lưới. Hiện ở MỌI màn hình (Q1 mặc định), dừng khi PAUSE.
+  Không lõm theo đội hình (Q1 mặc định - tránh nhiễu nền).
+- Sao: lớp gần thành vệt theo tốc độ, lớp xa lấp lánh (tắt khi `reduceFlashing`); **warp** khi
+  vào wave boss (x8 rồi phanh trong 1,6 s, chỉ đếm khi đang PLAYING ngoài fade).
+- `Nebula` (nebula.h/.cpp + `assets/shaders/nebula.fs`): fbm domain-warp **tuần hoàn**, nướng
+  1 lần/chương (5 wave) ra texture 400x300, mỗi frame chỉ cuộn. 3 chương màu lạnh quay vòng.
+- Luật R2: `WarpGrid::CalmFactor()` dịu cả lưới lẫn tinh vân còn 40% khi ≥ 40 đạn địch.
+- Test: `[warp_grid]` (8), `[nebula]`, `WarpSpeedMul`, preset nền, `warpBoostTimer` theo wave.
+
+**Khác đề xuất, có lý do:**
+- Preset Low **tắt hẳn** lưới (đề xuất: "lưới tĩnh") - đo: vẽ ~1000-1600 đoạn thẳng vẫn tốn ngang
+  1 pass hậu kỳ trên renderer CPU; máy yếu cần bỏ, không cần một lưới không chuyển động.
+- Mật độ: Medium 32 px, High 25 px (đề xuất 32x24 điểm / 48x36 điểm). Medium 25 px ban đầu: +25%.
+- Hiệu ứng "nền sáng theo chương" ở boss wave: chưa làm - boss dùng màu chương của nó.
+
+**Hiệu năng - VƯỢT ngưỡng +15% đã đặt, cần bạn quyết:** bench A/B xen kẽ trên CÙNG máy
+(container đã khởi động lại giữa chừng nên không so được với số cũ): cảnh boss Medium
+**17,9 -> 21,5 ms (+20%)**; trong đó lưới + sao ~14%, tinh vân ~6%. High 23,1 ms, Low 11,6 ms.
+Đã thử và bỏ 2 tối ưu: `DrawLineV` (GL_LINES) chậm hơn `DrawLineEx`; nướng tinh vân đục rồi
+tắt blending -> CHẬM hơn (24,3 ms) vì đổi trạng thái pipeline. Phần lớn chi phí là tô pixel trên
+llvmpipe (render bằng CPU) - trên GPU thật, 1 texture toàn màn hình + ~1000 đoạn thẳng là không
+đáng kể, nhưng chưa đo được trên iGPU thật (`--scene=boss --bench=600` trên máy bạn sẽ trả lời).
+
+**Đề xuất gốc:**
 1. **Lưới neon lò xo kiểu Geometry Wars** (`src/warp_grid.h/.cpp`): mô phỏng khối lượng-lò-xo
    bước cố định 60 Hz, viền neo, lò xo chỉ kéo. Hàm `ApplyExplosiveForce(pos, force, radius)`
    gọi từ `ProcessEvents()` khi có nổ (đúng luật event-queue: chỉ đọc event, không clear),

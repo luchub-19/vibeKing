@@ -1067,6 +1067,7 @@ void GameManager::Run(const LaunchOptions& opts) {
         return;
     }
     SetTextureFilter(renderTarget.texture, TEXTURE_FILTER_BILINEAR);
+    nebula.Init();      // Tinh van - xem nebula.h (tu tat neu thieu shader)
     postProcess.Init(); // Bloom/CRT (Config::BLOOM_ENABLED/CRT_ENABLED) - xem post_process.h
     background.Init();  // Starfield - xem parallax.h
 
@@ -1110,6 +1111,9 @@ void GameManager::Run(const LaunchOptions& opts) {
         // "lao vao tran" dien ra sau man den chuyen canh va nguoi choi chi thay doan phanh.
         if (!frozen && state == GameState::PLAYING && warpBoostTimer > 0.0f) warpBoostTimer -= dt;
         background.Update(dt, Parallax::WarpSpeedMul(warpBoostTimer));
+        nebula.Update(dt * Parallax::WarpSpeedMul(warpBoostTimer));
+        // Chuong mau theo wave (menu = chuong 0). EnsureBaked chi nuong khi (chuong, so lop) doi.
+        nebula.EnsureBaked(state == GameState::MENU ? 0 : Nebula::ChapterForWave(wave), settings.graphics.NebulaLayers());
 
         if (!frozen) {
             switch (state) {
@@ -1130,8 +1134,10 @@ void GameManager::Run(const LaunchOptions& opts) {
         BeginTextureMode(renderTarget);
         ClearBackground(Palette::Background);
 
+        const float calm = WarpGrid::CalmFactor((int)enemyBullets.GetActiveCount());
+        nebula.Draw(calm); // Duoi cung - sao, luoi, noi dung deu nam tren
         background.Draw(!settings.graphics.reduceFlashing); // Starfield - duoi cung MOI trang thai (Menu/Playing/EndScreen...), truoc noi dung tung state
-        if (settings.graphics.GridEnabled()) warpGrid.Draw(WarpGrid::CalmFactor((int)enemyBullets.GetActiveCount())); // Tren sao, duoi moi noi dung (luat R2)
+        if (settings.graphics.GridEnabled()) warpGrid.Draw(calm); // Tren sao, duoi moi noi dung (luat R2)
 
         switch (state) {
             case GameState::MENU: RenderSystem::DrawMenu(*this); break;
@@ -1216,6 +1222,7 @@ void GameManager::Run(const LaunchOptions& opts) {
     achievements.Flush();
 
     UnloadRenderTexture(renderTarget);
+    nebula.Shutdown();
     postProcess.Shutdown();
     if (gameFont.texture.id != GetFontDefault().texture.id) UnloadFont(gameFont); // Chi unload neu KHONG phai font fallback mac dinh cua raylib
     sprites.Unload();
