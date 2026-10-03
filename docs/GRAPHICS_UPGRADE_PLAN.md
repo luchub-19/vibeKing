@@ -1,6 +1,6 @@
 # Kế hoạch nâng cấp đồ họa toàn diện - "Neon-vector arcade"
 
-> Trạng thái: **ĐÃ DUYỆT** (2026-10-03). Xong: GĐ 0, hạ tầng settings đồ họa (mục 4). Tiếp theo: GĐ 2 - VFX chiến đấu.
+> Trạng thái: **ĐÃ DUYỆT** (2026-10-03). Xong: GĐ 0, hạ tầng settings (mục 4), phần chính GĐ 2. Tiếp theo: GĐ 1 - nền & lưới.
 > Ảnh baseline chụp headless bằng Xvfb (thư mục `screenshots/` nằm trong `.gitignore`, ảnh trước/sau gửi kèm PR thay vì commit).
 > Nhánh: `claude/upgrade-vibking-graphics-cwhbn3`. Ngày lập: 2026-10-03.
 
@@ -209,7 +209,32 @@ không tụt). Bloom là gần một nửa chi phí frame trên renderer CPU - l
    bằng pha riêng; khi boss xuất hiện tăng tốc cuộn trong 1 s ("warp"), cảm giác lao vào trận.
 4. Áp R2 (nền dịu khi đông đạn).
 
-### GĐ 2 - VFX chiến đấu ("đánh trúng phải sướng")
+### GĐ 2 - VFX chiến đấu ("đánh trúng phải sướng") - **PHẦN CHÍNH XONG**
+
+**Đã làm** (4 commit, mỗi cái có ảnh trước/sau từ `--scene`):
+- Đạn: lõi xoay theo hướng bay (sửa lỗi "que gãy" ở vòng đạn boss), sợi sáng giữa thân, quầng
+  additive vẽ PHÍA SAU; cả pool vẽ trong 1 khối blend (trước đây mỗi viên 1 lần đổi blend mode).
+  Thứ tự lớp mới theo R1 - lõi đạn địch trên mọi hiệu ứng.
+- Nổ nhiều lớp `ParticlePool::Explosion()`: Glow (lõi trắng-nóng ~0.1s) / Ring (sóng ease-out) /
+  Debris (xoay, có lực cản) + tia lửa cũ. Boss gục = Large (2 vòng lệch nhịp).
+  `GameEvent::explosion` - CheckCollisions chỉ khai báo, ProcessEvents mới sinh hạt.
+- Hit-stop: particle/rung/chữ điểm chạy tiếp trong lúc đóng băng (nguồn KO).
+- Tanky/Warden: vạch HP thay khung trắng; giật + bẹp khi trúng (chỉ hình vẽ).
+- Khiên lục giác CHUNG cho player và Sentinel (`Palette::ShieldBarrier`, `draw_helpers.h`).
+- Tàu: nghiêng theo hướng, giật lùi khi bắn; bất tử + `reduceFlashing` = mờ đều thay vì chớp.
+- Rung: mô hình trauma² + value noise tất định + xoay ≤1,5° quanh TÂM màn hình.
+- Test mới: `[vfx]`, `[shake]`, `[player][vfx]` - mỗi test đã thử làm hỏng code để chắc nó đỏ.
+
+**Chưa làm - dời lại** (không bị quên, ghi rõ ở đây):
+- Boss gục nổ dây chuyền 1,5 s; lớp "khói"; afterimage khi đổi hướng; khiên gợn khi trúng.
+- Đạn địch "thở" độ sáng; đạn Piercing đổi hình dạng (chữ ký riêng từng power-up).
+- Player chết: slow-motion + khử bão hoà -> cần pass shader, làm cùng GĐ 3.
+- Preset High 1,5x particle (pool 400 -> 800): chưa đổi, High vẫn = Medium.
+
+Bench (llvmpipe): combat 17,1 ms / boss 17,1 ms (GĐ 0: 15,2 / 16,5). Phần tăng chủ yếu vì cảnh
+trình diễn giờ có thêm 3 vụ nổ đứng yên; Medium vẫn dưới ngưỡng +15%.
+
+**Đề xuất gốc:**
 1. **Nổ nhiều lớp** theo mô hình 5 quá trình (nguồn ZH): lõi flash trắng-nóng 2-3 frame ->
    vòng sóng xung kích mở rộng ease-out -> tia lửa (Spark, giữ màu lạnh của địch) -> mảnh vỡ
    chậm, xoay, tồn tại lâu hơn -> "khói" là chấm mờ lớn tan dần. Particle thêm `Ring`,

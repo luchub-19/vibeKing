@@ -105,6 +105,7 @@ if(BUILD_TESTS)
         tests/test_achievements.cpp
         tests/test_launch_options.cpp
         tests/test_particles.cpp
+        tests/test_screen_shake.cpp
         src/achievements.cpp
         src/atomic_file.cpp
         src/leaderboard.cpp

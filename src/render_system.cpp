@@ -391,9 +391,14 @@ void RenderSystem::DrawPlaying(const GameManager& gm) {
     // Co do rung TAI DAY (diem DUY NHAT doc offset) thay vi o tung screenShake.Trigger(): moi
     // nguon rung hien tai va sau nay deu tu dong theo cai dat, ke ca muc 0% = dung yen han.
     const float shakeScale = gm.settings.graphics.ShakeScale();
-    cam.offset = { gm.screenShake.GetOffset().x * shakeScale, gm.screenShake.GetOffset().y * shakeScale };
-    cam.target = { 0, 0 };
-    cam.rotation = 0.0f;
+    // Xoay (screen_shake.h) phai quanh TAM man hinh: Camera2D xoay quanh `target` (dat tai
+    // `offset` tren man hinh). target={0,0} nhu cu thi khung hinh xoay quanh goc tren-trai -
+    // goc duoi-phai vang ra hang chuc px. Dat target = tam, offset = tam + rung.
+    const Vector2 screenCenter{ Config::SCREEN_W / 2.0f, Config::SCREEN_H / 2.0f };
+    cam.offset = { screenCenter.x + gm.screenShake.GetOffset().x * shakeScale,
+                   screenCenter.y + gm.screenShake.GetOffset().y * shakeScale };
+    cam.target = screenCenter;
+    cam.rotation = gm.screenShake.GetRotation() * shakeScale;
     cam.zoom = 1.0f;
 
     BeginMode2D(cam);
