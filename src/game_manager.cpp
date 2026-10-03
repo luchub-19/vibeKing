@@ -7,6 +7,8 @@
 #include "wave_generator.h"
 #include "upgrade_types.h"
 #include "palette.h"
+#include "rlgl.h"
+#include <cstdio>
 
 // ==========================================
 // TRANSITION (fade giua cac state)
@@ -829,7 +831,75 @@ void GameManager::ProcessEvents() {
 // ==========================================
 // MAIN LOOP
 // ==========================================
-void GameManager::Run() {
+void GameManager::SetupShowcase(ShowcaseScene scene) {
+    // Seed CO DINH truoc moi lan Spawn*/Burst() de doi hinh/vi tri Kamikaze/particle giong nhau
+    // giua cac lan chay -> anh "truoc" va "sau" 1 thay doi do hoa so duoc tren cung bo cuc.
+    // (Chi con lech rat nho do IdleWobble/Parallax doc GetTime() - xem launch_options.h.)
+    SetRandomSeed(1337);
+    InitLevel(true);
+    if (scene == ShowcaseScene::Boss) {
+        // Wave 10 = Sentinel (xoay vong boss, xem SpawnBoss) - loai duy nhat co vong khien de
+        // soi; InitLevel(false) giu nguyen "van" vua tao o tren, chi dung lai wave.
+        wave = 2 * Config::BOSS_WAVE_INTERVAL;
+        InitLevel(false);
+    }
+    state = GameState::PLAYING;
+    hintTimer = 0.0f;       // Goi y phim / banner wave che mat canh can soi
+    waveBannerTimer = 0.0f;
+
+    const float cx = Config::SCREEN_W / 2.0f;
+    if (scene == ShowcaseScene::Combat) {
+        // Dich bi thuong -> hien vien "da an don" (chi bao can soi khi doi phong cach ve)
+        if (tankyEnemies.Size() > 0) tankyEnemies[0].hp = TankyEnemy::HP - 1;
+        if (wardenEnemies.Size() > 0) wardenEnemies[0].hp = WardenEnemy::HP - 1;
+        SpawnKamikaze();
+        SpawnWeaver();
+        SpawnBomber();
+        SpawnUfo();
+        // 3 loai nay spawn NGOAI mep trai/phai roi moi bay vao - gameplay dong bang thi chung
+        // nam ngoai khung mai mai. Keo X vao trong, giu nguyen Y that cua tung loai.
+        if (weaverEnemies.Size() > 0) weaverEnemies[0].rect.x = 40.0f;
+        if (bomberEnemies.Size() > 0) bomberEnemies[0].rect.x = Config::SCREEN_W - 40.0f - bomberEnemies[0].rect.width;
+        ufoRect.x = cx - ufoRect.width / 2.0f;
+
+        // Man dan dich 2 lop so le - de thay ngay dan co bi hieu ung nao de len khong (luat R1)
+        for (int i = 0; i < 24; i++) {
+            float x = 80.0f + (float)i * 28.0f;
+            float y = 250.0f + (float)(i % 4) * 38.0f;
+            enemyBullets.Fire(x, y, { 0.0f, Config::ENEMY_BULLET_SPEED });
+        }
+        // Moi loai power-up 1 cai, xep 1 hang - soi mau tint + do doc cua icon
+        for (int i = 0; i < POWERUP_TYPE_COUNT; i++) {
+            float x = cx - 3.0f * 70.0f + (float)i * 70.0f + 25.0f;
+            powerUps.Spawn(PowerUp{ { x, 400.0f, Config::POWERUP_SIZE, Config::POWERUP_SIZE }, (PowerUpType)i });
+        }
+        particles.Burst({ 160.0f, 200.0f }, 18, Palette::BasicA);
+        particles.Burst({ 620.0f, 230.0f }, 18, Palette::Kamikaze);
+        particles.Burst({ cx, 320.0f }, 14, Palette::Zigzag);
+    } else {
+        if (bossPool.Size() > 0) {
+            Boss& b = bossPool[0];
+            b.shieldActive = true;
+            Vector2 c = EnemyCenter(b.rect);
+            // Vong dan toa tron quanh boss - mau tan cong day dac nhat game co the co
+            for (int i = 0; i < 32; i++) {
+                float a = (float)i * (2.0f * ParticleMath::PI_F / 32.0f);
+                float r = 70.0f + (float)(i % 3) * 45.0f;
+                Vector2 dir = { cosf(a), sinf(a) };
+                enemyBullets.Fire(c.x + dir.x * r, c.y + dir.y * r,
+                                  { dir.x * Config::BOSS_BULLET_SPEED, dir.y * Config::BOSS_BULLET_SPEED });
+            }
+            particles.Burst({ c.x - 40.0f, c.y + 30.0f }, 20, Palette::Boss);
+        }
+    }
+    for (int i = 0; i < 5; i++) {
+        playerBullets.Fire(cx, 500.0f - (float)i * 55.0f, { 0.0f, -Config::BULLET_SPEED });
+    }
+    particles.Update(0.12f); // Cho manh vo toa ra 1 chut - Burst() spawn tat ca chong tai 1 diem
+    showcaseFrozen = true;
+}
+
+void GameManager::Run(const LaunchOptions& opts) {
     // FILE LOGGER: dang ky NGAY DAU TIEN, truoc ca InitWindow() - de bat luon cac dong
     // TraceLog chinh raylib tu phat ra luc khoi tao (vd loi mo man hinh/driver do hoa),
     // dieu se bi bo lot neu chi Init() sau khi InitWindow() da chay xong.
@@ -919,7 +989,22 @@ void GameManager::Run() {
     difficulty = settings.difficulty;
     audio.SetVolume(settings.volume);
 
-    while (!WindowShouldClose()) {
+    if (opts.scene != ShowcaseScene::None) SetupShowcase(opts.scene);
+
+    // --bench (launch_options.h): bo gioi han 60 FPS de do chi phi THAT cua 1 frame, bo qua
+    // BENCH_WARMUP frame dau (bien dich shader/upload texture lan dau lam meo so lieu).
+    constexpr int BENCH_WARMUP = 30;
+    if (opts.benchFrames > 0) SetTargetFPS(0);
+    std::vector<double> benchFrameMs, benchRenderMs;
+    benchFrameMs.reserve((size_t)opts.benchFrames);
+    benchRenderMs.reserve((size_t)opts.benchFrames);
+    int frameIndex = 0;
+    bool quitRequested = false;
+
+    while (!quitRequested && !WindowShouldClose()) {
+        ++frameIndex;
+        const bool benchSampling = opts.benchFrames > 0 && frameIndex > BENCH_WARMUP;
+        if (benchSampling) benchFrameMs.push_back((double)GetFrameTime() * 1000.0);
         float dt = GetFrameTime();
         if (dt > Config::MAX_DT) dt = Config::MAX_DT;
 
@@ -928,7 +1013,7 @@ void GameManager::Run() {
         UpdateTransition(dt);
         UpdateToasts(dt); // Ngoai `frozen`: toast la lop phu doc lap voi state, van chay het qua fade/chuyen canh
         // Khi dang fade, dong bang gameplay de khong update/collision trong luc man hinh dang mo dan
-        bool frozen = (transitionPhase != TransitionPhase::NONE);
+        bool frozen = (transitionPhase != TransitionPhase::NONE) || showcaseFrozen;
 
         if (!frozen) {
             switch (state) {
@@ -944,6 +1029,7 @@ void GameManager::Run() {
 
         // BUOC 1: ve toan bo gameplay vao canvas noi bo co dinh (khong lien quan gi
         // toi kich thuoc window/monitor that).
+        const double renderStart = GetTime();
         BeginTextureMode(renderTarget);
         ClearBackground(Palette::Background);
 
@@ -993,7 +1079,36 @@ void GameManager::Run() {
         // Fullscreen ty le nao, khong bi anh huong boi buoc letterbox/pillarbox.
         if (showDebugOverlay) RenderSystem::DrawDebugOverlay(*this);
 
+        // --capture: doc framebuffer TRUOC EndDrawing() (sau khi swap, back buffer khong con
+        // xac dinh). KHONG dung TakeScreenshot(): ban 5.5 cat bo thu muc cua duong dan va
+        // luon ghi canh file thuc thi (rcore.c, GetFileName(fileName)).
+        if (!opts.captureFile.empty() && frameIndex == opts.captureFrame) {
+            rlDrawRenderBatchActive();
+            Image shot = LoadImageFromScreen();
+            if (ExportImage(shot, opts.captureFile.c_str())) {
+                TraceLog(LOG_INFO, "Capture: da ghi %s", opts.captureFile.c_str());
+            } else {
+                TraceLog(LOG_WARNING, "Capture: khong ghi duoc %s", opts.captureFile.c_str());
+            }
+            UnloadImage(shot);
+            quitRequested = true;
+        }
+
+        // Thoi gian CPU phat lenh ve (khong gom cho vsync - SetTargetFPS(0) o tren). Tren
+        // GPU that phan lon chi phi GPU nam o EndDrawing()/swap, nen "frame" van la so chinh.
+        if (benchSampling) benchRenderMs.push_back((GetTime() - renderStart) * 1000.0);
+
         EndDrawing();
+
+        if (opts.benchFrames > 0 && frameIndex >= BENCH_WARMUP + opts.benchFrames) {
+            FrameStats f = SummarizeFrameTimes(benchFrameMs);
+            FrameStats r = SummarizeFrameTimes(benchRenderMs);
+            std::printf("BENCH frames=%d frame_ms avg=%.3f p95=%.3f max=%.3f | render_cpu_ms avg=%.3f p95=%.3f max=%.3f | particles=%zu enemy_bullets=%zu\n",
+                        f.count, f.avgMs, f.p95Ms, f.maxMs, r.avgMs, r.p95Ms, r.maxMs,
+                        particles.GetActiveCount(), enemyBullets.GetActiveCount());
+            std::fflush(stdout);
+            quitRequested = true;
+        }
     }
 
     // Dong cua so giua van: van tra thuong thanh tuu da mo + luu lifetimeKills, cung ly do

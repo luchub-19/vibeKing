@@ -276,6 +276,12 @@ sổ từ `swaymsg -t get_tree`), và phóng to bằng
 export khoá GPU (`~/.config/environment.d/50-gpu-lock.conf`) trước khi chạy game từ shell,
 nếu không dGPU sẽ thức - xem mục GPU lai trong CLAUDE.md toàn cục.
 
+Trong container không có màn hình (cloud/CI): `scripts/capture_showcase.sh [binary] [out]`
+dựng 2 cảnh cố định (`--scene=combat|boss`), chụp ảnh sau post-process và đo frame time
+(`--bench`) - chỉ cần Xvfb. Đó là cách chuẩn để có ảnh trước/sau cho mọi thay đổi khâu vẽ (xem
+`src/launch_options.h`, `docs/GRAPHICS_UPGRADE_PLAN.md`). Số liệu bench dưới Xvfb là llvmpipe
+(render bằng CPU): chỉ so tương đối, không phải frame time trên GPU thật.
+
 ## Đối chiếu tài liệu với code thật
 
 ARCHITECTURE.md từng vài lần mô tả lệch so với code thật (từng nhắc một CI workflow

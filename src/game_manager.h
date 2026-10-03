@@ -24,6 +24,7 @@
 #include "post_process.h"
 #include "events.h"
 #include "localization.h"
+#include "launch_options.h"
 
 enum class GameState { MENU, PLAYING, PAUSED, GAME_OVER, WAVE_CLEAR, KEYBIND, ACHIEVEMENTS };
 enum class TransitionPhase { NONE, FADE_OUT, FADE_IN };
@@ -361,6 +362,14 @@ private:
     std::vector<GameEvent> pendingEvents;
     void ProcessEvents();
 
+    // CANH TRINH DIEN (--scene, xem launch_options.h): dung san 1 khung hinh co dinh de chup
+    // anh truoc/sau cho moi thay doi do hoa. showcaseFrozen=true -> vong lap Run() bo qua
+    // MOI Update*() (khong ai chet, khong cong diem/currency, khong mo thanh tuu) nhung van
+    // ve binh thuong.
+    void SetupShowcase(ShowcaseScene scene);
+    bool showcaseFrozen = false;
+
 public:
-    void Run();
+    // opts mac dinh = choi binh thuong (khong tham so dong lenh).
+    void Run(const LaunchOptions& opts = LaunchOptions{});
 };

@@ -1,6 +1,6 @@
 # Kế hoạch nâng cấp đồ họa toàn diện - "Neon-vector arcade"
 
-> Trạng thái: **BẢN ĐỀ XUẤT, CHỜ DUYỆT**. Đã làm: sửa bug `tint` power-up (mục 1.1).
+> Trạng thái: **ĐÃ DUYỆT** (2026-10-03). Xong: GĐ 0. Tiếp theo: hạ tầng settings đồ họa (mục 4).
 > Ảnh baseline chụp headless bằng Xvfb (thư mục `screenshots/` nằm trong `.gitignore`, ảnh trước/sau gửi kèm PR thay vì commit).
 > Nhánh: `claude/upgrade-vibking-graphics-cwhbn3`. Ngày lập: 2026-10-03.
 
@@ -128,11 +128,39 @@ vi phạm luật "màu đi qua `Palette::`". Gom lại ở Giai đoạn 5 (UI).
 
 ## 5. Các giai đoạn (mỗi giai đoạn = 1 commit riêng, có ảnh trước/sau)
 
-### GĐ 0 - Dọn nền móng (nhỏ, rủi ro thấp)
-1. Sửa bug `tint` power-up chưa khởi tạo (mục 1.1).
-2. Thiết lập quy trình chụp ảnh headless bằng `xvfb-run` + script `scripts/screenshot.sh`
-   (vào thẳng 1 cảnh cố định qua tham số dòng lệnh debug, để ảnh trước/sau so sánh được).
-3. Đo baseline: thời gian frame ở cảnh đông nhất (boss + full lưới) - làm mốc cho R4.
+### GĐ 0 - Dọn nền móng - **XONG**
+1. ✅ Sửa bug `tint` power-up chưa khởi tạo (mục 1.1) - đã xác nhận bằng ảnh: 6 icon hiện đúng
+   màu vàng `Palette::PowerUp`.
+2. ✅ Chế độ trình diễn qua tham số dòng lệnh (`src/launch_options.h`, có test `[launch]`):
+   `--scene=combat|boss` dựng sẵn 1 cảnh cố định (seed RNG cố định, gameplay đóng băng - không
+   chết, không cộng điểm/currency); `--capture=<file>` chụp ảnh SAU post-process rồi thoát;
+   `--bench=<n>` bỏ giới hạn FPS và in thống kê frame time. Chạy không tham số = như cũ.
+   Script `scripts/capture_showcase.sh` (chỉ cần Xvfb, không gửi phím) chụp cả 2 cảnh + đo.
+   - Cảnh `combat`: đủ 9 loại địch (Tanky/Warden đang bị thương), UFO, 24 đạn địch, 5 đạn
+     player, 6 loại power-up, 3 cụm mảnh vỡ.
+   - Cảnh `boss`: Sentinel wave 10 đang bật khiên + vòng 32 đạn toả tròn.
+   - Ảnh giữa 2 lần chạy gần như trùng khớp; chỉ lệch rất nhỏ do `IdleWobble`/`Parallax` đọc
+     `GetTime()` - đủ để so trước/sau.
+3. ✅ Mốc hiệu năng (`--bench=600`, 2 lần mỗi cảnh, Xvfb + **llvmpipe = render bằng CPU 4 nhân**,
+   KHÔNG phải iGPU - chỉ dùng để so TƯƠNG ĐỐI trước/sau mỗi thay đổi, sai số giữa 2 lần < 3%):
+
+   | Cảnh | frame avg | frame p95 | CPU phát lệnh vẽ avg |
+   |---|---|---|---|
+   | combat | 15,0-15,4 ms | 17,6-18,0 ms | 13,0-13,3 ms |
+   | boss | 16,3-16,7 ms | 19,5-20,1 ms | 14,0-14,3 ms |
+
+   Quy ước từ đây: mỗi giai đoạn ghi lại bảng này; tăng > 15% ở preset Medium phải có lý do.
+   Mốc tuyệt đối trên iGPU thật cần chạy `--bench` trên máy của bạn (container không có GPU).
+
+**Quan sát từ ảnh GĐ 0 - đưa vào các giai đoạn sau:**
+- Đạn địch bắn chéo (vòng đạn boss) vẫn vẽ thành **thanh dọc**, còn vệt đuôi lại đi chéo theo
+  vận tốc -> nhìn như que gãy. `Bullet::Draw()` cần xoay theo hướng bay -> GĐ 2 mục 2.
+- Viền `DrawRectangleLinesEx` trắng của Tanky/Warden bị thương là khung vuông cứng, lệch tông
+  neon rõ rệt -> GĐ 2 mục 4 (đã dự kiến).
+- Lá chắn xanh bạc hà khá gần màu tàu người chơi, và là khối sáng lớn nhất nửa dưới màn hình ->
+  cân nhắc hạ độ bão hoà / thêm texture voxel ở GĐ 5.
+- Vòng đạn boss đè lên thanh HP boss ở HUD -> HUD cần nền mờ/viền tách lớp ở GĐ 5.
+- Vòng khiên Sentinel vẽ 1 nét `SKYBLUE` mảnh, khó thấy trên nền tối -> GĐ 2 mục 3 (khiên lục giác).
 
 ### GĐ 1 - Nền & parallax "sống"
 1. **Lưới neon lò xo kiểu Geometry Wars** (`src/warp_grid.h/.cpp`): mô phỏng khối lượng-lò-xo

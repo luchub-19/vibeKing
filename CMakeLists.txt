@@ -42,6 +42,7 @@ set(SOURCES
     src/file_logger.cpp
     src/game_manager.cpp
     src/leaderboard.cpp
+    src/launch_options.cpp
     src/level_config.cpp
     src/main.cpp
     src/parallax.cpp
@@ -102,6 +103,7 @@ if(BUILD_TESTS)
         tests/test_upgrades.cpp
         tests/test_parallax.cpp
         tests/test_achievements.cpp
+        tests/test_launch_options.cpp
         src/achievements.cpp
         src/atomic_file.cpp
         src/leaderboard.cpp
@@ -117,6 +119,7 @@ if(BUILD_TESTS)
         src/audio_system.cpp
         src/sprites.cpp
         src/file_logger.cpp
+        src/launch_options.cpp
         src/level_config.cpp
         src/parallax.cpp
         src/post_process.cpp
