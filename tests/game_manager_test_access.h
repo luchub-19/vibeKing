@@ -112,6 +112,13 @@ public:
     static void CallUpdateToasts(GameManager& gm, float dt) { gm.UpdateToasts(dt); }
     static void CallUpdateAchievementsScreen(GameManager& gm) { gm.UpdateAchievementsScreen(); }
 
+    // ----- GUI (nang cap GUI) - tests/test_ui.cpp -----
+    static bool RunAssisted(const GameManager& gm) { return gm.runAssisted; }
+    static UiState& Ui(GameManager& gm) { return gm.ui; }
+    static void CallGoToScreen(GameManager& gm, GameState s) { gm.GoToScreen(s); }
+    static const char* CallUiTypedLine(const GameManager& gm) { return gm.UiTypedLine(); }
+    static void CallApplySettings(GameManager& gm) { gm.ApplySettings(); }
+
     static BulletPool<Config::MAX_PLAYER_BULLETS>& PlayerBullets(GameManager& gm) { return gm.playerBullets; }
     static BulletPool<Config::MAX_ENEMY_BULLETS>& EnemyBullets(GameManager& gm) { return gm.enemyBullets; }
 

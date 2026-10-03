@@ -927,6 +927,7 @@ TEST_CASE("warpBoostTimer theo WAVE: wave boss bat warp, wave thuong tat (ca nha
 TEST_CASE("ProcessEvents: vu no them song xung kich, player mat mang -> khu bao hoa", "[game_manager][post_fx][vfx]") {
     GameManager gm;
     QuarantinePersistence(gm);
+    GTA::SetState(gm, GameState::PLAYING); // Song chi gui len shader khi DANG CHOI (xem BuildPostFxFrame)
     REQUIRE(GTA::CallBuildPostFxFrame(gm).waveCount == 0);
     REQUIRE(GTA::CallBuildPostFxFrame(gm).hurt == Approx(0.0f));
 
@@ -945,6 +946,12 @@ TEST_CASE("ProcessEvents: vu no them song xung kich, player mat mang -> khu bao 
     REQUIRE(fx.waveCount == 1);
     REQUIRE(fx.waves[0] == Approx(300.0f));
     REQUIRE(fx.hurt == Approx(1.0f));
+
+    // PAUSE: song dong bang giua chung khong duoc meo menu pause - an di, khong xoa
+    GTA::SetState(gm, GameState::PAUSED);
+    REQUIRE(GTA::CallBuildPostFxFrame(gm).waveCount == 0);
+    GTA::SetState(gm, GameState::PLAYING);
+    REQUIRE(GTA::CallBuildPostFxFrame(gm).waveCount == 1);
 
     // Song + dong ho la trang thai THEO WAVE: sang wave moi phai sach
     GTA::CallInitLevel(gm, false);

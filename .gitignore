@@ -8,3 +8,4 @@ achievements.dat
 screenshots/
 build/
 build-strict/
+build-asan/

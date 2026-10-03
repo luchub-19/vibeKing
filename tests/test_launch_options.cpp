@@ -27,7 +27,7 @@ TEST_CASE("ParseLaunchOptions: doc scene/capture/capture-frame", "[launch]") {
 }
 
 TEST_CASE("ParseLaunchOptions: tu choi gia tri sai thay vi lang le bo qua", "[launch]") {
-    REQUIRE_FALSE(ParseLaunchOptions({ "--scene=menu" }).Ok());
+    REQUIRE_FALSE(ParseLaunchOptions({ "--scene=nowhere" }).Ok());
     REQUIRE_FALSE(ParseLaunchOptions({ "--bench=0" }).Ok());
     REQUIRE_FALSE(ParseLaunchOptions({ "--bench=-5" }).Ok());
     REQUIRE_FALSE(ParseLaunchOptions({ "--bench=12abc" }).Ok()); // atoi() se doc thanh 12

@@ -41,6 +41,8 @@ set(SOURCES
     src/config.cpp
     src/file_logger.cpp
     src/game_manager.cpp
+    src/game_manager_ui.cpp
+    src/localization.cpp
     src/leaderboard.cpp
     src/launch_options.cpp
     src/level_config.cpp
@@ -50,7 +52,9 @@ set(SOURCES
     src/player.cpp
     src/post_process.cpp
     src/render_system.cpp
+    src/render_screens.cpp
     src/settings.cpp
+    src/settings_menu.cpp
     src/sprites.cpp
     src/meta_progress.cpp
     src/nebula.cpp
@@ -110,6 +114,8 @@ if(BUILD_TESTS)
         tests/test_screen_shake.cpp
         tests/test_warp_grid.cpp
         tests/test_post_fx.cpp
+        tests/test_localization.cpp
+        tests/test_ui.cpp
         src/achievements.cpp
         src/atomic_file.cpp
         src/leaderboard.cpp
@@ -120,8 +126,12 @@ if(BUILD_TESTS)
         src/meta_progress.cpp
         src/wave_generator.cpp
         src/game_manager.cpp
+        src/game_manager_ui.cpp
+        src/localization.cpp
+        src/settings_menu.cpp
         src/physics_system.cpp
         src/render_system.cpp
+        src/render_screens.cpp
         src/audio_system.cpp
         src/sprites.cpp
         src/file_logger.cpp
