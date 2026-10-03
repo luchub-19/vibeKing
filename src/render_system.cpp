@@ -571,7 +571,7 @@ void RenderSystem::DrawPlaying(const GameManager& gm) {
     }
 
     gm.playerBullets.DrawCores(Palette::PlayerBullet);
-    gm.enemyBullets.DrawCores(Palette::EnemyBullet);
+    gm.enemyBullets.DrawCores(Palette::EnemyBullet, animTime, !gm.settings.graphics.reduceFlashing);
     gm.player.Draw(gm.sprites.player, gm.settings.graphics.reduceFlashing);
     EndMode2D();
 

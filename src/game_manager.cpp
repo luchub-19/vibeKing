@@ -989,7 +989,8 @@ void GameManager::SetupShowcase(ShowcaseScene scene) {
         }
     }
     for (int i = 0; i < 5; i++) {
-        playerBullets.Fire(cx, 500.0f - (float)i * 55.0f, { 0.0f, -Config::BULLET_SPEED });
+        // Vien thu 3 la dan XUYEN (hinh dang rieng - GD 2), con lai dan thuong de so canh nhau
+        playerBullets.Fire(cx, 500.0f - (float)i * 55.0f, { 0.0f, -Config::BULLET_SPEED }, i == 2 ? 2 : 0);
     }
     // Tau dang luot sang phai + vua ban (nghieng + giat lui, GD 2): chay Player::Update that
     // vai frame thay vi ghi field rieng - trang thai hinh anh di dung duong code that.

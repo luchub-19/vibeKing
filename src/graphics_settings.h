@@ -44,8 +44,9 @@ struct GraphicsSettings {
     // High 3 muc: quang rong gap 4 - danh cho may du suc.
     int BloomLevels() const { return quality == GraphicsQuality::High ? 3 : 1; }
 
-    // He so nhan so particle moi Burst(). High hien = Medium; GD 2 se nang len khi pool lon hon.
-    float ParticleScale() const { return quality == GraphicsQuality::Low ? 0.5f : 1.0f; }
+    // He so nhan so particle moi Burst()/manh vo Explosion(). High 1.5x (pool da nang len 800 -
+    // Config::MAX_PARTICLES); Low 0.5x.
+    float ParticleScale() const { return quality == GraphicsQuality::Low ? 0.5f : (quality == GraphicsQuality::High ? 1.5f : 1.0f); }
 
     // Luoi lo xo (WarpGrid): Low TAT han (ban de xuat la "luoi dung yen", nhung do bang bench:
     // ve ~1000-1600 doan thang van ton ngang 1 pass post-process tren renderer CPU - may yeu

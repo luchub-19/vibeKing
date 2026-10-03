@@ -179,6 +179,9 @@ TEST_CASE("GraphicsSettings: preset quyet dinh bloom/particle, Cycle quay vong 2
     g.quality = GraphicsQuality::Medium;
     REQUIRE(g.BloomEnabled());
     REQUIRE(g.ParticleScale() == Approx(1.0f));
+    g.quality = GraphicsQuality::High;
+    REQUIRE(g.ParticleScale() == Approx(1.5f));
+    g.quality = GraphicsQuality::Medium;
 
     g.quality = GraphicsQuality::High;
     g.CycleQuality(1);

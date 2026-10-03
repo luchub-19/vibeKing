@@ -914,3 +914,23 @@ TEST_CASE("CheckCollisions: dan xuyen nam chong len Boss qua nhieu frame chi tru
 
     REQUIRE(GTA::BossPool(gm)[0].hp == 49);
 }
+
+TEST_CASE("CheckCollisions: dan dich trung KHIEN -> event 'khien vo' mau ShieldBarrier, khong mat mang, khong khu bao hoa", "[physics][collision][vfx]") {
+    GameManager gm;
+    Player& p = GTA::PlayerRef(gm);
+    p.Reset();
+    p.GrantShield(5.0f);
+    const int lives = p.GetLives();
+    GTA::PendingEvents(gm).clear();
+    FireBulletAt(GTA::EnemyBullets(gm), p.GetRect());
+    PhysicsSystem::CheckCollisions(gm);
+
+    REQUIRE(p.GetLives() == lives);
+    REQUIRE_FALSE(p.HasShield());
+    const auto& events = GTA::PendingEvents(gm);
+    REQUIRE(events.size() == 1);   // Truoc GD 2 la 0 - khien vo im lang
+    REQUIRE(events[0].color.r == Palette::ShieldBarrier.r);
+    REQUIRE(events[0].color.b == Palette::ShieldBarrier.b);
+    REQUIRE(events[0].explosion == ExplosionSize::Small);
+    REQUIRE_FALSE(events[0].playerHurt); // khong mat mang -> khong man hinh xam
+}

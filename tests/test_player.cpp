@@ -167,3 +167,17 @@ TEST_CASE("Player: nghieng bam theo huong di chuyen roi tu thang lai, ban thi gi
     REQUIRE(p.GetRect().y == Approx(before.y));
     REQUIRE(p.GetRect().width == Approx(before.width));
 }
+
+TEST_CASE("Player: bong mo xuat hien khi luot, rut het khi dung (chi hinh anh)", "[player][vfx]") {
+    Player p;
+    p.Reset();
+    BulletPool<Config::MAX_PLAYER_BULLETS> bullets;
+    REQUIRE(p.GetGhostCount() == 0);
+    InputState right;
+    right.Action_MoveRight = true;
+    for (int i = 0; i < 30; i++) p.Update(1.0f / 60.0f, right, bullets);
+    REQUIRE(p.GetGhostCount() == 3); // Player::GHOST_COUNT (private)
+    InputState idle;
+    for (int i = 0; i < 40; i++) p.Update(1.0f / 60.0f, idle, bullets);
+    REQUIRE(p.GetGhostCount() == 0);
+}

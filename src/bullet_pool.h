@@ -1,6 +1,7 @@
 #pragma once
 #include "raylib.h"
 #include "config.h"
+#include "palette.h"
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -138,18 +139,29 @@ public:
         // Truc dai cua rect (0,1) sau khi xoay goc theta (raylib xoay theo chieu kim dong ho,
         // Y huong xuong) thanh (-sin, cos) -> muon trung (dx, dy) thi theta = atan2(-dx, dy).
         float angleDeg = (speed > 1.0f) ? atan2f(-vel.x, vel.y) * (180.0f / 3.14159265f) : 0.0f;
-        Rectangle r{ center.x, center.y, rect.width, rect.height };
-        DrawRectanglePro(r, { rect.width / 2.0f, rect.height / 2.0f }, angleDeg, color);
-
         Vector2 axis = (speed > 1.0f) ? Vector2{ vel.x / speed, vel.y / speed } : Vector2{ 0.0f, 1.0f };
-        float half = rect.height * 0.5f - 1.5f;
+
+        // DAN XUYEN (GD 2, nguon FR "moi vu khi 1 chu ky hinh anh"): dai 1.6x, manh 0.6x + mui
+        // nhon hinh thoi o dau - doc ra "xuyen qua" bang HINH DANG, khong chi bang mau. Chi
+        // hinh ve; hitbox (rect) giu nguyen.
+        const bool piercing = pierceRemaining > 0;
+        const float w = piercing ? rect.width * 0.6f : rect.width;
+        const float h = piercing ? rect.height * 1.6f : rect.height;
+        Rectangle r{ center.x, center.y, w, h };
+        DrawRectanglePro(r, { w / 2.0f, h / 2.0f }, angleDeg, color);
+        if (piercing) {
+            Vector2 tip{ center.x + axis.x * (h * 0.5f + 2.0f), center.y + axis.y * (h * 0.5f + 2.0f) };
+            DrawPoly(tip, 4, rect.width * 0.75f, angleDeg, color);
+        }
+
+        float half = h * 0.5f - 1.5f;
         Color hot = {
             (unsigned char)(color.r + (255 - color.r) * 0.65f),
             (unsigned char)(color.g + (255 - color.g) * 0.65f),
             (unsigned char)(color.b + (255 - color.b) * 0.65f), 255 };
         DrawLineEx({ center.x - axis.x * half, center.y - axis.y * half },
                    { center.x + axis.x * half, center.y + axis.y * half },
-                   fmaxf(1.0f, rect.width * 0.4f), hot);
+                   fmaxf(1.0f, w * 0.4f), hot);
     }
 
     bool IsActive() const { return active; }
@@ -250,8 +262,18 @@ public:
         EndBlendMode();
     }
 
-    void DrawCores(Color color) const {
-        for (size_t i = 0; i < activeCount; i++) pool[i].DrawCore(color);
+    // breathe (dan dich, tat khi reduceFlashing): do sang loi dao dong +-9% theo sin 1.4Hz, lech
+    // pha theo spawnSeq - ca man dan "song" va mat bat chuyen dong de hon (nguon GD 2). Bien do nho
+    // + song sin (khong bat/tat) nen khong phai "nhap nhay" theo WCAG.
+    void DrawCores(Color color, float time = 0.0f, bool breathe = false) const {
+        for (size_t i = 0; i < activeCount; i++) {
+            Color c = color;
+            if (breathe) {
+                float k = 1.0f + 0.09f * sinf(time * 9.0f + (float)pool[i].GetSpawnSeq() * 0.7f);
+                c = Palette::Shade(color, k);
+            }
+            pool[i].DrawCore(c);
+        }
     }
 
     size_t GetActiveCount() const { return activeCount; }

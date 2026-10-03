@@ -43,7 +43,9 @@ namespace Config {
     // chỉnh SỐ HÀNG/CỘT ĐANG DÙNG trong balance.json, luôn nằm TRONG giới hạn này).
     constexpr size_t MAX_PLAYER_BULLETS = 100;
     constexpr size_t MAX_ENEMY_BULLETS  = 500;
-    constexpr size_t MAX_PARTICLES      = 400;
+    // 800 tu GD 2/5 (truoc 400): chua cho preset High 1.5x hat. Low/Medium sinh it hon nen chi cham
+    // tran khi man hinh cuc day - tran thi Spawn() bo hat moi, khong crash (xem ParticlePool).
+    constexpr size_t MAX_PARTICLES      = 800;
     constexpr int MAX_GRID_ROWS = 12;
     constexpr int MAX_GRID_COLS = 20;
     constexpr size_t MAX_ZIGZAG_ENEMIES = (size_t)MAX_GRID_COLS;

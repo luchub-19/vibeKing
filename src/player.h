@@ -53,6 +53,14 @@ private:
     static constexpr float RECOIL_DURATION = 0.09f;
     static constexpr float RECOIL_PX = 3.0f;
 
+    // BONG MO khi luot (GD 2, nguon "Art of Screenshake"): luu vi tri rect.x cua vai moc gan day
+    // trong luc dang nghieng manh (= dang di chuyen); dung lai thi bong rut dan. Chi hinh anh.
+    static constexpr int GHOST_COUNT = 3;
+    static constexpr float GHOST_INTERVAL = 0.035f;
+    std::array<float, GHOST_COUNT> ghostX{};
+    int ghostCount = 0;
+    float ghostTimer = 0.0f;
+
 public:
     Player();
 
@@ -119,6 +127,7 @@ public:
     void Draw(const Texture2D& sprite, bool reduceFlashing = false) const;
     float GetVisualTilt() const { return visualTilt; }   // Cho test - xem test_player.cpp [vfx]
     float GetRecoil() const { return recoilTimer; }
+    int GetGhostCount() const { return ghostCount; }
 
     Rectangle GetRect() const { return rect; }
     int GetLives() const { return lives; }

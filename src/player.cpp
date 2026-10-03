@@ -13,6 +13,7 @@ void Player::Reset() {
     score = 0;
     nextExtraLifeScore = Config::EXTRA_LIFE_SCORE_THRESHOLD;
     invincibleTimer = 0.0f;
+    ghostCount = 0;
     visualTilt = 0.0f;   // Vi tri xuat phat moi -> khong mang do nghieng/giat cua frame cuoi wave truoc
     recoilTimer = 0.0f;
     shieldTimer = 0.0f;
@@ -30,6 +31,7 @@ void Player::ResetForNewWave() {
     rect.x = Config::PLAYER_SPAWN_X;
     rect.y = Config::PLAYER_SPAWN_Y;
     invincibleTimer = 0.0f;
+    ghostCount = 0;
     visualTilt = 0.0f;   // Vi tri xuat phat moi -> khong mang do nghieng/giat cua frame cuoi wave truoc
     recoilTimer = 0.0f;
     shieldTimer = 0.0f;
@@ -54,6 +56,19 @@ bool Player::Update(float dt, const InputState& input, BulletPool<Config::MAX_PL
     float targetTilt = (input.Action_MoveRight ? 1.0f : 0.0f) - (input.Action_MoveLeft ? 1.0f : 0.0f);
     visualTilt += (targetTilt - visualTilt) * fminf(1.0f, TILT_RESPONSE * dt);
     if (recoilTimer > 0.0f) recoilTimer = fmaxf(0.0f, recoilTimer - dt);
+
+    ghostTimer += dt;
+    if (ghostTimer >= GHOST_INTERVAL) {
+        ghostTimer = 0.0f;
+        if (fabsf(visualTilt) > 0.6f) {
+            // Day lui: [0] = moi nhat. Them 1 bong moi moc thoi gian khi dang luot.
+            for (int i = GHOST_COUNT - 1; i > 0; i--) ghostX[(size_t)i] = ghostX[(size_t)(i - 1)];
+            ghostX[0] = rect.x;
+            if (ghostCount < GHOST_COUNT) ghostCount++;
+        } else if (ghostCount > 0) {
+            ghostCount--; // Dung lai -> bong cu nhat tat truoc
+        }
+    }
 
     if (invincibleTimer > 0.0f) invincibleTimer -= dt;
     if (shieldTimer > 0.0f) shieldTimer -= dt;
@@ -248,6 +263,19 @@ void Player::Draw(const Texture2D& sprite, bool reduceFlashing) const {
         DrawCircleGradient((int)haloCenter.x, (int)haloCenter.y,
                             rect.width * 0.75f, halo, Fade(Palette::PlayerShip, 0.0f));
 #endif
+        EndBlendMode();
+    }
+
+    // Bong mo (sau than tau, additive): [0] gan nhat sang nhat. Bo qua neu dang an trong nhip
+    // chop bat tu (bodyAlpha < 1 thi van ve, mo theo).
+    if (ghostCount > 0) {
+        BeginBlendMode(BLEND_ADDITIVE);
+        Rectangle src{ 0.0f, 0.0f, (float)sprite.width, (float)sprite.height };
+        for (int i = ghostCount - 1; i >= 0; i--) {
+            float a = (0.22f - 0.06f * (float)i) * bodyAlpha;
+            Rectangle dst{ ghostX[(size_t)i] + rect.width / 2.0f, rect.y + rect.height / 2.0f, rect.width, rect.height };
+            DrawTexturePro(sprite, src, dst, { rect.width / 2.0f, rect.height / 2.0f }, visualTilt * TILT_MAX_DEG, Fade(skinTint, a));
+        }
         EndBlendMode();
     }
 

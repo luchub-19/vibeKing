@@ -1000,6 +1000,7 @@ void PhysicsSystem::CheckCollisions(GameManager& gm) {
         if (!consumed && CheckCollisionRecs(bulletRect, gm.player.GetRect())) {
             gm.enemyBullets.Destroy(i);
             consumed = true;
+            const bool hadShield = gm.player.HasShield();
             if (gm.player.TakeDamage()) { // false neu dang bat tu/co khien -> khong hieu ung thua
                 GameEvent ev;
                 ev.position = gm.player.GetCenter();
@@ -1010,6 +1011,19 @@ void PhysicsSystem::CheckCollisions(GameManager& gm) {
                 ev.sfx = SfxType::Hit;
                 ev.shakeDuration = 0.22f;
                 ev.shakeIntensity = 8.0f;
+                gm.pendingEvents.push_back(ev);
+            } else if (hadShield && !gm.player.HasShield()) {
+                // KHIEN VO (GD 2): truoc day khien do don roi tat IM LANG - nguoi choi khong biet
+                // vua mat lop bao ve. Vu no co nho mau ShieldBarrier (vong + manh vo xanh bang) +
+                // rung nhe: doc ra "khien vua vo", khac han vu no do "minh vua trung".
+                GameEvent ev;
+                ev.position = gm.player.GetCenter();
+                ev.color = Palette::ShieldBarrier;
+                ev.particleCount = 12;
+                ev.explosion = ExplosionSize::Small;
+                ev.sfx = SfxType::Hit;
+                ev.shakeDuration = 0.12f;
+                ev.shakeIntensity = 4.0f;
                 gm.pendingEvents.push_back(ev);
             }
         }

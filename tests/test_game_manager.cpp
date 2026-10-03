@@ -850,6 +850,7 @@ TEST_CASE("Preset do hoa: Low lam MOI Burst() di qua ProcessEvents chi con nua s
     };
     REQUIRE(particlesFromOneEvent(GraphicsQuality::Medium) == 10);
     REQUIRE(particlesFromOneEvent(GraphicsQuality::Low) == 5);
+    REQUIRE(particlesFromOneEvent(GraphicsQuality::High) == 15);
 }
 
 TEST_CASE("ProcessEvents: event khai bao explosion -> sinh vu no nhieu lop, khong can particleCount", "[game_manager][vfx]") {
