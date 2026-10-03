@@ -127,6 +127,7 @@ private:
     Settings settings;
     SpriteSheet sprites;
     Font gameFont{}; // Tai qua LoadFontEx() trong Run() - Texture Atlas rieng thay the font mac dinh mo cua raylib
+    Font titleFont{}; // Audiowide cho logo/banner (GD 5) - fallback = gameFont, xem Config::TitleFontFilePath
     RenderTexture2D renderTarget{}; // Canvas noi bo co dinh SCREEN_W x SCREEN_H, upscale len man hinh that trong Run()
     PostProcess postProcess; // Bloom + CRT ap dung luc upscale renderTarget - xem post_process.h, Config::BLOOM_ENABLED/CRT_ENABLED
     // WARP vao wave boss (GD 1): giay con lai cua hieu ung sao tang toc - xem Parallax::

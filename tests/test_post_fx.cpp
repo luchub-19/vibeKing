@@ -79,3 +79,30 @@ TEST_CASE("GraphicsSettings: pass cuoi theo preset - CRT cong chi o High VA khi 
     g.crtEnabled = false;
     REQUIRE(g.BarrelAmount() == Approx(0.0f)); // tat CRT = tat ca cong
 }
+
+#include "draw_helpers.h"
+
+TEST_CASE("NeonPowerOn: chop toi da 2 lan roi sang han; reduceFlashing thi chi sang dan, khong bao gio toi lai", "[ui][vfx][graphics]") {
+    REQUIRE(NeonPowerOn(0.0f, false) == Approx(0.0f));
+    REQUIRE(NeonPowerOn(5.0f, false) == Approx(1.0f));
+    REQUIRE(NeonPowerOn(5.0f, true) == Approx(1.0f));
+
+    // Dem so lan "bat" (do sang nhay len > 0.5 tu duoi 0.5) trong 1 giay dau - luat WCAG 2.3.1:
+    // khong qua 3 lan/giay. Thiet ke la 2 lan chop + 1 lan sang han.
+    int rises = 0;
+    float prev = 0.0f;
+    bool monotonicReduced = true;
+    float prevReduced = 0.0f;
+    for (int i = 1; i <= 100; i++) {
+        float t = (float)i / 100.0f;
+        float v = NeonPowerOn(t, false);
+        if (prev < 0.5f && v >= 0.5f) rises++;
+        prev = v;
+        float r = NeonPowerOn(t, true);
+        if (r + 1e-6f < prevReduced) monotonicReduced = false;
+        prevReduced = r;
+    }
+    REQUIRE(rises <= 3);
+    REQUIRE(rises >= 2); // Van co hieu ung chop (khong phai test rong)
+    REQUIRE(monotonicReduced);
+}

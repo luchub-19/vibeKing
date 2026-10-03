@@ -1075,6 +1075,13 @@ void GameManager::Run(const LaunchOptions& opts) {
     } else {
         SetTextureFilter(gameFont.texture, TEXTURE_FILTER_BILINEAR); // Muot khi ve nho lai tu base size lon
     }
+    titleFont = LoadFontEx(Config::TitleFontFilePath(), Config::TITLE_FONT_BASE_SIZE, nullptr, 0);
+    if (!IsFontValid(titleFont)) {
+        TraceLog(LOG_WARNING, "Khong tai duoc font tieu de '%s' - dung font chu thuong", Config::TitleFontFilePath());
+        titleFont = gameFont;
+    } else {
+        SetTextureFilter(titleFont.texture, TEXTURE_FILTER_BILINEAR);
+    }
 
     // RENDER TARGET: toan bo gameplay ve vao canvas noi bo co dinh SCREEN_W x SCREEN_H,
     // sau do upscale nguyen khoi canvas nay len kich thuoc man hinh THAT (co the khac
@@ -1255,6 +1262,7 @@ void GameManager::Run(const LaunchOptions& opts) {
     UnloadRenderTexture(renderTarget);
     nebula.Shutdown();
     postProcess.Shutdown();
+    if (titleFont.texture.id != gameFont.texture.id) UnloadFont(titleFont); // Fallback = chinh gameFont -> khong unload 2 lan
     if (gameFont.texture.id != GetFontDefault().texture.id) UnloadFont(gameFont); // Chi unload neu KHONG phai font fallback mac dinh cua raylib
     sprites.Unload();
     audio.Shutdown();

@@ -97,7 +97,10 @@ void RenderSystem::DrawMenu(const GameManager& gm) {
     // TEN THAT cua game (khop InitWindow() trong game_manager.cpp va README), khong con
     // "SPACE INVADERS" - do la ten THE LOAI, khong phai ten game nay. CenteredText (thay
     // Text voi x=250 hardcode cu) de luon can giua du sau nay doi chuoi.
-    canvas.CenteredText(Config::SCREEN_W / 2, 92, 40, Palette::PlayerShip, "HARDCORE SPACE INVADERS");
+    // Logo neon Audiowide (GD 5) - ve THANG (khong qua canvas: canvas chi giu 1 font). "Bat den"
+    // tinh tu luc mo game (GetTime), chi chay 1 lan dau.
+    DrawNeonText(gm.titleFont, "HARDCORE SPACE INVADERS", { Config::SCREEN_W / 2.0f, 112.0f }, 44.0f,
+                 Palette::PlayerShip, NeonPowerOn((float)GetTime(), gm.settings.graphics.reduceFlashing));
 
     Color panelFill = Palette::UiPanelFill;
     panelFill.a = (unsigned char)(255.0f * Config::HUD_PANEL_ALPHA);

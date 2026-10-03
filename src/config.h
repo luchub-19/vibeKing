@@ -91,6 +91,11 @@ namespace Config {
     inline const char* LevelConfigFilePath() { return "level.cfg"; }
     inline const char* SettingsFilePath() { return "settings.cfg"; }
     inline const char* FontFilePath() { return "assets/fonts/DejaVuSansMono.ttf"; }
+    // Font TIEU DE (GD 5): Audiowide (SIL OFL 1.1, Google Fonts - xem assets/fonts/LICENSE-
+    // Audiowide.txt). CHI bo Latin co ban -> chi dung cho chuoi tieng Anh (logo, banner). Moi chu
+    // nho/tieng Viet van la DejaVu. Thieu file -> fallback ve gameFont, khong crash.
+    inline const char* TitleFontFilePath() { return "assets/fonts/Audiowide-Regular.ttf"; }
+    constexpr int TITLE_FONT_BASE_SIZE = 72; // Logo ve ~44px; rasterize lon hon de thu nho van net
     inline const char* BalanceFilePath() { return "assets/balance.json"; }
     inline const char* AtlasImagePath() { return "assets/sprites/atlas.png"; }
     inline const char* AtlasConfigPath() { return "assets/sprites/atlas.cfg"; }
