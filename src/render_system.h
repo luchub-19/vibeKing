@@ -34,7 +34,16 @@ public:
     // MOI state (goi rieng trong GameManager::Run(), ngoai switch-case state) vi thanh tuu co
     // the mo dung luc chuyen canh sang WAVE_CLEAR/GAME_OVER.
     static void DrawAchievements(const GameManager& gm);
-    static void DrawGraphicsSettings(const GameManager& gm); // Trang GRAPHICS (phim G o MENU)
+
+    // MAN GUI (nang cap GUI) - dinh nghia trong render_screens.cpp. Vi tri nut doc tu
+    // ui_layout.h (chung voi GameManager - xem game_manager_ui.cpp).
+    static void DrawHangar(const GameManager& gm);
+    static void DrawLeaderboard(const GameManager& gm);
+    static void DrawHowTo(const GameManager& gm);
+    static void DrawAttract(const GameManager& gm);
+    static void DrawSettings(const GameManager& gm);
+    static void DrawConfirm(const GameManager& gm);    // Hop Co/Khong - tren noi dung moi man
+    static void DrawFpsCounter(const GameManager& gm); // Cai dat > Do hoa > Hien FPS
     // Chuyen canh dang man sap (GD 5) - thay DrawRectangle den toan man trong GameManager::Run().
     static void DrawTransitionWipe(float alpha);
     static void DrawAchievementToast(const GameManager& gm);
@@ -58,5 +67,8 @@ private:
     static void DrawRunSummary(UICanvas& canvas, const GameManager& gm, int centerX);
     static void DrawWaveBanner(const GameManager& gm); // GD 5 - goi tu cuoi DrawHUD
     static void DrawWeaverEnemies(const GameManager& gm, float animTime);
+    static void DrawPauseMenu(const GameManager& gm);
+    static void DrawScreenHeader(const GameManager& gm, const char* title); // Tieu de glitch + nut QUAY LAI + vach ngang
+    static void DrawFooterHint(const GameManager& gm, const char* hint);
     static void DrawBomberEnemies(const GameManager& gm, float animTime);
 };

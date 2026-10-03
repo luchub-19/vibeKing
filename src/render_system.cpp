@@ -10,310 +10,7 @@
 #include "upgrade_types.h"
 #include "palette.h"
 #include "ui_anim.h"
-
-// Logo tieu de MENU: hang basicAlien THAT (SpriteSheet, dung atlas Kenney neu co - xem
-// docs/ASSET_INTEGRATION.md, fallback procedural neu khong - xem sprites.cpp) nhap nhoi
-// len xuong theo sin(GetTime()), lech pha tung con - giu NGUYEN kieu bob da co truoc day,
-// chi doi phan VE tu hinh hoc thuan (DrawRectangle) sang DrawSprite() that. Nhan thang
-// Texture2D (KHONG nhan ca GameManager&) - dung tinh than DrawLoadoutSelect() ngay duoi:
-// day la ham static, khong co `friend class RenderSystem`, nen chi thao tac tren gia tri
-// DA duoc trich xuat san tu DrawMenu() (noi THAT su co quyen doc gm.sprites).
-static void DrawTitleLogo(const Texture2D& alienTex) {
-    float t = (float)GetTime();
-    const int alienCount = 5;
-    const float spacing = 44.0f;
-    const float startX = (float)Config::SCREEN_W / 2.0f - spacing * (float)(alienCount - 1) / 2.0f;
-    const float baseY = 50.0f;
-    const float w = 34.0f, h = 27.0f; // Xap xi ti le atlas that (basicAlien 104x84 - xem assets/sprites/atlas.cfg)
-
-    for (int i = 0; i < alienCount; i++) {
-        // Moi con lac len xuong LECH PHA nhau (offset theo i) - tranh cam giac "ca hang
-        // dong bo cung luc" cung nhac, giong dang song lac dac trung cua the loai game nay.
-        float bob = sinf(t * 2.5f + (float)i * 0.6f) * 5.0f;
-        float x = startX + (float)i * spacing;
-        float y = baseY + bob;
-
-        // PURPLE/VIOLET xen ke - DUNG mau basicAlien that su dung trong gameplay (xem
-        // GameManager::InitLevel(): "Color col = (spawn.row % 2 == 0) ? PURPLE : VIOLET"),
-        // khong con GREEN/LIME cu (chi hop ly luc logo la silhouette rieng, khong lien
-        // quan mau dich that). Logo gio la 1 "xem truoc" trung thuc, khong phai trang tri
-        // tuy y - doi mau dich trong gameplay sau nay thi doi luon o day cho khop.
-        Color c = (i % 2 == 0) ? Palette::BasicA : Palette::BasicB;
-        DrawSprite(alienTex, { x - w / 2.0f, y - h / 2.0f, w, h }, c);
-    }
-}
-
-// PILL LUA CHON (dung cho DIFFICULTY) - o nho co vien, sang len khi dang la lua chon HIEN
-// TAI. Thay cho kieu "< NORMAL >" cycle an 2 lua chon con lai truoc day: ve ca 3 pill cung
-// luc (goi 3 lan voi rect canh nhau) de nguoi choi thay HET lua chon thay vi phai bam thu
-// tung huong. Khong can icon mui ten rieng nua - chinh vien/nen sang cua pill dang chon da
-// la affordance.
-static void DrawSelectPill(UICanvas& canvas, Rectangle rect, const char* label, bool selected) {
-    Color fill = selected ? Color{ 40, 36, 12, 200 } : Color{ 16, 16, 26, 140 };
-    Color border = selected ? Palette::UiAccent : Palette::UiDim;
-    canvas.Panel(rect, fill, border, selected ? 2.0f : 1.0f);
-    Color textColor = selected ? Palette::UiText : Fade(Palette::UiText, 0.45f);
-    canvas.CenteredText((int)(rect.x + rect.width / 2.0f), (int)(rect.y + rect.height / 2.0f - 8.0f), 15, textColor, label);
-}
-
-// CARD LOADOUT - cung khuon DrawSelectPill nhung 2 dong (ten tren, trang thai duoi), dung
-// cho 3 loadout Standard/Vanguard/Overcharge ve canh nhau. Card chua unlock (khong phai
-// Standard) hien GRAY va so currency con thieu thay vi chu "UNLOCKED" - giu dung ngu nghia
-// mau GRAY = khoa da co tu DrawLoadoutSelect() ban cu.
-static void DrawLoadoutCard(UICanvas& canvas, Rectangle rect, LoadoutType type, bool selected, bool available, int currency, int cost) {
-    Color fill = selected ? Color{ 40, 36, 12, 200 } : Color{ 16, 16, 26, 140 };
-    Color border = selected ? Palette::UiAccent : Palette::UiDim;
-    canvas.Panel(rect, fill, border, selected ? 2.0f : 1.0f);
-
-    Color nameColor = available ? (selected ? Palette::UiText : Fade(Palette::UiText, 0.6f)) : Palette::UiDim;
-    canvas.CenteredText((int)(rect.x + rect.width / 2.0f), (int)rect.y + 8, 13, nameColor, GetLoadoutName(type));
-
-    std::string status;
-    Color statusColor;
-    if (type == LoadoutType::Standard)   { status = "FREE";  statusColor = Fade(Palette::UiText, 0.6f); }
-    else if (available)                  { status = "READY"; statusColor = Palette::UiSuccess; }
-    else                                 { status = TextFormat("%d/%d", currency, cost); statusColor = Palette::UiDim; }
-    canvas.CenteredText((int)(rect.x + rect.width / 2.0f), (int)rect.y + 28, 11, statusColor, status.c_str());
-}
-
-// ==========================================
-// BO CUC MENU MOI - 3 TANG thay cho 1 cot doc dai truoc day (thao luan voi Dawg ve UI
-// overhaul, xem chat): Header (logo+ten) / 2 PANEL canh nhau CHIEU CAO CO DINH (TOP 10 +
-// DIFFICULTY-LOADOUT-VOLUME) / nut START dang Panel that o Footer.
-//
-// Ly do panel CO DINH kich thuoc: ban cu tinh bottomY = 195 + entries.size()*20 + 30 roi
-// fallback ve 420 khi rong - chinh phep tinh nay la nguon goc khoang den lon giua man hinh
-// luc chua co ky luc nao (truong hop THUONG GAP NHAT - moi lan xoa save/may moi). Panel co
-// dinh khong con phu thuoc so dong du lieu, nen khong con "co gian" theo noi dung.
-//
-// Dung LAI panelFill/panelBorder GIONG HET DrawHUD() ben duoi file nay (cung HUD_PANEL_ALPHA/
-// HUD_PANEL_BORDER_THICKNESS) - Menu va HUD gio chung 1 "chat lieu" thi giac thay vi 2 the
-// gioi rieng (Menu truoc day khong dung UICanvas::Panel() lan nao).
-// ==========================================
-void RenderSystem::DrawMenu(const GameManager& gm) {
-    DrawTitleLogo(gm.sprites.basicAlien);
-
-    UICanvas canvas;
-
-    // TEN THAT cua game (khop InitWindow() trong game_manager.cpp va README), khong con
-    // "SPACE INVADERS" - do la ten THE LOAI, khong phai ten game nay. CenteredText (thay
-    // Text voi x=250 hardcode cu) de luon can giua du sau nay doi chuoi.
-    // Logo neon Audiowide (GD 5) - ve THANG (khong qua canvas: canvas chi giu 1 font). "Bat den"
-    // tinh tu luc mo game (GetTime), chi chay 1 lan dau.
-    DrawNeonText(gm.titleFont, "HARDCORE SPACE INVADERS", { Config::SCREEN_W / 2.0f, 112.0f }, 44.0f,
-                 Palette::PlayerShip, NeonPowerOn((float)GetTime(), gm.settings.graphics.reduceFlashing));
-
-    Color panelFill = Palette::UiPanelFill;
-    panelFill.a = (unsigned char)(255.0f * Config::HUD_PANEL_ALPHA);
-    Color panelBorder = Palette::UiPanelEdge;
-    const float leftX = 40.0f, rightX = 415.0f, panelW = 345.0f, panelY = 165.0f, panelH = 290.0f;
-
-    // --- Panel trai: TOP 10 ---
-    const Color corner = Fade(Palette::UiAccent, 0.55f); // Goc ngoac kieu HUD vector (GD 5) - menu va HUD cung 1 "chat lieu"
-    canvas.FramedPanel({ leftX, panelY, panelW, panelH }, panelFill, panelBorder, Config::HUD_PANEL_BORDER_THICKNESS, corner);
-    canvas.CenteredText((int)(leftX + panelW / 2.0f), (int)panelY + 12, 20, Palette::UiAccent, "TOP 10");
-
-    const auto& entries = gm.leaderboard.GetEntries();
-    if (entries.empty()) {
-        // Canh giua CA CHIEU DOC trong panel - khac ban cu (1 dong xam nho lac long ngay
-        // duoi header, phan con lai cua man hinh la khoang den). Panel co dinh kich thuoc
-        // nen luon co du cho de canh giua thay vi phai doan vi tri theo noi dung.
-        canvas.CenteredText((int)(leftX + panelW / 2.0f), (int)(panelY + panelH / 2.0f), 16, Palette::UiDim, Loc::NoRecordsYet);
-    } else {
-        float y = panelY + 44.0f;
-        for (size_t i = 0; i < entries.size(); i++) {
-            Color rowColor = (i == 0) ? Palette::UiAccent : Palette::UiText;
-            canvas.Text((int)leftX + 14, (int)y, 15, rowColor,
-                        TextFormat("%2d. %6d pts  wave %d", (int)i + 1, entries[i].score, entries[i].wave));
-            y += 22.0f; // 10 dong toi da (Config::LEADERBOARD_MAX_ENTRIES) * 22 = 220, vua trong panelH=290
-        }
-    }
-
-    // --- Panel phai: DIFFICULTY / LOADOUT / VOLUME ---
-    canvas.FramedPanel({ rightX, panelY, panelW, panelH }, panelFill, panelBorder, Config::HUD_PANEL_BORDER_THICKNESS, corner);
-
-    canvas.Text((int)rightX + 14, (int)panelY + 12, 15, Palette::UiAccent, "DIFFICULTY  (LEFT/RIGHT)");
-    const float pillW = 105.0f, pillGap = 10.0f, pillY = panelY + 36.0f;
-    for (int i = 0; i < 3; i++) {
-        DifficultyStats s = GetDifficultyStats((Difficulty)i);
-        Rectangle pillRect = { rightX + 5.0f + (float)i * (pillW + pillGap), pillY, pillW, 32.0f };
-        DrawSelectPill(canvas, pillRect, s.label, (Difficulty)i == gm.difficulty);
-    }
-
-    canvas.Text((int)rightX + 14, (int)panelY + 82, 15, Palette::UiAccent, TextFormat("LOADOUT  (Q/E) - %d CR", gm.metaProgress.GetCurrency()));
-    const float cardY = panelY + 106.0f;
-    const LoadoutType loadouts[3] = { LoadoutType::Standard, LoadoutType::Vanguard, LoadoutType::Overcharge };
-    for (int i = 0; i < 3; i++) {
-        LoadoutType type = loadouts[i];
-        bool available = (type == LoadoutType::Standard) || gm.metaProgress.IsUnlocked(type);
-        Rectangle cardRect = { rightX + 5.0f + (float)i * (pillW + pillGap), cardY, pillW, 50.0f };
-        DrawLoadoutCard(canvas, cardRect, type, (int)type == gm.selectedLoadout, available,
-                         gm.metaProgress.GetCurrency(), GetLoadoutUnlockCost(type));
-    }
-
-    canvas.Text((int)rightX + 14, (int)panelY + 176, 15, Palette::UiAccent, "VOLUME  (UP/DOWN)");
-    canvas.Bar({ rightX + 14.0f, panelY + 200.0f, panelW - 28.0f, 16.0f }, gm.audio.GetVolume(), Palette::UiPanelFill, Palette::Weaver, Palette::UiText);
-    canvas.Text((int)(rightX + panelW - 46.0f), (int)panelY + 218, 13, Palette::UiDim, TextFormat("%d%%", (int)(gm.audio.GetVolume() * 100.0f)));
-
-    // --- Footer: nut START dang Panel that (border pulse) thay vi 1 dong chu doi alpha ---
-    float startPulse = 0.5f + 0.5f * sinf((float)GetTime() * 3.0f);
-    Rectangle startRect = { Config::SCREEN_W / 2.0f - 140.0f, 480.0f, 280.0f, 52.0f };
-    canvas.Panel(startRect, Color{ 16, 16, 26, 180 }, Fade(Palette::UiAccent, 0.6f + 0.4f * startPulse), 2.0f + startPulse);
-    canvas.CenteredText(Config::SCREEN_W / 2, 496, 20, Palette::UiText, "PRESS ENTER TO START");
-
-    canvas.CenteredText(Config::SCREEN_W / 2, 548, 14, Palette::UiDim,
-                        std::string("ARROWS / Q,E: ADJUST   ")
-                        + TextFormat(Loc::MenuAchievementsHintFmt, gm.achievements.UnlockedCount(), ACHIEVEMENT_COUNT));
-    canvas.CenteredText(Config::SCREEN_W / 2, 568, 14, Palette::UiDim,
-                        std::string(Loc::MenuGraphicsHint) + "   " + Loc::MenuFullscreenHint);
-
-    canvas.Draw(gm.gameFont);
-}
-
-// UPGRADE SELECT (Track C - Nguoi 2, Phase 3) - dong "< UPGRADE: TEN - mo ta (xN owned) >"
-// trong man hinh WAVE_CLEAR, dung KHUON DrawLoadoutSelect() o tren (cycle Trai/Phai, hien
-// 1 lua chon tai 1 thoi diem - xem GameManager::UpdateEndScreen() cho logic cycle/ap dung
-// that su). Nhan gia tri DA trich xuat san (khong nhan GameManager&) - cung ly do voi
-// DrawLoadoutSelect: ham static nay khong co `friend class RenderSystem`.
-// THE NANG CAP (GD 5) - 3 the canh nhau thay cho dong "< UPGRADE: TEN - mo ta (xN owned) >" chi
-// hien 1 lua chon tai 1 thoi diem: nguoi choi thay HET lua chon cung luc (cung ly do DrawSelectPill/
-// DrawLoadoutCard o menu). Trai/Phai van doi lua chon nhu cu - chi doi cach VE.
-static void DrawUpgradeCards(UICanvas& canvas, int y, int selected, const Player& player) {
-    const float cardW = 220.0f, cardH = 86.0f, gap = 14.0f;
-    const float startX = (Config::SCREEN_W - (3.0f * cardW + 2.0f * gap)) / 2.0f;
-    Color fill = Palette::UiPanelFill;
-    fill.a = (unsigned char)(255.0f * Config::HUD_PANEL_ALPHA);
-    for (int i = 0; i < UPGRADE_TYPE_COUNT; i++) {
-        const UpgradeTypeDescriptor& d = GetUpgradeTypeDescriptor((UpgradeType)i);
-        const bool active = (i == selected);
-        Rectangle r{ startX + (float)i * (cardW + gap), (float)y, cardW, cardH };
-        if (active) canvas.FramedPanel(r, fill, Palette::UiAccent, 2.0f, Palette::UiAccent);
-        else        canvas.Panel(r, fill, Palette::UiPanelEdge, Config::HUD_PANEL_BORDER_THICKNESS);
-        const int cx = (int)(r.x + cardW / 2.0f);
-        canvas.CenteredText(cx, y + 12, 17, active ? Palette::UiText : Palette::UiDim, d.name);
-        canvas.CenteredText(cx, y + 38, 13, active ? Palette::UiText : Palette::UiDim, d.description);
-        int owned = player.GetUpgradeStacks((UpgradeType)i);
-        canvas.CenteredText(cx, y + 62, 13, owned > 0 ? Palette::UiAccent : Palette::UiDim, TextFormat("x%d owned", owned));
-    }
-}
-
-void RenderSystem::DrawEndScreen(const GameManager& gm) {
-    UICanvas canvas;
-    // A4: toan bo man hinh nay la banner/thong bao mang tinh "trung tam" (khong phai
-    // du lieu dang bang/cot can can le trai) - doi sang CenteredText() de luon nam
-    // giua man hinh (Config::SCREEN_W/2) bat ke do dai chuoi (vd "SCORE: 12345" vs
-    // "SCORE: 5") thay vi toa do x hardcode tung dong nhu truoc.
-    int centerX = Config::SCREEN_W / 2;
-    bool waveClear = (gm.state == GameState::WAVE_CLEAR);
-    if (waveClear) {
-        DrawNeonText(gm.titleFont, TextFormat("WAVE %d CLEARED!", gm.wave - 1), { (float)centerX, 198.0f }, 36.0f, Palette::UiSuccess, 1.0f);
-        canvas.CenteredText(centerX, 240, 20, Palette::UiText, TextFormat("SCORE: %d", gm.player.GetScore()));
-
-        // NANG CAP SAU WAVE (Track C - Nguoi 2, Phase 3): gm.wave DA duoc ++ TU TRUOC (xem
-        // comment trong GameManager::UpdateEndScreen()) - tuc DA LA wave SAP choi, dung
-        // thang de bao "wave boss sap toi" ma khong can suy nguoc gi them.
-        bool rareWave = (gm.wave % Config::BOSS_WAVE_INTERVAL == 0);
-        if (rareWave) canvas.CenteredText(centerX, 272, 16, Palette::UiAccent, Loc::BossWaveUpgradeBanner);
-
-        DrawUpgradeCards(canvas, 296, gm.selectedUpgrade, gm.player);
-
-        canvas.CenteredText(centerX, 398, 16, Palette::UiDim, Loc::UpgradeSelectHint);
-    } else {
-        DrawRunSummary(canvas, gm, centerX);
-    }
-    canvas.Draw(gm.gameFont);
-}
-
-// ==========================================
-// BANG TONG KET RUN (man hinh GAME OVER)
-//
-// TRUOC DAY man hinh nay chi co 3 dong chu tho giua nen sao: "GAME OVER", "FINAL SCORE /
-// WAVE REACHED", va 1 banner ky luc. Van de lon nhat KHONG phai tham my ma la thong tin:
-// GameManager::UpdatePlaying() goi metaProgress.AwardCurrency() DUNG TAI khoanh khac nay,
-// nhung man hinh khong he noi nguoi choi vua kiem duoc bao nhieu CR, dang co tong bao
-// nhieu, hay con thieu bao nhieu de mo khoa loadout ke tiep. Ca he thong meta-progression
-// (thu duy nhat khien nguoi choi bam Restart thay vi tat game) vo hinh dung vao luc no
-// tra thuong - nguoi choi phai quay ve Menu roi tu doc "0/150" moi biet.
-//
-// CHAY SO: 3 con so quan trong nhat (diem/CR kiem duoc/tong CR) dem len tu 0 trong
-// Config::SUMMARY_COUNT_UP_DURATION giay dau (gm.endScreenTimer). Day khong phai trang tri
-// - no keo anh mat nguoi choi o lai bang tong ket du 1 nhip thay vi bam Enter ngay, tuc la
-// khoanh "phan thuong" that su duoc nhin thay.
-// ==========================================
-void RenderSystem::DrawRunSummary(UICanvas& canvas, const GameManager& gm, int centerX) {
-    // 0..1 - tien do chay so. Sau khi day, moi con so dung o gia tri that.
-    float t = (Config::SUMMARY_COUNT_UP_DURATION > 0.0f)
-                ? fminf(gm.endScreenTimer / Config::SUMMARY_COUNT_UP_DURATION, 1.0f)
-                : 1.0f;
-    auto countUp = [t](int finalValue) { return (int)((float)finalValue * t); };
-
-    DrawNeonText(gm.titleFont, "GAME OVER", { (float)centerX, 116.0f }, 40.0f, Palette::UiDanger, 1.0f);
-
-    Color panelFill = Palette::UiPanelFill;
-    panelFill.a = (unsigned char)(255.0f * Config::HUD_PANEL_ALPHA);
-    // panelH tinh DU cho: header (44) + 6 hang x 26 + khoang tach 6 + dong "NEXT" + thanh
-    // tien do + le duoi. Ban dau de 232 -> dong NEXT/thanh bar de len hang TOTAL (thay ro
-    // trong anh chup: "NEXT: VANGUARD 17/150 CR" cat ngang chu "TOTAL ... 17 CR").
-    const float panelW = 380.0f, panelX = (float)centerX - panelW / 2.0f;
-    const float panelY = 150.0f, panelH = 250.0f;
-    canvas.FramedPanel({ panelX, panelY, panelW, panelH }, panelFill, Palette::UiPanelEdge, Config::HUD_PANEL_BORDER_THICKNESS,
-                       Fade(Palette::UiAccent, 0.55f)); // Goc ngoac nhu HUD/menu (GD 5)
-    canvas.CenteredText(centerX, (int)panelY + 12, 18, Palette::UiAccent, Loc::RunSummaryTitle);
-
-    // 1 helper duy nhat cho MOI dong "nhan trai - gia tri phai" - canh le bang toa do co
-    // dinh 2 ben panel thay vi 1 chuoi TextFormat gop ca 2 (chuoi gop khong the canh phai
-    // duoc, va do dai gia tri thay doi se lam nhan nhay theo).
-    float rowY = panelY + 44.0f;
-    auto row = [&](const char* label, const char* value, Color valueColor, int size = 16) {
-        canvas.Text((int)panelX + 18, (int)rowY, size, Palette::UiDim, label);
-        // Canh PHAI: dat tam o (mep phai - nua be rong uoc luong) thi van lech; dung
-        // CenteredText quanh 1 tam co dinh gan mep phai la du on cho cot gia tri ngan.
-        canvas.CenteredText((int)(panelX + panelW - 62.0f), (int)rowY, size, valueColor, value);
-        rowY += 26.0f;
-    };
-
-    row(Loc::RunSummaryScore, TextFormat("%d", countUp(gm.player.GetScore())), Palette::UiText, 17);
-    row(Loc::RunSummaryWave,  TextFormat("%d", gm.wave), Palette::UiText);
-    row(Loc::RunSummaryKills, TextFormat("%d", countUp(gm.runKills)), Palette::UiText);
-    row(Loc::RunSummaryCombo, gm.runBestCombo > 1 ? TextFormat("x%d", gm.runBestCombo) : "-",
-        gm.runBestCombo > 1 ? Palette::ScoreText : Palette::UiDim);
-
-    rowY += 6.0f;
-    row(Loc::RunSummaryEarned, TextFormat("+%d", countUp(gm.runCurrencyEarned)),
-        gm.runCurrencyEarned > 0 ? Palette::UiAccent : Palette::UiDim, 17);
-    row(Loc::RunSummaryTotal, TextFormat("%d CR", countUp(gm.metaProgress.GetCurrency())), Palette::UiText);
-
-    // MUC TIEU KE TIEP: loadout re nhat chua mo khoa + thanh tien do. Danh sach loadout va
-    // gia cua chung KHONG duoc liet ke lai o day - doc qua NextLockedLoadout()/
-    // GetLoadoutUnlockCost() (meta_progress.h), cung 1 nguon voi man hinh Menu.
-    // Vi tri suy tu `rowY` (con tro chay cua helper row() o tren) thay vi tinh nguoc tu day
-    // panel: them/bot 1 hang thong ke sau nay se tu day khoi nay xuong, khong lam no de len
-    // hang cuoi nhu ban dau.
-    LoadoutType next = NextLockedLoadout(gm.metaProgress);
-    if (next == LoadoutType::Standard) {
-        canvas.CenteredText(centerX, (int)rowY + 8, 15, Palette::UiSuccess, Loc::AllUnlocked);
-    } else {
-        int cost = GetLoadoutUnlockCost(next);
-        int have = gm.metaProgress.GetCurrency();
-        canvas.CenteredText(centerX, (int)rowY + 6, 14, Palette::UiDim,
-                            TextFormat(Loc::NextUnlockFmt, GetLoadoutName(next), have, cost));
-        float ratio = (cost > 0) ? (float)have / (float)cost : 1.0f;
-        canvas.Bar({ panelX + 18.0f, rowY + 26.0f, panelW - 36.0f, 8.0f }, ratio,
-                   Palette::UiPanelEdge, Palette::UiAccent, Palette::UiPanelEdge);
-    }
-
-    // 3 trang thai ro rang thay vi 1 bool "co pha ky luc hay khong": NewRecord (gio la #1),
-    // MadeTop10 (lot danh sach nhung khong phai #1), hoac khong lot top nao ca (van hien
-    // diem cao nhat hien tai de nguoi choi biet minh con thieu bao nhieu).
-    if (gm.lastSubmitResult == SubmitResult::NewRecord) {
-        canvas.CenteredText(centerX, 418, 20, Palette::UiAccent, Loc::NewRecordBanner);
-    } else if (gm.lastSubmitResult == SubmitResult::MadeTop10) {
-        canvas.CenteredText(centerX, 418, 20, Palette::UiSuccess, Loc::MadeTop10Banner);
-    } else {
-        canvas.CenteredText(centerX, 420, 17, Palette::UiDim, TextFormat("TOP SCORE: %d", gm.leaderboard.GetTopScore()));
-    }
-    canvas.CenteredText(centerX, 458, 18, Palette::UiDim, "ENTER: MENU   R: RESTART");
-}
+#include "retro_ui.h"
 
 // IDLE ANIMATION (Phase 1 - Graphics/UI Overhaul, Nguoi 1): transform-THUAN quanh tam 1
 // Rectangle theo sin(GetTime()) - bob truc Y y het ky thuat DrawTitleLogo() o tren, cong
@@ -578,158 +275,124 @@ void RenderSystem::DrawPlaying(const GameManager& gm) {
     // HUD ve ngoai camera de khong bi rung theo
     DrawHUD(gm);
 
-    int centerX = Config::SCREEN_W / 2;
-    if (gm.state == GameState::PAUSED) {
-        DrawRectangle(0, 0, Config::SCREEN_W, Config::SCREEN_H, Fade(Palette::Background, 0.6f));
-        UICanvas canvas;
-        // A4: CenteredText thay cho toa do x hardcode - "PAUSED" (40pt) va 2 dong gia
-        // huong dan (18pt) truoc day dung 3 x khac nhau (330/280/250) uoc luong thu
-        // cong theo do dai chuoi, khong con chinh xac neu font/chuoi doi sau nay.
-        DrawNeonText(gm.titleFont, "PAUSED", { (float)centerX, 270.0f }, 40.0f, Palette::UiText, 1.0f);
-        canvas.CenteredText(centerX, 310, 18, Palette::UiDim, TextFormat("VOLUME: %d%%  (UP/DOWN)", (int)(gm.audio.GetVolume() * 100)));
-        canvas.CenteredText(centerX, 340, 18, Palette::UiDim, Loc::PausedControlsHint);
-        canvas.Draw(gm.gameFont);
-    } else if (gm.state == GameState::KEYBIND) {
-        DrawRectangle(0, 0, Config::SCREEN_W, Config::SCREEN_H, Fade(Palette::Background, 0.75f));
-        UICanvas canvas;
-        DrawNeonText(gm.titleFont, Loc::KeybindTitle, { (float)centerX, 106.0f }, 32.0f, Palette::UiText, 1.0f);
+    // Hitbox (Cai dat > Tro nang): vien dung vung va cham THAT cua tau (player.GetRect() - cung
+    // rect CheckCollisions() dung), ve ngoai camera rung de nguoi choi doc vi tri chinh xac.
+    if (gm.settings.showHitbox) {
+        Rectangle hb = gm.player.GetRect();
+        DrawRectangleLinesEx(hb, 1.0f, Fade(Palette::UiText, 0.85f));
+        DrawRectangleRec({ hb.x + hb.width / 2.0f - 1.0f, hb.y + hb.height / 2.0f - 1.0f, 2.0f, 2.0f }, Palette::UiText);
+    }
+    if (gm.state == GameState::PAUSED) DrawPauseMenu(gm);
+}
 
-        const RebindableAction* actions = GetRebindableActions();
-
-        // A4 - FIX: canh giua TUNG dong rebind DOC LAP se lam dau ':' nhay lech giua
-        // cac dong co gia tri khac do dai (vd "SPACE" dai hon "A"/"D"/"P" nhieu -> dong
-        // do bi keo lech trai de giu TAM rieng no, pha mat cot ':' thang hang von co tu
-        // %-6s). Thay vao do: do truoc CA 4 dong, lay dong RONG NHAT lam chuan, roi ve
-        // TAT CA left-align chung 1 canh trai (= tam man hinh - rongNhat/2) - vua giu
-        // nguyen khoi 4 dong nam GIUA man hinh (dung tinh than CenteredText/A4), vua giu
-        // cot ':' thang hang nhu ban goc (Text() hardcode truoc day, chi khac la gio
-        // TU DONG can giua ca khoi thay vi 1 x hardcode rieng).
-        std::string lines[REBINDABLE_ACTION_COUNT];
-        float maxLineWidth = 0.0f;
-        for (int i = 0; i < REBINDABLE_ACTION_COUNT; i++) {
-            bool isBeingRebound = (gm.rebindingActionIndex == i);
-            int currentKey = gm.settings.*(actions[i].keyField);
-            lines[i] = TextFormat("%d) %-6s: %s", i + 1, actions[i].label,
-                                   isBeingRebound ? "..." : InputSystem::KeyName(currentKey));
-            float w = MeasureTextEx(gm.gameFont, lines[i].c_str(), 22.0f, 1.0f).x;
-            if (w > maxLineWidth) maxLineWidth = w;
-        }
-        float rowsLeftX = (float)centerX - maxLineWidth / 2.0f;
-        for (int i = 0; i < REBINDABLE_ACTION_COUNT; i++) {
-            bool isBeingRebound = (gm.rebindingActionIndex == i);
-            Color rowColor = isBeingRebound ? Palette::UiAccent : Palette::UiText;
-            canvas.Text((int)rowsLeftX, 160 + i * 36, 22, rowColor, lines[i]);
-        }
-
-        if (gm.rebindingActionIndex >= 0) {
-            canvas.CenteredText(centerX, 340, 18, Palette::UiAccent,
-                        TextFormat(Loc::RebindPromptFmt, actions[gm.rebindingActionIndex].label));
-        } else {
-            canvas.CenteredText(centerX, 340, 16, Palette::UiDim, Loc::KeybindHelp);
-        }
-        canvas.Draw(gm.gameFont);
+// Ten hien thi (da dich) cua loai boss - BossTypeName() (enemy_types.h) giu ten tieng Anh noi bo
+// cho test/log; man hinh doc qua day.
+static const char* BossDisplayName(BossType t) {
+    switch (t) {
+        case BossType::Sentinel: return Tr(Str::BossSentinel);
+        case BossType::Swarmer:  return Tr(Str::BossSwarmer);
+        default:                 return Tr(Str::BossVanguard);
     }
 }
 
+// ==========================================
+// HUD ARCADE (nang cap GUI) - bo cuc kieu bang diem may Taito/Namco: nhan nho mau NONG o tren,
+// so lon 6 chu so co so 0 dau ben duoi ("SCORE<1>  HI-SCORE"). So 0 dau khong phai trang tri: do
+// rong co dinh -> so khong "nhay" ngang khi diem tang them 1 chu so.
+//   Trai : DIEM | CAO (diem cao nhat bang xep hang - biet ngay con cach ky luc bao xa)
+//   Phai : DOT  | tau mini = mang
+//   Duoi phai: o power-up co VACH DEM NGUOC (truoc day chi co icon - khong biet sap het hay chua)
+// Van giu trong dai Config::HUD_TOP_BAND_H (khong de len hang dich dau - xem lich su bug o duoi).
+// ==========================================
 void RenderSystem::DrawHUD(const GameManager& gm) {
     UICanvas canvas;
-
-    // PANEL/ICON HUD (Nguoi 3 - Audio & UI): thay nen-den-trong-suot
-    // truoc day bang UIPanel (nen toi + vien) quanh TUNG CUM thong tin lien quan, va
-    // UIIcon (SpriteSheet::iconShield/iconRapidFire/iconPiercing - CUNG texture/tint da
-    // dung cho pickup roi tren mat dat, xem nhanh PowerUpType duoi day trong file nay)
-    // thay 3 dong chu SHIELD/RAPID FIRE/PIERCING truoc day. 1 bo mau panel DUY NHAT dung
-    // chung ca HUD thay vi hardcode rieng tung noi.
     Color panelFill = Palette::UiPanelFill;
     panelFill.a = (unsigned char)(255.0f * Config::HUD_PANEL_ALPHA);
-    Color panelBorder = Palette::UiPanelEdge;
-
-    // --- Diem / Wave / Combo (top-left) - MOT HANG NGANG kieu arcade ---
-    // BUG FIX: panel cu cao 80px (y 6..86) trong khi hang dich TREN CUNG cua doi hinh bat
-    // dau o y = LevelGridConfig::startY (level.cfg, mac dinh 50) -> panel DE LEN hang dich
-    // do, che mat mot phan doi hinh suot ca van (thay ro trong anh chup game that). Xep 3
-    // thong tin thanh 1 hang cao Config::HUD_TOP_BAND_H (32px, y 6..38) thi luon nam GON
-    // phia tren doi hinh. Chu nho hon 1 chut (17/15 thay vi 20/18) la cai gia phai tra, doi
-    // lai khong con che gameplay.
-    //
-    // Chi cum NAY tung de len doi hinh: cum LIVES (x >= SCREEN_W-110 = 690) va cum icon
-    // power-up (x >= SCREEN_W-130 = 670) deu nam PHAI cot dich ngoai cung (startX + 9*
-    // spacingX + rong = 645), nen khong can dong den.
-    // GD 5: panel kieu vector (goc ngoac) + diem LAN SO (hudScoreShown) - so nhay thang tu 1200
-    // len 1450 thi mat khong kip doc; lan so cho thay "vua an bao nhieu" nhu may arcade.
+    const Color panelBorder = Palette::UiPanelEdge;
     const Color corner = Fade(Palette::UiAccent, 0.55f);
-    canvas.FramedPanel({ 6.0f, 6.0f, 236.0f, Config::HUD_TOP_BAND_H }, panelFill, panelBorder, Config::HUD_PANEL_BORDER_THICKNESS, corner);
+    const float bandH = Config::HUD_TOP_BAND_H;
+    const float time = (float)GetTime();
+
+    // --- Trai: DIEM + CAO. Panel rong toi da 234px (x 6..240): thanh mau boss giua man bat dau o
+    // x=240 - rong hon la de len nhau o wave boss. Panel cao HUD_TOP_BAND_H: panel cu 80px tung de
+    // len hang dich tren cung (y=50) suot ca van.
+    canvas.FramedPanel({ 6.0f, 6.0f, 228.0f, bandH }, panelFill, panelBorder, Config::HUD_PANEL_BORDER_THICKNESS, corner);
     const bool rolling = (int)gm.hudScoreShown != gm.player.GetScore();
-    canvas.Text(14, 13, 17, rolling ? Palette::ScoreText : Palette::UiText, TextFormat("SCORE %d", (int)gm.hudScoreShown));
-    canvas.Text(140, 14, 15, Palette::UiDim, TextFormat("W%d", gm.wave));
+    const int hi = gm.leaderboard.GetTopScore() > gm.player.GetScore() ? gm.leaderboard.GetTopScore() : gm.player.GetScore();
+    canvas.Text(14, 6, 15, Palette::ScoreText, Tr(Str::HudScore));
+    canvas.Text(14, 15, 24, rolling ? Palette::ScoreText : Palette::UiText, TextFormat("%06d", (int)gm.hudScoreShown));
+    canvas.Text(122, 6, 15, Palette::UiDim, Tr(Str::HudHi));
+    canvas.Text(122, 15, 24, Palette::UiDim, TextFormat("%06d", hi));
     if (gm.comboCount > 1) {
-        canvas.Text(180, 14, 15, Palette::ScoreText, TextFormat("x%d", gm.comboCount));
+        // Combo: so NONG nhun nhe theo nhip (chu "song") - cung mau voi popup diem
+        float bob = gm.settings.graphics.reduceFlashing ? 0.0f : sinf(time * 10.0f) * 1.0f;
+        canvas.Text(196, (int)(13.0f + bob), 22, Palette::ScoreText, TextFormat("x%d", gm.comboCount));
     }
+    if (gm.runAssisted) canvas.Text(14, 42, 15, Fade(Palette::UiDim, 0.9f), Tr(Str::AssistTag));
 
     // GOI Y PHIM: chi hien Config::HUD_HINT_DURATION giay dau cua 1 van MOI roi mo dan tat
-    // (xem GameManager::hintTimer). Truoc day dong nay hien VINH VIEN giua dinh man hinh -
-    // huong dan cho 10 giay dau nhung o lai ca van, ngay vung de nhin nhat.
-    // A4: van an luc Boss active - panel Boss chiem dung vung ngang nay.
+    // (xem GameManager::hintTimer). An luc Boss active - panel Boss chiem dung vung ngang nay.
     if (gm.bossPool.Size() == 0 && gm.hintTimer > 0.0f) {
         float alpha = (gm.hintTimer < Config::HUD_HINT_FADE) ? (gm.hintTimer / Config::HUD_HINT_FADE) : 1.0f;
-        canvas.CenteredText(Config::SCREEN_W / 2, 14, 15, Fade(Palette::UiDim, alpha), "P: PAUSE   R: RESTART");
+        canvas.CenteredText(Config::SCREEN_W / 2, 14, 19, Fade(Palette::UiDim, alpha),
+                            TextFormat(Tr(Str::HudHintFmt), InputSystem::KeyName(gm.settings.keyPause)));
     }
 
-    // --- Mang (top-right) ---
-    // GD 5: tau mini thay chu "LIVES 3" - dem bang mat nhanh hon doc so, va dung CHINH sprite
-    // + mau tau nguoi choi nen khong can nhan. Panel giu do rong cu (104px) - vua 5 tau
-    // (Config::MAX_LIVES); vuot 5 (khong xay ra) thi hien so thay vi tran panel.
-    canvas.FramedPanel({ (float)Config::SCREEN_W - 110.0f, 6.0f, 104.0f, Config::HUD_TOP_BAND_H }, panelFill, panelBorder, Config::HUD_PANEL_BORDER_THICKNESS, corner);
+    // --- Phai: DOT + mang (tau mini - dem bang mat nhanh hon doc so, khong can nhan) ---
+    const float rightX = (float)Config::SCREEN_W - 194.0f;
+    canvas.FramedPanel({ rightX, 6.0f, 188.0f, bandH }, panelFill, panelBorder, Config::HUD_PANEL_BORDER_THICKNESS, corner);
+    canvas.Text((int)rightX + 8, 6, 15, Palette::UiAccent, Tr(Str::ColWave));
     {
         const int lives = gm.player.GetLives();
         const float iconW = 16.0f, iconH = 12.0f, gap = 3.0f;
+        const float shipsX = rightX + 92.0f;
         if (lives <= 5) {
             for (int i = 0; i < lives; i++) {
-                canvas.Icon({ (float)Config::SCREEN_W - 101.0f + (float)i * (iconW + gap), 16.0f, iconW, iconH },
-                            gm.sprites.player, Palette::PlayerShip);
+                canvas.Icon({ shipsX + (float)i * (iconW + gap), 16.0f, iconW, iconH }, gm.sprites.player, Palette::PlayerShip);
             }
         } else {
-            canvas.Text(Config::SCREEN_W - 100, 13, 17, Palette::UiText, TextFormat("LIVES %d", lives));
+            canvas.Text((int)shipsX, 11, 22, Palette::UiText, TextFormat("x%d", lives));
+        }
+        // 1 mang cuoi: vien do nhip tho cham (khong nhap nhay gat) - "chi con 1 lan duoc sai"
+        if (lives == 1) {
+            float a = gm.settings.graphics.reduceFlashing ? 0.6f : 0.35f + 0.3f * sinf(time * 4.0f);
+            canvas.Panel({ rightX + 86.0f, 10.0f, 30.0f, bandH - 8.0f }, Color{ 0, 0, 0, 0 }, Fade(Palette::UiDanger, a), 1.0f);
         }
     }
+    canvas.Text((int)rightX + 8, 15, 24, Palette::UiText, TextFormat("%02d", gm.wave));
 
-    // --- Trang thai power-up: icon badge thay chu, CHI ve panel khi co it nhat 1
-    // power-up active (giu HUD trong khi khong co gi active, dung tinh than code cu) -
-    // 5 O CO DINH theo THU TU Shield/RapidFire/Piercing/SpreadShot/Overdrive (khong dich
-    // trai lap khoang trong) de vi tri tung icon on dinh, khong "nhay" khi cac power-up
-    // bat/tat khac nhau. Cleanser KHONG co o day vi la hieu ung tuc thi (dung ngay luc
-    // nhat, khong co "thoi gian con hieu luc" de hien thi dang timer nhu 5 loai con lai).
-    // Phase 1b (Nguoi 1) mo rong tu 3 len 5 o - panel rong hon (124 thay vi 104) de du
-    // cho 5 icon + le 2 ben, KHONG con vua panel 104 cu (se tran neu giu nguyen).
-    if (gm.player.HasShield() || gm.player.HasRapidFire() || gm.player.HasPiercing()
-        || gm.player.HasSpreadShot() || gm.player.HasOverdrive()) {
-        float iconY = 46.0f;
-        float iconX = (float)Config::SCREEN_W - 121.0f;
-        float slot = Config::HUD_ICON_SIZE + 4.0f;
-        canvas.FramedPanel({ (float)Config::SCREEN_W - 130.0f, 40.0f, 124.0f, Config::HUD_ICON_SIZE + 12.0f },
+    // --- Power-up: o CO DINH theo thu tu (khong dich trai lap cho trong) + vach dem nguoc ---
+    struct Slot { PowerUpType type; const Texture2D* tex; Color tint; float duration; };
+    const Slot slots[5] = {
+        { PowerUpType::Shield,     &gm.sprites.iconShield,     Palette::ShieldBarrier, Config::POWERUP_SHIELD_DURATION },
+        { PowerUpType::RapidFire,  &gm.sprites.iconRapidFire,  Palette::PowerUp,       Config::POWERUP_RAPIDFIRE_DURATION },
+        { PowerUpType::Piercing,   &gm.sprites.iconPiercing,   Palette::PowerUp,       Config::POWERUP_PIERCE_DURATION },
+        { PowerUpType::SpreadShot, &gm.sprites.iconSpreadShot, Palette::PowerUp,       Config::POWERUP_SPREADSHOT_DURATION },
+        { PowerUpType::Overdrive,  &gm.sprites.iconOverdrive,  Palette::EnemyBullet,   Config::POWERUP_OVERDRIVE_DURATION }, // Do = rui ro mat 2 mang
+    };
+    bool anyActive = false;
+    for (const Slot& sl : slots) anyActive = anyActive || gm.player.PowerUpTimeLeft(sl.type) > 0.0f;
+    if (anyActive) {
+        const float slot = Config::HUD_ICON_SIZE + 4.0f;
+        const float iconX = (float)Config::SCREEN_W - 121.0f, iconY = 46.0f;
+        canvas.FramedPanel({ (float)Config::SCREEN_W - 130.0f, 40.0f, 124.0f, Config::HUD_ICON_SIZE + 16.0f },
                            panelFill, panelBorder, Config::HUD_PANEL_BORDER_THICKNESS, corner);
-        if (gm.player.HasShield()) {
-            canvas.Icon({ iconX, iconY, Config::HUD_ICON_SIZE, Config::HUD_ICON_SIZE }, gm.sprites.iconShield, Palette::ShieldBarrier);
-        }
-        if (gm.player.HasRapidFire()) {
-            canvas.Icon({ iconX + slot, iconY, Config::HUD_ICON_SIZE, Config::HUD_ICON_SIZE }, gm.sprites.iconRapidFire, Palette::PowerUp);
-        }
-        if (gm.player.HasPiercing()) {
-            canvas.Icon({ iconX + slot * 2.0f, iconY, Config::HUD_ICON_SIZE, Config::HUD_ICON_SIZE }, gm.sprites.iconPiercing, Palette::PowerUp);
-        }
-        if (gm.player.HasSpreadShot()) { // Phase 1b, Nguoi 1
-            canvas.Icon({ iconX + slot * 3.0f, iconY, Config::HUD_ICON_SIZE, Config::HUD_ICON_SIZE }, gm.sprites.iconSpreadShot, Palette::PowerUp);
-        }
-        if (gm.player.HasOverdrive()) { // Phase 1b, Nguoi 1
-            // Do = nhac rui ro "trung don mat 2 mang" dang active (khop pip duoi tau)
-            canvas.Icon({ iconX + slot * 4.0f, iconY, Config::HUD_ICON_SIZE, Config::HUD_ICON_SIZE }, gm.sprites.iconOverdrive, Palette::EnemyBullet);
+        for (int i = 0; i < 5; i++) {
+            float left = gm.player.PowerUpTimeLeft(slots[i].type);
+            if (left <= 0.0f) continue;
+            float x = iconX + slot * (float)i;
+            float ratio = slots[i].duration > 0.0f ? left / slots[i].duration : 0.0f;
+            // 1.5s cuoi: icon mo/sang theo nhip - bao "sap het" (nhip cham, khong phai chop gat)
+            Color tint = slots[i].tint;
+            if (left < 1.5f && !gm.settings.graphics.reduceFlashing) tint = Fade(tint, 0.45f + 0.55f * (0.5f + 0.5f * sinf(time * 9.0f)));
+            canvas.Icon({ x, iconY, Config::HUD_ICON_SIZE, Config::HUD_ICON_SIZE }, *slots[i].tex, tint);
+            canvas.Bar({ x, iconY + Config::HUD_ICON_SIZE + 2.0f, Config::HUD_ICON_SIZE, 3.0f }, ratio,
+                       Fade(Palette::UiPanelEdge, 0.6f), slots[i].tint, Color{ 0, 0, 0, 0 });
         }
     }
 
     if (gm.bossPool.Size() > 0) {
         const Boss& boss = gm.bossPool[0];
-        // Thanh mau boss o giua man hinh tren dinh - 1 widget Bar() duy nhat thay vi 3
-        // loi goi DrawRectangle/DrawRectangleLines rieng le nhu truoc.
         float barW = 300.0f;
         float ratio = (boss.maxHp > 0) ? ((float)boss.hp / (float)boss.maxHp) : 0.0f;
         float barX = (Config::SCREEN_W - barW) / 2.0f;
@@ -739,31 +402,21 @@ void RenderSystem::DrawHUD(const GameManager& gm) {
         canvas.FramedPanel({ barX - 10.0f, 4.0f, barW + 20.0f, 36.0f }, panelFill, panelBorder, Config::HUD_PANEL_BORDER_THICKNESS, corner);
         canvas.TrailBar({ barX, 8.0f, barW, 14.0f }, ratio, gm.hudBossTrail, Palette::UiPanelFill, barFill,
                         Fade(Palette::UiText, 0.55f), Palette::UiPanelEdge, BOSS_STAGE3_RATIO, BOSS_STAGE2_RATIO);
-        // A4: nhan ten Boss can GIUA thanh mau (truoc day can trai theo canh barX) -
-        // nhat quan voi cach cac man hinh khac trong track nay deu can giua theo tam
-        // vung lien quan, khong con toa do trai hardcode.
-        canvas.CenteredText((int)(barX + barW / 2.0f), 24, 14, barFill, TextFormat("BOSS - %s", BossTypeName(boss.type)));
+        canvas.CenteredText((int)(barX + barW / 2.0f), 22, 18, barFill, TextFormat(Tr(Str::HudBossFmt), BossDisplayName(boss.type)));
         if (boss.type == BossType::Sentinel && boss.shieldActive) {
-            canvas.Text((int)(barX + barW - 60.0f), 24, 14, Palette::ShieldBarrier, Loc::ShieldTag);
+            canvas.Text((int)(barX + barW - 56.0f), 22, 18, Palette::ShieldBarrier, Tr(Str::ShieldTag));
         }
     }
 
-    // ==========================================
-    // BANNER DAU WAVE - ve SAU cung trong HUD nen luon nam tren moi thu khac. Chu lon, can
-    // giua, mo dan o Config::WAVE_BANNER_FADE giay cuoi. Wave boss dung chinh ten loai boss
-    // (BossTypeName - 1 nguon duy nhat trong enemy_types.h, cung ham HUD dang dung cho
-    // thanh mau boss) thay vi chuoi "BOSS" chung chung: nguoi choi biet ngay minh sap gap
-    // co che nao truoc khi no bat dau, thay vi phai doan qua vai giay dau tran.
-    // ==========================================
     canvas.Draw(gm.gameFont);
-    DrawWaveBanner(gm); // Ve thang (font Audiowide + hinh khoi) -> phai SAU canvas de nam tren cung
+    DrawWaveBanner(gm); // Ve thang (font tieu de + hinh khoi) -> phai SAU canvas de nam tren cung
 }
 
 // ==========================================
 // BANNER DAU WAVE (GD 5) - ve SAU cung trong HUD nen luon nam tren moi thu khac. Wave boss dung
 // chinh ten loai boss (BossTypeName - 1 nguon voi thanh mau) de nguoi choi biet ngay sap gap co
 // che nao.
-//   - Wave thuong: "WAVE n" neon Audiowide + 2 vach mong phong ra tu tam (0.35s ease-out).
+//   - Wave thuong: "WAVE n" neon (titleFont) + 2 vach mong phong ra tu tam (0.35s ease-out).
 //   - Wave boss: dai CANH BAO soc cheo do-den troi ngang + "WARNING" + ten boss - kieu arcade
 //     (Galaga/Ikaruga). Do = nguy hiem tuc thi theo luat lanh/nong. Soc TROI deu, khong nhap
 //     nhay -> khong dung toi reduceFlashing.
@@ -797,12 +450,12 @@ void RenderSystem::DrawWaveBanner(const GameManager& gm) {
             EndScissorMode();
         }
         // Chu mo rong dan (open) - "WARNING" hien ra tu tam
-        DrawNeonText(gm.titleFont, "WARNING", { cx, bandY + 30.0f }, 34.0f + 6.0f * (1.0f - open), Palette::BossEnrage2, alpha);
-        const char* name = TextFormat("%s - %s", BossTypeName(gm.bossPool[0].type), Loc::BossIncomingHint);
-        Vector2 sz = MeasureTextEx(gm.gameFont, name, 16.0f, 1.0f);
-        DrawTextEx(gm.gameFont, name, { cx - sz.x / 2.0f, bandY + bandH - stripeH - 22.0f }, 16.0f, 1.0f, Fade(Palette::UiText, alpha));
+        DrawNeonText(gm.titleFont, Tr(Str::BossWarning), { cx, bandY + 30.0f }, 34.0f + 6.0f * (1.0f - open), Palette::BossEnrage2, alpha);
+        const char* name = TextFormat("%s - %s", BossDisplayName(gm.bossPool[0].type), Tr(Str::BossIncomingHint));
+        Vector2 sz = MeasureTextEx(gm.gameFont, name, 21.0f, 1.0f);
+        DrawTextEx(gm.gameFont, name, { cx - sz.x / 2.0f, bandY + bandH - stripeH - 24.0f }, 21.0f, 1.0f, Fade(Palette::UiText, alpha));
     } else {
-        const char* label = TextFormat("WAVE %d", gm.wave);
+        const char* label = TextFormat(Tr(Str::WaveBannerFmt), gm.wave);
         DrawNeonText(gm.titleFont, label, { cx, 262.0f }, 44.0f, Palette::UiAccent, alpha);
         const float half = 230.0f * open;
         const Color line = Fade(Palette::UiAccent, 0.6f * alpha);
@@ -828,158 +481,6 @@ void RenderSystem::DrawTransitionWipe(float alpha) {
             DrawRectangleRec({ 0.0f, y + h - 1.0f, (float)Config::SCREEN_W, 1.0f }, edge);
         }
     }
-}
-
-// ==========================================
-// MAN ACHIEVEMENTS - 1 the (card) moi thanh tuu, xep doc. Mau theo dung luat LANH/NONG cua
-// palette.h: the da mo dung vien UiSuccess (giong "da mo khoa" o loadout), phan thuong CR
-// dung UiAccent (vang = phan thuong). The chua mo de mo (UiDim) nhung VAN hien ten + mo ta -
-// thanh tuu an thi nguoi choi khong biet phai nham toi dau, mat muc dich "cho 1 muc tieu".
-// ==========================================
-void RenderSystem::DrawAchievements(const GameManager& gm) {
-    UICanvas canvas;
-    const int centerX = Config::SCREEN_W / 2;
-    DrawNeonText(gm.titleFont, Loc::AchievementsTitle, { (float)centerX, 51.0f }, 34.0f, Palette::UiAccent, 1.0f);
-    canvas.CenteredText(centerX, 76, 15, Palette::UiDim,
-                        TextFormat(Loc::AchievementsSummaryFmt, gm.achievements.UnlockedCount(),
-                                   ACHIEVEMENT_COUNT, gm.achievements.GetLifetimeKills()));
-
-    Color panelFill = Palette::UiPanelFill;
-    panelFill.a = (unsigned char)(255.0f * Config::HUD_PANEL_ALPHA);
-    const float cardX = 90.0f, cardW = (float)Config::SCREEN_W - 180.0f, cardH = 48.0f, gap = 6.0f;
-    float y = 106.0f; // 8 the x (48+6) = 432 -> ket thuc ~538, chua cho dong huong dan o 560
-
-    for (int i = 0; i < ACHIEVEMENT_COUNT; i++) {
-        AchievementId id = (AchievementId)i;
-        const AchievementDescriptor& d = GetAchievementDescriptor(id);
-        bool done = gm.achievements.IsUnlocked(id);
-
-        canvas.Panel({ cardX, y, cardW, cardH }, panelFill, done ? Palette::UiSuccess : Palette::UiPanelEdge,
-                     done ? 2.0f : Config::HUD_PANEL_BORDER_THICKNESS);
-        canvas.Text((int)cardX + 14, (int)y + 7, 17, done ? Palette::UiText : Palette::UiDim, d.name);
-        canvas.Text((int)cardX + 14, (int)y + 28, 13, Palette::UiDim, TextFormat(d.descriptionFmt, d.threshold));
-
-        // Cot phai: trang thai. 2 thanh tuu dem tron doi hien tien do that (vd 340/1000) - con
-        // lai la su kien "co/khong" trong 1 khoanh khac, khong co tien do nao de hien.
-        const int rightX = (int)(cardX + cardW - 70.0f);
-        if (done) {
-            canvas.CenteredText(rightX, (int)y + 8, 13, Palette::UiSuccess, Loc::AchievementUnlockedState);
-        } else if (id == AchievementId::FirstContact || id == AchievementId::Exterminator) {
-            int have = gm.achievements.GetLifetimeKills();
-            canvas.CenteredText(rightX, (int)y + 8, 13, Palette::UiDim, TextFormat("%d/%d", have < d.threshold ? have : d.threshold, d.threshold));
-        }
-        canvas.CenteredText(rightX, (int)y + 27, 14, done ? Fade(Palette::UiAccent, 0.5f) : Palette::UiAccent,
-                            TextFormat("+%d CR", d.rewardCurrency));
-        y += cardH + gap;
-    }
-
-    canvas.CenteredText(centerX, 562, 14, Palette::UiDim, Loc::AchievementsBackHint);
-    canvas.Draw(gm.gameFont);
-}
-
-// ==========================================
-// TRANG GRAPHICS - 1 the moi dong (cung khuon the cua DrawAchievements o tren), cot phai la
-// day pill cua DrawSelectPill de thay HET lua chon cung luc thay vi kieu "< MEDIUM >". Dong
-// dang chon: vien UiAccent + mo ta sang hon. Thu tu dong = enum GraphicsRow.
-// ==========================================
-void RenderSystem::DrawGraphicsSettings(const GameManager& gm) {
-    UICanvas canvas;
-    const int centerX = Config::SCREEN_W / 2;
-    const GraphicsSettings& g = gm.settings.graphics;
-    DrawNeonText(gm.titleFont, Loc::GraphicsTitle, { (float)centerX, 77.0f }, 34.0f, Palette::UiAccent, 1.0f);
-
-    Color panelFill = Palette::UiPanelFill;
-    panelFill.a = (unsigned char)(255.0f * Config::HUD_PANEL_ALPHA);
-    const float cardX = 60.0f, cardW = (float)Config::SCREEN_W - 120.0f, cardH = 76.0f, gap = 12.0f;
-    const float pillW = 92.0f, pillH = 30.0f, pillGap = 8.0f;
-    float y = 120.0f; // 4 the x (76+12) = 352 -> ket thuc ~472, chua cho dong huong dan
-
-    for (int row = 0; row < GRAPHICS_ROW_COUNT; row++) {
-        const bool active = (row == gm.graphicsRow);
-        canvas.Panel({ cardX, y, cardW, cardH }, panelFill, active ? Palette::UiAccent : Palette::UiPanelEdge,
-                     active ? 2.0f : Config::HUD_PANEL_BORDER_THICKNESS);
-
-        const char* name = "";
-        const char* desc = "";
-        const char* labels[3] = { "", "", "" };
-        int count = 2, selected = 0;
-        switch ((GraphicsRow)row) {
-            case GraphicsRow::Quality:
-                name = Loc::GraphicsRowQuality;
-                desc = (g.quality == GraphicsQuality::Low) ? Loc::GraphicsQualityDescLow
-                     : (g.quality == GraphicsQuality::High) ? Loc::GraphicsQualityDescHigh
-                     : Loc::GraphicsQualityDescMedium;
-                for (int q = 0; q < GRAPHICS_QUALITY_COUNT; q++) labels[q] = GraphicsQualityLabel((GraphicsQuality)q);
-                count = GRAPHICS_QUALITY_COUNT;
-                selected = (int)g.quality;
-                break;
-            case GraphicsRow::Crt:
-                name = Loc::GraphicsRowCrt; desc = Loc::GraphicsCrtDesc;
-                labels[0] = "ON"; labels[1] = "OFF"; selected = g.crtEnabled ? 0 : 1;
-                break;
-            case GraphicsRow::ReduceFlashing:
-                name = Loc::GraphicsRowReduceFlashing; desc = Loc::GraphicsReduceFlashingDesc;
-                labels[0] = "ON"; labels[1] = "OFF"; selected = g.reduceFlashing ? 0 : 1;
-                break;
-            case GraphicsRow::Shake:
-                name = Loc::GraphicsRowShake; desc = Loc::GraphicsShakeDesc;
-                labels[0] = "100%"; labels[1] = "50%"; labels[2] = "OFF";
-                count = SHAKE_PERCENT_LEVEL_COUNT;
-                for (int i = 0; i < SHAKE_PERCENT_LEVEL_COUNT; i++) {
-                    if (SHAKE_PERCENT_LEVELS[i] == g.shakePercent) selected = i;
-                }
-                break;
-        }
-
-        canvas.Text((int)cardX + 16, (int)y + 14, 18, active ? Palette::UiText : Palette::UiDim, name);
-        canvas.Text((int)cardX + 16, (int)y + 44, 13, active ? Palette::UiText : Palette::UiDim, desc);
-
-        // Pill can phai, luon chiem cho cua 3 o de cot pill thang hang giua cac dong 2 va 3 lua chon
-        const float pillsRight = cardX + cardW - 14.0f;
-        const float firstX = pillsRight - 3.0f * pillW - 2.0f * pillGap + (float)(3 - count) * (pillW + pillGap);
-        for (int i = 0; i < count; i++) {
-            Rectangle r = { firstX + (float)i * (pillW + pillGap), y + (cardH - pillH) / 2.0f, pillW, pillH };
-            DrawSelectPill(canvas, r, labels[i], i == selected);
-        }
-        y += cardH + gap;
-    }
-
-    canvas.CenteredText(centerX, 520, 14, Palette::UiDim, Loc::GraphicsHelp);
-    canvas.Draw(gm.gameFont);
-}
-
-// TOAST "ACHIEVEMENT UNLOCKED": the nho giua-tren, truot xuong tu ngoai man hinh roi truot
-// len lai. Nam DUOI dai HUD tren cung (y >= HUD_TOP_BAND_H + 6) nen khong che diem/mang/thanh
-// mau boss; co de len hang dich dau trong vai giay - chap nhan, nen panel ban trong suot.
-void RenderSystem::DrawAchievementToast(const GameManager& gm) {
-    if (gm.toastQueue.empty()) return;
-    const AchievementDescriptor& d = GetAchievementDescriptor(gm.toastQueue.front());
-
-    // 0..1 - do "da truot vao": tang dan o ACHIEVEMENT_TOAST_SLIDE giay dau, giam o cuoi.
-    float t = gm.toastTimer;
-    float remaining = Config::ACHIEVEMENT_TOAST_DURATION - t;
-    float slide = 1.0f;
-    if (t < Config::ACHIEVEMENT_TOAST_SLIDE) slide = t / Config::ACHIEVEMENT_TOAST_SLIDE;
-    else if (remaining < Config::ACHIEVEMENT_TOAST_SLIDE) slide = remaining / Config::ACHIEVEMENT_TOAST_SLIDE;
-    if (slide < 0.0f) slide = 0.0f;
-    slide = 1.0f - (1.0f - slide) * (1.0f - slide); // Ease-out: vao nhanh, cham dan khi toi cho
-
-    const float w = 360.0f, h = 50.0f;
-    const float restY = Config::HUD_TOP_BAND_H + 10.0f;
-    float y = -h + (restY + h) * slide;
-    float x = ((float)Config::SCREEN_W - w) / 2.0f;
-
-    UICanvas canvas;
-    Color fill = Palette::UiPanelFill;
-    // Alpha vua du doc chu (chu sang, vien vang) nhung VAN thay hang dich phia sau: toast de
-    // len hang dich tren cung 3 giay - ban dau de 230 thi che gan kin ca hang (thay ro trong
-    // anh chup), voi game "hardcore" do la bat loi that cho nguoi choi, khong chi tham my.
-    fill.a = 170;
-    canvas.Panel({ x, y, w, h }, fill, Palette::UiAccent, 2.0f);
-    canvas.Text((int)x + 14, (int)y + 7, 12, Palette::UiAccent, Loc::AchievementUnlockedTag);
-    canvas.Text((int)x + 14, (int)y + 24, 18, Palette::UiText, d.name);
-    canvas.CenteredText((int)(x + w - 50.0f), (int)y + 17, 16, Palette::UiAccent, TextFormat("+%d CR", d.rewardCurrency));
-    canvas.Draw(gm.gameFont);
 }
 
 // ==========================================

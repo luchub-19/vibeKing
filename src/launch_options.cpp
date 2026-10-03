@@ -31,6 +31,14 @@ LaunchOptions ParseLaunchOptions(const std::vector<std::string>& args) {
             else if (v == "boss") o.scene = ShowcaseScene::Boss;
             else if (v == "gameover") o.scene = ShowcaseScene::GameOver;
             else if (v == "waveclear") o.scene = ShowcaseScene::WaveClear;
+            else if (v == "menu") o.scene = ShowcaseScene::Menu;
+            else if (v == "hangar") o.scene = ShowcaseScene::Hangar;
+            else if (v == "settings") o.scene = ShowcaseScene::Settings;
+            else if (v == "howto") o.scene = ShowcaseScene::HowTo;
+            else if (v == "attract") o.scene = ShowcaseScene::Attract;
+            else if (v == "leaderboard") o.scene = ShowcaseScene::Leaderboard;
+            else if (v == "achievements") o.scene = ShowcaseScene::Achievements;
+            else if (v == "pause") o.scene = ShowcaseScene::Pause;
             else { o.error = "scene khong hop le: " + v; return o; }
         } else if (StartsWith(a, "--capture=", v)) {
             if (v.empty()) { o.error = "--capture can ten file"; return o; }
@@ -44,6 +52,13 @@ LaunchOptions ParseLaunchOptions(const std::vector<std::string>& args) {
             else if (v == "medium") o.qualityOverride = 1;
             else if (v == "high")   o.qualityOverride = 2;
             else { o.error = "quality khong hop le: " + v; return o; }
+        } else if (StartsWith(a, "--lang=", v)) {
+            if (v == "en")      o.languageOverride = 0; // Khop thu tu enum Language (localization.h)
+            else if (v == "vi") o.languageOverride = 1;
+            else { o.error = "lang khong hop le: " + v; return o; }
+        } else if (StartsWith(a, "--tab=", v)) {
+            if (v.size() != 1 || v[0] < '0' || v[0] > '3') { o.error = "--tab phai la 0..3"; return o; }
+            o.settingsTab = v[0] - '0';
         } else if (StartsWith(a, "--bench=", v)) {
             if (!ParsePositiveInt(v, o.benchFrames)) { o.error = "--bench phai la so nguyen duong"; return o; }
         } else {
@@ -75,6 +90,7 @@ FrameStats SummarizeFrameTimes(std::vector<double> samplesMs) {
 }
 
 const char* LaunchUsage() {
-    return "Cach dung: space_invaders [--scene=combat|boss|gameover|waveclear] [--capture=<file.png>] "
-           "[--capture-frame=<n>] [--quality=low|medium|high] [--bench=<n>]\n";
+    return "Cach dung: space_invaders [--scene=combat|boss|gameover|waveclear|menu|hangar|settings|howto|attract|"
+           "leaderboard|achievements|pause] [--capture=<file.png>] [--capture-frame=<n>] [--quality=low|medium|high] "
+           "[--lang=en|vi] [--tab=0..3] [--bench=<n>]\n";
 }

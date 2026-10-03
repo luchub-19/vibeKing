@@ -29,28 +29,52 @@
 #include "events.h"
 #include "localization.h"
 #include "launch_options.h"
+#include "input_system.h"
 
-enum class GameState { MENU, PLAYING, PAUSED, GAME_OVER, WAVE_CLEAR, KEYBIND, ACHIEVEMENTS, GRAPHICS };
+// MAN HINH (nang cap GUI): menu chinh tach thanh nhieu man rieng thay cho 1 man nhoi moi thu
+// + phim tat rai rac (TAB/G/K/Q/E). KEYBIND + GRAPHICS cu gop vao SETTINGS (4 tab). ATTRACT =
+// che do trinh dien tu chay khi de yen menu, kieu may arcade.
+enum class GameState { MENU, HANGAR, LEADERBOARD, HOWTO, SETTINGS, ATTRACT, ACHIEVEMENTS,
+                       PLAYING, PAUSED, GAME_OVER, WAVE_CLEAR };
 enum class TransitionPhase { NONE, FADE_OUT, FADE_IN };
 
+// Hop thoai Co/Khong dang mo (de len man hien tai). None = khong co hop nao.
+enum class ConfirmKind { None, QuitGame, RestartRun, QuitToMenu };
+
 // ==========================================
-// 4 HANH DONG CO THE REBIND (man hinh KEYBIND) - DUY NHAT 1 noi liet ke thu tu/nhan,
-// dung con tro-thanh-vien (pointer-to-member) de GameManager::UpdateKeybindScreen()
-// (ghi ma phim moi) va RenderSystem::DrawKeybindScreen() (doc de hien thi) LUON tham
-// chieu CUNG 1 dinh nghia - khong the xay ra tinh huong 2 noi liet ke thu tu khac nhau
-// roi lech nhau ve sau (dung y het van de tung sua o powerup.h: comment/code lech nhau).
+// TRANG THAI GIAO DIEN - MOI con tro/dong ho chi phuc vu VE/DIEU HUONG menu, gom 1 cho thay vi
+// rai hang chuc field rieng le trong GameManager. Khong anh huong luat choi; khong reset theo
+// van/wave (con tro menu nho vi tri cu giua cac lan vao lai la co y - kieu console).
 // ==========================================
-struct RebindableAction { const char* label; int Settings::*keyField; };
-constexpr int REBINDABLE_ACTION_COUNT = 4;
-inline const RebindableAction* GetRebindableActions() {
-    static const RebindableAction actions[REBINDABLE_ACTION_COUNT] = {
-        { Loc::ActionMoveLeft,  &Settings::keyMoveLeft  },
-        { Loc::ActionMoveRight, &Settings::keyMoveRight },
-        { Loc::ActionShoot,     &Settings::keyShoot     },
-        { "Pause",              &Settings::keyPause     },
-    };
-    return actions;
-}
+struct UiState {
+    int menuIndex = 0;      // MENU
+    int hangarRow = 2;      // HANGAR: 0 do kho, 1 loadout, 2 xuat kich (mo man la o nut XUAT KICH - bam Enter 2 lan la choi)
+    int settingsTab = 0;    // SETTINGS
+    int settingsRow = 0;
+    GameState settingsReturn = GameState::MENU; // Mo tu MENU hay tu PAUSED -> quay lai dung cho
+    bool rebinding = false;        // Dang cho phim moi cho dong Key hien tai
+    float rebindRejectTimer = 0.0f; // > 0: vua tu choi 1 phim (dang dung/danh rieng) - hien canh bao
+    int howtoPage = 0;
+    int pauseIndex = 0;
+    int endIndex = 0;       // GAME_OVER: 0 = MENU, 1 = CHOI LAI
+    ConfirmKind confirm = ConfirmKind::None;
+    int confirmIndex = 1;   // 0 = CO, 1 = KHONG - mac dinh KHONG: bam Enter vo y khong mat van
+    int attractPage = 0;
+    float attractTimer = 0.0f;
+
+    float screenTimer = 0.0f; // Giay tu luc vao man hien tai - glitch tieu de + chu go
+    float rowTimer = 0.0f;    // Giay tu luc doi dong dang chon - chu mo ta go lai tu dau
+    float idleTimer = 0.0f;   // Giay khong co input o MENU -> du ATTRACT_IDLE_SECONDS thi vao ATTRACT
+    int typedChars = 0;       // So ky tu mo ta da go - tang thi phat tieng "tach"
+
+    PointerInput pointer;     // Chuot da doi ve toa do canvas - cap nhat moi frame trong UpdateUi()
+    Vector2 lastMouseRaw{ -1.0f, -1.0f };
+};
+
+constexpr float ATTRACT_IDLE_SECONDS = 20.0f; // Arcade that thuong 15-30s
+constexpr float ATTRACT_PAGE_SECONDS = 7.0f;
+constexpr int ATTRACT_PAGE_COUNT = 3;          // Bang diem thuong / Top 10 / Dieu khien
+constexpr float TYPEWRITER_CPS = 55.0f;        // Ky tu/giay - nhanh du khong bat cho, cham du thay "dang go"
 
 // Dinh danh loai dich - dung khi can chon ra 1 muc tieu cu the (vd "tien tuyen" ban
 // tra) ma khong biet truoc no thuoc pool nao. Day KHONG phai da hinh runtime - chi la
@@ -128,7 +152,7 @@ private:
     Settings settings;
     SpriteSheet sprites;
     Font gameFont{}; // Tai qua LoadFontEx() trong Run() - Texture Atlas rieng thay the font mac dinh mo cua raylib
-    Font titleFont{}; // Audiowide cho logo/banner (GD 5) - fallback = gameFont, xem Config::TitleFontFilePath
+    Font titleFont{}; // Bungee cho logo/tieu de/banner (nang cap GUI) - fallback = gameFont, xem Config::TitleFontFilePath
     RenderTexture2D renderTarget{}; // Canvas noi bo co dinh SCREEN_W x SCREEN_H, upscale len man hinh that trong Run()
     PostProcess postProcess; // Bloom + CRT ap dung luc upscale renderTarget - xem post_process.h, Config::BLOOM_ENABLED/CRT_ENABLED
     // WARP vao wave boss (GD 1): giay con lai cua hieu ung sao tang toc - xem Parallax::
@@ -236,13 +260,43 @@ private:
     // Chuyen runAchievementBonus vao metaProgress (luu file), tra ve so CR vua chuyen, dat ve 0.
     int PayOutAchievementBonus();
     void UpdateToasts(float dt);
-    void UpdateAchievementsScreen(); // Man ACHIEVEMENTS - vao/ra tu MENU bang TAB
+    void UpdateAchievementsScreen(); // Man ACHIEVEMENTS - vao tu MENU
 
-    // TRANG GRAPHICS (phim G o MENU) - preset chat luong / CRT / giam nhap nhay / do rung.
-    // Doi gia tri nao cung luu settings.cfg ngay va co hieu luc ngay (ApplyGraphicsSettings).
-    void UpdateGraphicsScreen();
-    void ApplyGraphicsSettings(); // Day settings.graphics xuong cac he thong khong tu doc settings (ParticlePool)
-    int graphicsRow = 0;          // Dong dang chon tren trang GRAPHICS, 0..GRAPHICS_ROW_COUNT-1
+    // ==========================================
+    // GUI (nang cap GUI) - moi man menu 1 ham Update rieng; vi tri nut doc tu ui_layout.h (chung
+    // voi RenderSystem), dong cai dat doc tu settings_menu.h. Xem docs/GUI_UPGRADE.md.
+    // ==========================================
+    UiState ui;
+    void UpdateUi(float dt);          // Chuot, dong ho UI, tieng go chu, F11, dem idle -> ATTRACT
+    void GoToScreen(GameState next);  // Doi man menu TRUC TIEP (khong fade) + reset dong ho glitch/go chu
+    void OpenSettings(GameState returnTo);
+    void UpdateMenu();
+    void UpdateHangar();
+    void UpdateLeaderboardScreen();
+    void UpdateHowToScreen();
+    void UpdateSettingsScreen();
+    void UpdateRebind();
+    void UpdateAttract(float dt);
+    bool UpdateConfirm(const MenuInput& input); // true = hop xac nhan dang mo va da "nuot" input frame nay
+    void OpenConfirm(ConfirmKind kind);
+    void SelectWithPointer(int& index, int count, Rectangle (*rectOf)(int)); // Chuot di chuyen tren o nao -> chon o do
+    bool BackPressed(const MenuInput& input) const; // Back/ESC/chuot phai/bam nut QUAY LAI
+    const char* UiTypedLine() const;  // Dong mo ta dang "go" cua man hien tai (nullptr = khong co)
+    void MoveSelection(int& index, int dir, int count); // Len/Xuong vong quanh + tieng bip + go lai mo ta
+    void ResetRowTimer();
+    void LaunchRun();                 // Xuat kich tu HANGAR: InitLevel(true) + fade vao PLAYING
+    void TryUnlockSelectedLoadout();  // ENTER/bam vao the loadout dang KHOA
+
+    // Day settings xuong moi he thong khong tu doc settings: ngon ngu (Loc), am luong 3 tang,
+    // am thanh menu, preset do hoa, toan man hinh. Goi sau MOI lan doi 1 cai dat.
+    void ApplySettings();
+    void ApplyGraphicsSettings(); // Phan do hoa cua ApplySettings - tach rieng cho test (khong dung cua so/am thanh)
+    void ToggleFullscreenSetting(); // F11 + dong TOAN MAN HINH: 1 duong duy nhat, giu settings.fullscreen khop that
+
+    // ASSIST: van nay da co luc choi voi toc do game < 100% -> bang xep hang gan nhan. Theo VAN
+    // (reset o InitLevel(true)), cap nhat moi frame PLAYING - doi toc do giua van cung bi tinh.
+    bool runAssisted = false;
+    bool quitRequested = false; // Muc THOAT o menu chinh - vong lap Run() ket thuc o frame sau
 
     // COMBO SCORE: ha guc lien tiep trong Config::COMBO_WINDOW giay se duoc nhan diem.
     float comboTimer = 0.0f;
@@ -351,13 +405,8 @@ private:
     bool gameOverTriggered = false;
     void TriggerGameOver();
 
-    void SaveSettings(); // Ghi lai settings.cfg moi khi doi do kho/am luong trong menu/pause
+    void SaveSettings(); // Ghi settings.cfg (dong bo do kho dang chon vao settings truoc)
 
-    // Man hinh KEYBIND (vao tu Paused, phim K) - xem GetRebindableActions() o dau file.
-    // -1 = dang hien danh sach 4 hanh dong, CHUA cho phim; 0..REBINDABLE_ACTION_COUNT-1
-    // = da chon 1 hanh dong, dang CHO nguoi choi bam phim moi cho no.
-    int rebindingActionIndex = -1;
-    void UpdateKeybindScreen();
 
     // GOI Y PHIM DIEU KHIEN: dem nguoc tu Config::HUD_HINT_DURATION luc bat dau 1 van MOI
     // (InitLevel(newGame=true)), giam trong UpdatePlaying(). RenderSystem chi ve dong
@@ -376,7 +425,6 @@ private:
     void ApplyLoadoutBonus(); // Ap dung bonus cua loadout dang chon (Vanguard/Overcharge) - goi tu cuoi InitLevel()
     void SpawnBunkers();
     void MaybeDropPowerUp(Vector2 at); // Roll ngau nhien khi 1 dich vua bi ha guc
-    void UpdateMenu();
     void UpdateEndScreen();
     void UpdatePaused();
     void UpdatePlaying(float dt);
@@ -393,6 +441,7 @@ private:
     // ve binh thuong.
     void SetupShowcase(ShowcaseScene scene);
     bool showcaseFrozen = false;
+    int showcaseSettingsTab = 0; // --tab=N cho canh settings (chup tung tab)
 
 public:
     // opts mac dinh = choi binh thuong (khong tham so dong lenh).

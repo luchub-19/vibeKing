@@ -26,7 +26,8 @@
 // Ham THUAN (khong goi raylib) - test headless tai tests/test_launch_options.cpp.
 // ==========================================
 
-enum class ShowcaseScene { None, Combat, Boss, GameOver, WaveClear };
+// Menu..Pause: canh GUI (nang cap GUI) - chup tung man menu/2 ngon ngu (--lang) ma khong can gui phim.
+enum class ShowcaseScene { None, Combat, Boss, GameOver, WaveClear, Menu, Hangar, Settings, HowTo, Attract, Leaderboard, Achievements, Pause };
 
 struct LaunchOptions {
     ShowcaseScene scene = ShowcaseScene::None;
@@ -34,6 +35,8 @@ struct LaunchOptions {
     int captureFrame = 45;
     int benchFrames = 0;      // 0 = khong do
     int qualityOverride = -1; // -1 = dung settings.cfg; 0/1/2 = GraphicsQuality Low/Medium/High
+    int languageOverride = -1; // -1 = dung settings.cfg; 0 = EN, 1 = VI (--lang=en|vi)
+    int settingsTab = 0;       // --tab=0..3: tab hien trong canh settings
     std::string error;        // khac rong = tham so sai, main() in usage va thoat ma 2
 
     bool Ok() const { return error.empty(); }

@@ -25,6 +25,10 @@ void GameManager::UpdateTransition(float dt) {
 
     if (transitionPhase == TransitionPhase::FADE_OUT && transitionTimer >= Config::TRANSITION_DURATION) {
         state = pendingState;
+        ui.screenTimer = 0.0f; // Man moi "bat len" lai tu dau: glitch tieu de + chu go
+        ui.rowTimer = 0.0f;
+        ui.typedChars = 0;
+        ui.confirm = ConfirmKind::None;
         transitionPhase = TransitionPhase::FADE_IN;
         transitionTimer = 0.0f;
     } else if (transitionPhase == TransitionPhase::FADE_IN && transitionTimer >= Config::TRANSITION_DURATION) {
@@ -47,12 +51,13 @@ void GameManager::TriggerGameOver() {
     gameOverTriggered = true;
 
     audio.PlayGameOver();
-    lastSubmitResult = leaderboard.TrySubmit(player.GetScore(), wave);
+    lastSubmitResult = leaderboard.TrySubmit(player.GetScore(), wave, runAssisted);
     // Giu lai de bang tong ket hien "+N CR" - gom CA thuong thanh tuu dong trong van, de con
     // so "CURRENCY EARNED" khop dung so CR vua vao vi (xem runAchievementBonus).
     runCurrencyEarned = metaProgress.AwardCurrency(player.GetScore()) + PayOutAchievementBonus();
     achievements.Flush(); // Luu lifetimeKills cua van vua xong
     endScreenTimer = 0.0f; // Bat dau lai hieu ung chay so cua bang tong ket
+    ui.endIndex = 0;       // Con tro man tong ket ve nut MENU
     RequestTransition(GameState::GAME_OVER);
 }
 
@@ -117,56 +122,6 @@ void GameManager::UpdateToasts(float dt) {
     }
 }
 
-// Vao tu MENU (TAB), ra bang TAB/ESC/ENTER - doi `state` thang khong qua fade, giong cap
-// PAUSED <-> KEYBIND: day la 1 trang "xem thong tin" cung boi canh menu, khong phai chuyen canh.
-void GameManager::UpdateAchievementsScreen() {
-    MenuInput input = InputSystem::PollMenu(settings);
-    if (input.OpenAchievements || input.PauseToggle || input.Confirm) state = GameState::MENU;
-}
-
-// ==========================================
-// TRANG GRAPHICS - tai dung MenuInput nhu cac man khac: Len/Xuong (VolumeUp/Down) chon dong,
-// Trai/Phai (CycleDifficulty*) doi gia tri. Thu tu dong PHAI khop RenderSystem::
-// DrawGraphicsSettings() - ca 2 dung chung GraphicsRow (graphics_settings.h).
-// ==========================================
-void GameManager::UpdateGraphicsScreen() {
-    MenuInput input = InputSystem::PollMenu(settings);
-    if (input.OpenGraphics || input.PauseToggle || input.Confirm) { state = GameState::MENU; return; }
-
-    if (input.VolumeUp)   graphicsRow = (graphicsRow + GRAPHICS_ROW_COUNT - 1) % GRAPHICS_ROW_COUNT;
-    if (input.VolumeDown) graphicsRow = (graphicsRow + 1) % GRAPHICS_ROW_COUNT;
-
-    if (!input.CycleDifficultyLeft && !input.CycleDifficultyRight) return;
-    int dir = input.CycleDifficultyRight ? 1 : -1;
-    GraphicsSettings& g = settings.graphics;
-    switch ((GraphicsRow)graphicsRow) {
-        case GraphicsRow::Quality:        g.CycleQuality(dir); break;
-        case GraphicsRow::Crt:            g.crtEnabled = !g.crtEnabled; break;
-        case GraphicsRow::ReduceFlashing: g.reduceFlashing = !g.reduceFlashing; break;
-        case GraphicsRow::Shake:          g.CycleShake(dir); break;
-    }
-    ApplyGraphicsSettings();
-    SaveSettings();
-}
-
-void GameManager::ApplyGraphicsSettings() {
-    particles.SetSpawnScale(settings.graphics.ParticleScale());
-    // Dung lai luoi CHI khi mat do doi (Init xoa moi bien dang dang co). Ham thuan CPU, an toan
-    // headless - goi duoc ca trong test.
-    if (warpGrid.CellSize() != settings.graphics.GridCellSize()) {
-        warpGrid.Init((float)Config::SCREEN_W, (float)Config::SCREEN_H, settings.graphics.GridCellSize());
-    }
-}
-
-// ==========================================
-// SETTINGS
-// ==========================================
-void GameManager::SaveSettings() {
-    settings.difficulty = difficulty;
-    settings.volume = audio.GetVolume();
-    settings.SaveToFile(Config::SettingsFilePath());
-}
-
 // ==========================================
 // LEVEL INIT
 // ==========================================
@@ -199,6 +154,7 @@ void GameManager::InitLevel(bool newGame) {
         runCurrencyEarned = 0;
         hudScoreShown = 0.0f;
         gameOverTriggered = false; // Van MOI - mo lai "cong" GAME_OVER (xem TriggerGameOver)
+        runAssisted = settings.IsAssisted(); // Theo VAN - xem khai bao trong game_manager.h
         leaderboard.BeginRun();    // Van MOI = 1 dong MOI tren bang; moi lan nop sau do trong van nay chi cap nhat dong do
     } else {
         player.ResetForNewWave();
@@ -524,150 +480,6 @@ void GameManager::SpawnBoss() {
 }
 
 // ==========================================
-// MENU
-// ==========================================
-void GameManager::UpdateMenu() {
-    MenuInput input = InputSystem::PollMenu(settings);
-    bool changed = false;
-    if (input.CycleDifficultyLeft)  { difficulty = CycleDifficulty(difficulty, -1); changed = true; }
-    if (input.CycleDifficultyRight) { difficulty = CycleDifficulty(difficulty, 1); changed = true; }
-    if (input.VolumeUp)   { audio.SetVolume(audio.GetVolume() + 0.1f); changed = true; }
-    if (input.VolumeDown) { audio.SetVolume(audio.GetVolume() - 0.1f); changed = true; }
-    if (changed) SaveSettings();
-
-    // LOADOUT SELECT: cycle 3 lua chon (Standard/Vanguard/Overcharge) bang Q/E - phim
-    // rieng, KHONG trung voi Trai/Phai doi do kho. Dung tren 1 loadout dang KHOA ma du
-    // currency -> tu dong TryUnlock ngay (tru tien + luu file); chua du thi chi "xem thu"
-    // tien do (hien qua DrawLoadoutSelect trong render_system.cpp), khong lam gi ca.
-    if (input.CycleLoadoutLeft || input.CycleLoadoutRight) {
-        int dir = input.CycleLoadoutRight ? 1 : -1;
-        selectedLoadout = (selectedLoadout + dir + 3) % 3;
-        LoadoutType chosen = (LoadoutType)selectedLoadout;
-        if (chosen != LoadoutType::Standard && !metaProgress.IsUnlocked(chosen)) {
-            metaProgress.TryUnlock(chosen, GetLoadoutUnlockCost(chosen));
-        }
-    }
-
-    if (input.ToggleFullscreen) ToggleFullscreen();
-    if (input.OpenAchievements) { state = GameState::ACHIEVEMENTS; return; }
-    if (input.OpenGraphics) { state = GameState::GRAPHICS; graphicsRow = 0; return; }
-
-    if (input.Confirm) {
-        InitLevel(true);
-        RequestTransition(GameState::PLAYING);
-    }
-}
-
-// ==========================================
-// GAME_OVER / WAVE_CLEAR
-// ==========================================
-void GameManager::UpdateEndScreen() {
-    // Dong ho rieng cua man hinh ket thuc - RenderSystem dung de chay so dan trong bang
-    // tong ket (xem DrawEndScreen). Dat o day thay vi trong Run() de no chi chay khi that
-    // su dang o man hinh nay va khong bi dong bang boi transition fade.
-    endScreenTimer += GetFrameTime();
-
-    MenuInput input = InputSystem::PollMenu(settings);
-
-    if (state == GameState::WAVE_CLEAR) {
-        // NANG CAP SAU WAVE (Track C - Nguoi 2, Phase 3): cycle 3 lua chon bang Trai/Phai -
-        // tai dung CycleDifficultyLeft/Right cua MenuInput (RANH trong man hinh nay, chi
-        // dung o UpdateMenu() cho DIFFICULTY - xem input_system.h), KHONG them phim moi.
-        if (input.CycleDifficultyLeft || input.CycleDifficultyRight) {
-            int dir = input.CycleDifficultyRight ? 1 : -1;
-            selectedUpgrade = (selectedUpgrade + dir + UPGRADE_TYPE_COUNT) % UPGRADE_TYPE_COUNT;
-        }
-
-        if (input.Confirm) {
-            // Ap dung nang cap dang chon TRUOC KHI sang wave ke. gm.wave o day DA duoc ++
-            // TU TRUOC (xem PhysicsSystem::UpdateEnemies()/UpdatePlaying() nhanh BOSS
-            // DEFEAT) - tuc DA LA wave SAP choi, nen check "wave boss sap toi" dung thang
-            // duoc, khong can suy nguoc. Wave boss: goi ApplyRunUpgrade() THEM 1 lan cho
-            // CUNG 1 luot chon (2 lan tong) thay vi them pool/loai rieng - xem upgrade_types.h.
-            UpgradeType chosen = (UpgradeType)selectedUpgrade;
-            player.ApplyRunUpgrade(chosen);
-            if (wave % Config::BOSS_WAVE_INTERVAL == 0) player.ApplyRunUpgrade(chosen);
-
-            InitLevel(false); // Giu diem/mang, sang wave ke tiep voi do kho cao hon
-            RequestTransition(GameState::PLAYING);
-        }
-        if (input.Restart) {
-            InitLevel(true); // Choi lai tu dau (wave 1, reset diem/mang)
-            RequestTransition(GameState::PLAYING);
-        }
-        return;
-    }
-
-    // GAME_OVER
-    if (input.Confirm) RequestTransition(GameState::MENU);
-    if (input.Restart) {
-        InitLevel(true);
-        RequestTransition(GameState::PLAYING);
-    }
-}
-
-void GameManager::UpdatePaused() {
-    MenuInput input = InputSystem::PollMenu(settings);
-    bool changed = false;
-    if (input.VolumeUp)   { audio.SetVolume(audio.GetVolume() + 0.1f); changed = true; }
-    if (input.VolumeDown) { audio.SetVolume(audio.GetVolume() - 0.1f); changed = true; }
-    if (changed) SaveSettings();
-    if (input.ToggleFullscreen) ToggleFullscreen();
-    if (input.OpenKeybinds) { state = GameState::KEYBIND; return; }
-    if (input.PauseToggle) state = GameState::PLAYING;
-}
-
-// ==========================================
-// KEYBIND - man hinh doi phim dieu khien, vao tu Paused (phim K). Khong dung
-// MenuInput/PollMenu() o day: ban chat man hinh nay la "bat ky phim nao cung co the la
-// gia tri hop le can GHI NHAN" (dang cho 1 phim MOI), khac han cac man hinh khac chi
-// quan tam vai phim CO Y NGHIA CO DINH - nen doc truc tiep IsKeyPressed(KEY_ESCAPE)/
-// so + InputSystem::PollAnyKeyPressed() thay vi ep vao khuon MenuInput.
-// ==========================================
-void GameManager::UpdateKeybindScreen() {
-    if (rebindingActionIndex == -1) {
-        // Dang hien danh sach 4 hanh dong - cho bam so 1-4 de chon 1 cai de doi.
-        if (IsKeyPressed(KEY_ESCAPE)) { state = GameState::PAUSED; return; }
-        if (IsKeyPressed(KEY_ONE))   { rebindingActionIndex = 0; return; }
-        if (IsKeyPressed(KEY_TWO))   { rebindingActionIndex = 1; return; }
-        if (IsKeyPressed(KEY_THREE)) { rebindingActionIndex = 2; return; }
-        if (IsKeyPressed(KEY_FOUR))  { rebindingActionIndex = 3; return; }
-        if (IsKeyPressed(KEY_ZERO) || IsKeyPressed(KEY_R)) {
-            settings.ResetKeyBindingsToDefault();
-            SaveSettings();
-        }
-        return;
-    }
-
-    // Da chon 1 hanh dong (rebindingActionIndex >= 0) - dang cho phim MOI cho no.
-    if (IsKeyPressed(KEY_ESCAPE)) { rebindingActionIndex = -1; return; } // Huy, giu nguyen phim cu
-
-    int newKey = InputSystem::PollAnyKeyPressed();
-    if (newKey == 0) return; // Chua co phim nao duoc bam frame nay - tiep tuc cho
-
-    // Tu choi cac phim "he thong" co dinh (Enter/R/F3/F11/mui ten/K/Esc) - day la
-    // NHUNG PHIM DUY NHAT khong the rebind vao duoc (xem chu thich Settings/MenuInput),
-    // dam bao nguoi choi khong bao gio tu khoa minh khoi menu du rebind be nao.
-    static const int reserved[] = { KEY_ESCAPE, KEY_ENTER, KEY_F3, KEY_F11, KEY_R,
-                                     KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT, KEY_K };
-    for (int r : reserved) {
-        if (newKey == r) return; // Phim he thong - bo qua yeu cau, tiep tuc cho phim khac
-    }
-
-    // Tu choi neu phim nay dang duoc 1 TRONG 3 hanh dong CON LAI su dung - tranh 2 hanh
-    // dong doi len cung 1 phim (se khong biet dang lam gi khi bam phim do).
-    const RebindableAction* actions = GetRebindableActions();
-    for (int i = 0; i < REBINDABLE_ACTION_COUNT; i++) {
-        if (i == rebindingActionIndex) continue;
-        if (settings.*(actions[i].keyField) == newKey) return;
-    }
-
-    settings.*(actions[rebindingActionIndex].keyField) = newKey;
-    SaveSettings();
-    rebindingActionIndex = -1;
-}
-
-// ==========================================
 // PLAYING - GameManager chi con DIEU PHOI o day: doc input -> goi PhysicsSystem cho
 // di chuyen/va cham -> xu ly hang doi hieu ung -> quyet dinh "luat choi" cap cao (het
 // mang thi Game Over, boss chet thi Wave Clear...). Khong con phep tinh hinh hoc/va
@@ -692,7 +504,14 @@ void GameManager::UpdatePlaying(float dt) {
     if (hitStop.IsActive()) return; // Dong bang toan bo logic ben duoi - Run() ngoai vong lap van goi Draw() binh thuong nen hinh khong dung, chi gameplay dung khung trong choc lat
 
     MenuInput menuInput = InputSystem::PollMenu(settings);
-    if (menuInput.PauseToggle) { state = GameState::PAUSED; return; }
+    if (menuInput.PauseToggle) {
+        state = GameState::PAUSED;
+        ui.pauseIndex = 0;
+        ui.screenTimer = 0.0f;
+        ui.confirm = ConfirmKind::None;
+        audio.PlayUiConfirm();
+        return;
+    }
     if (menuInput.Restart) {
         // Qua fade nhu MOI chuyen canh khac trong game (xem RequestTransition) - truoc day
         // rieng duong nay doi canh giat cuc, la ngoai le duy nhat.
@@ -700,7 +519,8 @@ void GameManager::UpdatePlaying(float dt) {
         RequestTransition(GameState::PLAYING);
         return;
     }
-    if (menuInput.ToggleFullscreen) ToggleFullscreen();
+    // F11 xu ly chung o UpdateUi() cho MOI man - goi them o day se bat/tat 2 lan trong 1 frame.
+    if (settings.IsAssisted()) runAssisted = true; // Doi toc do giua van cung tinh - nhan ASSIST la 1 chieu
 
     if (hintTimer > 0.0f) hintTimer -= dt;             // Goi y phim tu tat sau Config::HUD_HINT_DURATION giay
     if (waveBannerTimer > 0.0f) waveBannerTimer -= dt; // Banner dau wave tu tat sau Config::WAVE_BANNER_DURATION giay
@@ -776,7 +596,7 @@ void GameManager::UpdatePlaying(float dt) {
         }
 
         wave++;
-        lastSubmitResult = leaderboard.TrySubmit(player.GetScore(), wave);
+        lastSubmitResult = leaderboard.TrySubmit(player.GetScore(), wave, runAssisted);
         OnWaveCleared(true);
 
         // DYNAMIC DIFFICULTY ADJUSTMENT: CHECKPOINT moi chu ky Boss (khong phai moi wave
@@ -907,6 +727,20 @@ void GameManager::SetupShowcase(ShowcaseScene scene) {
     // (Chi con lech rat nho do IdleWobble/Parallax doc GetTime() - xem launch_options.h.)
     SetRandomSeed(1337);
     InitLevel(true);
+    // CANH GUI (nang cap GUI): dung dung man menu can chup, dong ho UI dat qua giai doan glitch +
+    // chu go (anh chup thay trang thai "on dinh"). Gameplay khong chay nen khong ghi gi ra dia.
+    ui.screenTimer = 5.0f;
+    ui.rowTimer = 5.0f;
+    switch (scene) {
+        case ShowcaseScene::Menu:         state = GameState::MENU; ui.menuIndex = 0; showcaseFrozen = true; return;
+        case ShowcaseScene::Hangar:       state = GameState::HANGAR; ui.hangarRow = 1; selectedLoadout = 1; showcaseFrozen = true; return;
+        case ShowcaseScene::Settings:     state = GameState::SETTINGS; ui.settingsTab = showcaseSettingsTab; ui.settingsRow = 1; showcaseFrozen = true; return;
+        case ShowcaseScene::HowTo:        state = GameState::HOWTO; ui.howtoPage = 1; showcaseFrozen = true; return;
+        case ShowcaseScene::Attract:      state = GameState::ATTRACT; ui.attractPage = 0; showcaseFrozen = true; return;
+        case ShowcaseScene::Leaderboard:  state = GameState::LEADERBOARD; showcaseFrozen = true; return;
+        case ShowcaseScene::Achievements: state = GameState::ACHIEVEMENTS; showcaseFrozen = true; return;
+        default: break;
+    }
     if (scene == ShowcaseScene::GameOver || scene == ShowcaseScene::WaveClear) {
         // Man tong ket voi so lieu co dinh. Gan THANG field thay vi goi TriggerGameOver()/
         // OnWaveCleared(): 2 ham do ghi leaderboard/currency/thanh tuu that cua nguoi choi.
@@ -938,7 +772,7 @@ void GameManager::SetupShowcase(ShowcaseScene scene) {
     waveBannerTimer = 0.0f;
 
     const float cx = Config::SCREEN_W / 2.0f;
-    if (scene == ShowcaseScene::Combat) {
+    if (scene == ShowcaseScene::Combat || scene == ShowcaseScene::Pause) {
         // Dich bi thuong -> hien vien "da an don" (chi bao can soi khi doi phong cach ve)
         if (tankyEnemies.Size() > 0) tankyEnemies[0].hp = TankyEnemy::HP - 1;
         if (wardenEnemies.Size() > 0) wardenEnemies[0].hp = WardenEnemy::HP - 1;
@@ -994,7 +828,7 @@ void GameManager::SetupShowcase(ShowcaseScene scene) {
     }
     // Tau dang luot sang phai + vua ban (nghieng + giat lui, GD 2): chay Player::Update that
     // vai frame thay vi ghi field rieng - trang thai hinh anh di dung duong code that.
-    if (scene == ShowcaseScene::Combat) {
+    if (scene == ShowcaseScene::Combat || scene == ShowcaseScene::Pause) {
         InputState steer;
         steer.Action_MoveRight = true;
         steer.Action_Shoot = true;
@@ -1005,7 +839,7 @@ void GameManager::SetupShowcase(ShowcaseScene scene) {
     // Vu no nhieu lop (GD 2) sinh SAU buoc tua tren va chi tua them 0.05s: loi flash chi song
     // ~0.1s, tua chung 0.12s thi anh chup khong bao gio thay no. 0.05s = loi con sang, vong
     // song da no ra ~1/3, manh vo vua tach khoi tam.
-    if (scene == ShowcaseScene::Combat) {
+    if (scene == ShowcaseScene::Combat || scene == ShowcaseScene::Pause) {
         particles.Explosion({ 160.0f, 200.0f }, Palette::BasicA, ExplosionSize::Small);
         particles.Explosion({ 620.0f, 230.0f }, Palette::Kamikaze, ExplosionSize::Small);
         warpGrid.ApplyExplosiveForce({ 160.0f, 200.0f }, Config::GRID_PUSH_SMALL, Config::GRID_RADIUS_SMALL);
@@ -1026,16 +860,20 @@ void GameManager::SetupShowcase(ShowcaseScene scene) {
     shockwaves.Update(0.15f);
     // Luoi: tua cung khoang thoi gian voi lop no (3 buoc ~ 0.05s) - song lom dang lan ra
     for (int i = 0; i < 3; i++) warpGrid.Update(WarpGrid::STEP, settings.graphics.GridEnabled());
+    if (scene == ShowcaseScene::Pause) { state = GameState::PAUSED; ui.pauseIndex = 1; }
     showcaseFrozen = true;
 }
 
 PostFxFrame GameManager::BuildPostFxFrame() const {
     PostFxFrame fx;
-    fx.waveCount = shockwaves.Fill(fx.waves, ShockwaveField::CAPACITY);
+    // Song xung kich chi khi DANG CHOI: pause dong bang song giua chung, de nguyen thi menu pause/
+    // cai dat bi meo vinh vien dung cho do (thay o anh chup). Tiep tuc choi -> song chay tiep.
+    fx.waveCount = (state == GameState::PLAYING) ? shockwaves.Fill(fx.waves, ShockwaveField::CAPACITY) : 0;
     fx.hurt = HurtDesaturation(hurtTimer, Config::HURT_DESAT_DURATION);
     // Vien do theo giai doan boss (1 nguon: BossStage) - CHI khi dang choi/pause man boss, khong
     // keo sang man tong ket. Stage 2 = nua, stage 3 = day du.
-    const bool inFight = (state == GameState::PLAYING || state == GameState::PAUSED || state == GameState::KEYBIND);
+    const bool inFight = (state == GameState::PLAYING || state == GameState::PAUSED
+                          || (state == GameState::SETTINGS && ui.settingsReturn == GameState::PAUSED));
     if (inFight && bossPool.Size() > 0) {
         int stage = BossStage(bossPool[0]);
         fx.enrage = (stage >= 3) ? 1.0f : (stage == 2 ? 0.5f : 0.0f);
@@ -1096,14 +934,20 @@ void GameManager::Run(const LaunchOptions& opts) {
     // thu muc assets/ theo cung executable) thi fallback ve font mac dinh cua raylib
     // thay vi crash - cung triet ly voi Settings/LevelGridConfig (khong bao gio crash vi
     // thieu 1 file khong bat buoc).
-    gameFont = LoadFontEx(Config::FontFilePath(), Config::FONT_BASE_SIZE, nullptr, 0);
+    //
+    // BANG MA (nang cap GUI): truoc day truyen nullptr -> raylib chi rasterize 95 ky tu ASCII, chu
+    // tieng Viet co dau ve ra o trong AM THAM. Gio truyen Loc::FontCharset() (ASCII + 134 chu cai
+    // tieng Viet + vai ky hieu) cho CA 2 font - tests/test_localization.cpp khoa rang moi chuoi
+    // trong bang dich deu nam trong bang ma nay.
+    std::vector<int> charset = Loc::FontCharset();
+    gameFont = LoadFontEx(Config::FontFilePath(), Config::FONT_BASE_SIZE, charset.data(), (int)charset.size());
     if (!IsFontValid(gameFont)) {
         TraceLog(LOG_WARNING, "Khong tai duoc font '%s' - dung font mac dinh cua raylib", Config::FontFilePath());
         gameFont = GetFontDefault();
     } else {
         SetTextureFilter(gameFont.texture, TEXTURE_FILTER_BILINEAR); // Muot khi ve nho lai tu base size lon
     }
-    titleFont = LoadFontEx(Config::TitleFontFilePath(), Config::TITLE_FONT_BASE_SIZE, nullptr, 0);
+    titleFont = LoadFontEx(Config::TitleFontFilePath(), Config::TITLE_FONT_BASE_SIZE, charset.data(), (int)charset.size());
     if (!IsFontValid(titleFont)) {
         TraceLog(LOG_WARNING, "Khong tai duoc font tieu de '%s' - dung font chu thuong", Config::TitleFontFilePath());
         titleFont = gameFont;
@@ -1137,12 +981,15 @@ void GameManager::Run(const LaunchOptions& opts) {
     postProcess.Init(); // Bloom/CRT (Config::BLOOM_ENABLED/CRT_ENABLED) - xem post_process.h
     background.Init();  // Starfield - xem parallax.h
 
-    settings = Settings::LoadFromFile(Config::SettingsFilePath());
+    // Ngon ngu mac dinh lan dau = ngon ngu he dieu hanh (chi dung khi settings.cfg chua co LANGUAGE).
+    settings = Settings::LoadFromFile(Config::SettingsFilePath(), Loc::DetectSystemLanguage());
     difficulty = settings.difficulty;
-    audio.SetVolume(settings.volume);
     if (opts.qualityOverride >= 0) settings.graphics.quality = (GraphicsQuality)opts.qualityOverride; // Chi trong RAM - xem launch_options.h
-    ApplyGraphicsSettings(); // TRUOC SetupShowcase: Burst() cua canh trinh dien cung phai theo preset
+    if (opts.languageOverride >= 0) settings.language = (Language)opts.languageOverride;              // Chi trong RAM - chup anh 2 ngon ngu
+    if (opts.scene != ShowcaseScene::None) settings.fullscreen = false; // Canh chup anh luon trong cua so 800x600
+    ApplySettings(); // TRUOC SetupShowcase: Burst() cua canh trinh dien cung phai theo preset
 
+    showcaseSettingsTab = opts.settingsTab;
     if (opts.scene != ShowcaseScene::None) SetupShowcase(opts.scene);
 
     // --bench (launch_options.h): bo gioi han 60 FPS de do chi phi THAT cua 1 frame, bo qua
@@ -1153,7 +1000,7 @@ void GameManager::Run(const LaunchOptions& opts) {
     benchFrameMs.reserve((size_t)opts.benchFrames);
     benchRenderMs.reserve((size_t)opts.benchFrames);
     int frameIndex = 0;
-    bool quitRequested = false;
+    quitRequested = false;
 
     while (!quitRequested && !WindowShouldClose()) {
         ++frameIndex;
@@ -1170,7 +1017,7 @@ void GameManager::Run(const LaunchOptions& opts) {
         bool frozen = (transitionPhase != TransitionPhase::NONE) || showcaseFrozen;
         // Luoi chay theo thoi gian thuc ca o MENU (nen song dong), nhung dung khi PAUSE va khi
         // canh trinh dien dong bang (anh chup phai lap lai duoc).
-        if (!showcaseFrozen && state != GameState::PAUSED && state != GameState::KEYBIND) {
+        if (!showcaseFrozen && state != GameState::PAUSED && state != GameState::SETTINGS) {
             warpGrid.Update(dt, settings.graphics.GridEnabled());
         }
         // Warp chi dem nguoc khi THAT SU dang choi (khong trong fade vao wave) - neu khong, phan
@@ -1179,18 +1026,26 @@ void GameManager::Run(const LaunchOptions& opts) {
         background.Update(dt, Parallax::WarpSpeedMul(warpBoostTimer));
         nebula.Update(dt * Parallax::WarpSpeedMul(warpBoostTimer));
         // Chuong mau theo wave (menu = chuong 0). EnsureBaked chi nuong khi (chuong, so lop) doi.
-        nebula.EnsureBaked(state == GameState::MENU ? 0 : Nebula::ChapterForWave(wave), settings.graphics.NebulaLayers());
+        const bool menuScreen = state == GameState::MENU || state == GameState::HANGAR || state == GameState::LEADERBOARD
+                                || state == GameState::HOWTO || state == GameState::ATTRACT || state == GameState::ACHIEVEMENTS
+                                || (state == GameState::SETTINGS && ui.settingsReturn == GameState::MENU);
+        nebula.EnsureBaked(menuScreen ? 0 : Nebula::ChapterForWave(wave), settings.graphics.NebulaLayers());
 
+        if (!showcaseFrozen) UpdateUi(dt); // Chuot/dong ho UI/F11 - chay ca trong luc fade
         if (!frozen) {
             switch (state) {
-                case GameState::MENU:       UpdateMenu(); break;
-                case GameState::GAME_OVER:
-                case GameState::WAVE_CLEAR: UpdateEndScreen(); break;
-                case GameState::PAUSED:     UpdatePaused(); break;
-                case GameState::KEYBIND:    UpdateKeybindScreen(); break;
+                case GameState::MENU:         UpdateMenu(); break;
+                case GameState::HANGAR:       UpdateHangar(); break;
+                case GameState::LEADERBOARD:  UpdateLeaderboardScreen(); break;
+                case GameState::HOWTO:        UpdateHowToScreen(); break;
+                case GameState::SETTINGS:     UpdateSettingsScreen(); break;
+                case GameState::ATTRACT:      UpdateAttract(dt); break;
                 case GameState::ACHIEVEMENTS: UpdateAchievementsScreen(); break;
-                case GameState::GRAPHICS:   UpdateGraphicsScreen(); break;
-                case GameState::PLAYING:    UpdatePlaying(dt); break;
+                case GameState::GAME_OVER:
+                case GameState::WAVE_CLEAR:   UpdateEndScreen(); break;
+                case GameState::PAUSED:       UpdatePaused(); break;
+                // TOC DO GAME (Tro nang): chi lam cham THE GIOI GAME - menu/UI van theo thoi gian that
+                case GameState::PLAYING:      UpdatePlaying(dt * settings.GameSpeedScale()); break;
             }
         }
 
@@ -1206,15 +1061,24 @@ void GameManager::Run(const LaunchOptions& opts) {
         if (settings.graphics.GridEnabled()) warpGrid.Draw(calm); // Tren sao, duoi moi noi dung (luat R2)
 
         switch (state) {
-            case GameState::MENU: RenderSystem::DrawMenu(*this); break;
-            case GameState::GAME_OVER:
-            case GameState::WAVE_CLEAR: RenderSystem::DrawEndScreen(*this); break;
-            case GameState::PLAYING:
-            case GameState::PAUSED:
-            case GameState::KEYBIND: RenderSystem::DrawPlaying(*this); break;
+            case GameState::MENU:         RenderSystem::DrawMenu(*this); break;
+            case GameState::HANGAR:       RenderSystem::DrawHangar(*this); break;
+            case GameState::LEADERBOARD:  RenderSystem::DrawLeaderboard(*this); break;
+            case GameState::HOWTO:        RenderSystem::DrawHowTo(*this); break;
+            case GameState::ATTRACT:      RenderSystem::DrawAttract(*this); break;
             case GameState::ACHIEVEMENTS: RenderSystem::DrawAchievements(*this); break;
-            case GameState::GRAPHICS: RenderSystem::DrawGraphicsSettings(*this); break;
+            case GameState::GAME_OVER:
+            case GameState::WAVE_CLEAR:   RenderSystem::DrawEndScreen(*this); break;
+            case GameState::PLAYING:
+            case GameState::PAUSED:       RenderSystem::DrawPlaying(*this); break;
+            case GameState::SETTINGS:
+                // Mo tu PAUSE: van chung hien phia sau (lam mo) - nguoi choi khong "mat dau" van dang do
+                if (ui.settingsReturn == GameState::PAUSED) RenderSystem::DrawPlaying(*this);
+                RenderSystem::DrawSettings(*this);
+                break;
         }
+        RenderSystem::DrawConfirm(*this);   // Hop Co/Khong (neu dang mo) - tren noi dung moi man
+        RenderSystem::DrawFpsCounter(*this);
         RenderSystem::DrawAchievementToast(*this); // Tren noi dung moi state, duoi lop fade
 
 
