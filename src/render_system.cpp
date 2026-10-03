@@ -9,6 +9,7 @@
 #include "localization.h"
 #include "upgrade_types.h"
 #include "palette.h"
+#include "ui_anim.h"
 
 // Logo tieu de MENU: hang basicAlien THAT (SpriteSheet, dung atlas Kenney neu co - xem
 // docs/ASSET_INTEGRATION.md, fallback procedural neu khong - xem sprites.cpp) nhap nhoi
@@ -737,20 +738,77 @@ void RenderSystem::DrawHUD(const GameManager& gm) {
     // thanh mau boss) thay vi chuoi "BOSS" chung chung: nguoi choi biet ngay minh sap gap
     // co che nao truoc khi no bat dau, thay vi phai doan qua vai giay dau tran.
     // ==========================================
-    if (gm.waveBannerTimer > 0.0f) {
-        float alpha = (gm.waveBannerTimer < Config::WAVE_BANNER_FADE)
-                        ? (gm.waveBannerTimer / Config::WAVE_BANNER_FADE) : 1.0f;
-        int cx = Config::SCREEN_W / 2;
-        if (gm.isBossWave && gm.bossPool.Size() > 0) {
-            canvas.CenteredText(cx, 250, 46, Fade(Palette::BossEnrage2, alpha),
-                                TextFormat("BOSS - %s", BossTypeName(gm.bossPool[0].type)));
-            canvas.CenteredText(cx, 300, 18, Fade(Palette::UiDim, alpha), Loc::BossIncomingHint);
-        } else {
-            canvas.CenteredText(cx, 250, 46, Fade(Palette::UiAccent, alpha), TextFormat("WAVE %d", gm.wave));
+    canvas.Draw(gm.gameFont);
+    DrawWaveBanner(gm); // Ve thang (font Audiowide + hinh khoi) -> phai SAU canvas de nam tren cung
+}
+
+// ==========================================
+// BANNER DAU WAVE (GD 5) - ve SAU cung trong HUD nen luon nam tren moi thu khac. Wave boss dung
+// chinh ten loai boss (BossTypeName - 1 nguon voi thanh mau) de nguoi choi biet ngay sap gap co
+// che nao.
+//   - Wave thuong: "WAVE n" neon Audiowide + 2 vach mong phong ra tu tam (0.35s ease-out).
+//   - Wave boss: dai CANH BAO soc cheo do-den troi ngang + "WARNING" + ten boss - kieu arcade
+//     (Galaga/Ikaruga). Do = nguy hiem tuc thi theo luat lanh/nong. Soc TROI deu, khong nhap
+//     nhay -> khong dung toi reduceFlashing.
+// ==========================================
+void RenderSystem::DrawWaveBanner(const GameManager& gm) {
+    if (gm.waveBannerTimer <= 0.0f) return;
+    const float alpha = (gm.waveBannerTimer < Config::WAVE_BANNER_FADE)
+                          ? (gm.waveBannerTimer / Config::WAVE_BANNER_FADE) : 1.0f;
+    const float elapsed = Config::WAVE_BANNER_DURATION - gm.waveBannerTimer;
+    const float cx = Config::SCREEN_W / 2.0f;
+    const float open = EaseOutCubic(elapsed, 0.35f);
+
+    if (gm.isBossWave && gm.bossPool.Size() > 0) {
+        const float bandY = 236.0f, bandH = 74.0f;
+        // Nen dai + 2 vien soc cheo (scissor de soc khong tran ra ngoai vien)
+        DrawRectangleRec({ 0.0f, bandY, (float)Config::SCREEN_W, bandH }, Fade(Palette::Background, 0.82f * alpha));
+        const float stripeH = 9.0f, stripeW = 18.0f, period = 36.0f;
+        const float scroll = fmodf(elapsed * 60.0f, period);
+        const Color stripe = Fade(Palette::BossEnrage2, 0.85f * alpha);
+        for (int edge = 0; edge < 2; edge++) {
+            const float y = (edge == 0) ? bandY : bandY + bandH - stripeH;
+            BeginScissorMode(0, (int)y, Config::SCREEN_W, (int)stripeH);
+            for (float x = -period + (edge == 0 ? scroll : -scroll); x < Config::SCREEN_W + period; x += period) {
+                // Hinh binh hanh nghieng 45 do = 2 tam giac (thu tu dinh nguoc chieu kim dong ho cho raylib)
+                Vector2 a{ x, y + stripeH }, b{ x + stripeW, y + stripeH }, c{ x + stripeW + stripeH, y }, d{ x + stripeH, y };
+                DrawTriangle(a, b, c, stripe);
+                DrawTriangle(a, c, d, stripe);
+            }
+            EndScissorMode();
+        }
+        // Chu mo rong dan (open) - "WARNING" hien ra tu tam
+        DrawNeonText(gm.titleFont, "WARNING", { cx, bandY + 30.0f }, 34.0f + 6.0f * (1.0f - open), Palette::BossEnrage2, alpha);
+        const char* name = TextFormat("%s - %s", BossTypeName(gm.bossPool[0].type), Loc::BossIncomingHint);
+        Vector2 sz = MeasureTextEx(gm.gameFont, name, 16.0f, 1.0f);
+        DrawTextEx(gm.gameFont, name, { cx - sz.x / 2.0f, bandY + bandH - stripeH - 22.0f }, 16.0f, 1.0f, Fade(Palette::UiText, alpha));
+    } else {
+        const char* label = TextFormat("WAVE %d", gm.wave);
+        DrawNeonText(gm.titleFont, label, { cx, 262.0f }, 44.0f, Palette::UiAccent, alpha);
+        const float half = 230.0f * open;
+        const Color line = Fade(Palette::UiAccent, 0.6f * alpha);
+        DrawRectangleRec({ cx - half, 292.0f, half * 2.0f, 2.0f }, line);
+        DrawRectangleRec({ cx - half * 0.6f, 232.0f, half * 1.2f, 1.0f }, Fade(line, 0.5f * alpha));
+    }
+}
+
+void RenderSystem::DrawTransitionWipe(float alpha) {
+    if (alpha <= 0.0f) return;
+    constexpr int BANDS = 12;
+    const float bandH = (float)Config::SCREEN_H / (float)BANDS;
+    for (int i = 0; i < BANDS; i++) {
+        float cover = WipeBandCoverage(alpha, i, BANDS);
+        if (cover <= 0.0f) continue;
+        float h = bandH * cover;
+        float y = (float)i * bandH + (bandH - h) / 2.0f; // Dong tu GIUA dai ra 2 mep
+        DrawRectangleRec({ 0.0f, y, (float)Config::SCREEN_W, h + 0.5f }, Palette::Background);
+        // Mep sang mong o 2 bien dai dang dong - "tia quet" CRT; tat khi dai da kin
+        if (cover < 1.0f) {
+            Color edge = Fade(Palette::Weaver, 0.35f * (1.0f - cover));
+            DrawRectangleRec({ 0.0f, y, (float)Config::SCREEN_W, 1.0f }, edge);
+            DrawRectangleRec({ 0.0f, y + h - 1.0f, (float)Config::SCREEN_W, 1.0f }, edge);
         }
     }
-
-    canvas.Draw(gm.gameFont);
 }
 
 // ==========================================

@@ -24,3 +24,22 @@ inline float DamageTrail(float trail, float actual, float dt, float drainPerSec 
     float t = trail - drainPerSec * dt;
     return t < actual ? actual : t;
 }
+
+// CHUYEN CANH DANG "MANH SAP" (GD 5): man hinh chia bandCount dai ngang, moi dai dong lai tu
+// giua ra 2 mep, lech nhip tu tren xuong (dai duoi bat dau muon hon toi 1/3 hanh trinh). Thay cho
+// fade den deu: cung thoi gian, cung "toi han" o alpha = 1, nhung co huong chuyen dong kieu CRT.
+// Tra ve ty le che 0..1 cua dai `band`. alpha = 0 -> 0 moi dai; alpha = 1 -> 1 moi dai.
+inline float WipeBandCoverage(float alpha, int band, int bandCount) {
+    if (bandCount <= 1) return alpha < 0.0f ? 0.0f : (alpha > 1.0f ? 1.0f : alpha);
+    float lag = 0.5f * (float)band / (float)(bandCount - 1);
+    float t = alpha * 1.5f - lag;
+    return t < 0.0f ? 0.0f : (t > 1.0f ? 1.0f : t);
+}
+
+// Ease-out bac 3 cua `elapsed` tren `duration` - dung cho vach banner "phong ra" tu tam.
+inline float EaseOutCubic(float elapsed, float duration) {
+    if (duration <= 0.0f || elapsed >= duration) return 1.0f;
+    if (elapsed <= 0.0f) return 0.0f;
+    float k = 1.0f - elapsed / duration;
+    return 1.0f - k * k * k;
+}

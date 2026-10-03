@@ -1197,10 +1197,7 @@ void GameManager::Run(const LaunchOptions& opts) {
         RenderSystem::DrawAchievementToast(*this); // Tren noi dung moi state, duoi lop fade
 
 
-        float alpha = GetTransitionAlpha();
-        if (alpha > 0.0f) {
-            DrawRectangle(0, 0, Config::SCREEN_W, Config::SCREEN_H, Fade(BLACK, alpha));
-        }
+        RenderSystem::DrawTransitionWipe(GetTransitionAlpha()); // GD 5: man sap thay fade den deu
         EndTextureMode();
 
         // BUOC 2: upscale canvas noi bo len window that, giu dung ty le khung hinh.

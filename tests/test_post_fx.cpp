@@ -130,3 +130,24 @@ TEST_CASE("DamageTrail: vet rut dan ve mau that, hoi mau thi nhay theo ngay", "[
     REQUIRE(DamageTrail(0.51f, 0.5f, 0.1f) == Approx(0.5f)); // khong rut qua mau that
     REQUIRE(DamageTrail(0.5f, 0.7f, 0.1f) == Approx(0.7f));  // hoi mau -> theo ngay
 }
+
+TEST_CASE("WipeBandCoverage: alpha 0 trong suot, alpha 1 KIN HET moi dai (khong lo khe giua 2 state)", "[ui]") {
+    for (int b = 0; b < 12; b++) {
+        REQUIRE(WipeBandCoverage(0.0f, b, 12) == Approx(0.0f));
+        REQUIRE(WipeBandCoverage(1.0f, b, 12) == Approx(1.0f));
+        float prev = 0.0f;
+        for (int i = 1; i <= 20; i++) {
+            float c = WipeBandCoverage((float)i / 20.0f, b, 12);
+            REQUIRE(c >= prev); // dong dan, khong mo nguoc
+            prev = c;
+        }
+    }
+    // Lech nhip: giua chung, dai tren che nhieu hon dai duoi
+    REQUIRE(WipeBandCoverage(0.5f, 0, 12) > WipeBandCoverage(0.5f, 11, 12));
+}
+
+TEST_CASE("EaseOutCubic: 0 -> 1, nhanh luc dau", "[ui]") {
+    REQUIRE(EaseOutCubic(0.0f, 0.35f) == Approx(0.0f));
+    REQUIRE(EaseOutCubic(0.35f, 0.35f) == Approx(1.0f));
+    REQUIRE(EaseOutCubic(0.175f, 0.35f) > 0.5f);
+}

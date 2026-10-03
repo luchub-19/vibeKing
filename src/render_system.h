@@ -35,6 +35,8 @@ public:
     // the mo dung luc chuyen canh sang WAVE_CLEAR/GAME_OVER.
     static void DrawAchievements(const GameManager& gm);
     static void DrawGraphicsSettings(const GameManager& gm); // Trang GRAPHICS (phim G o MENU)
+    // Chuyen canh dang man sap (GD 5) - thay DrawRectangle den toan man trong GameManager::Run().
+    static void DrawTransitionWipe(float alpha);
     static void DrawAchievementToast(const GameManager& gm);
 
     // OBSERVABILITY / PROFILING OVERLAY: FPS, frame time, RAM tien trinh thuc te (xem
@@ -54,6 +56,7 @@ private:
     // Bang tong ket run (nhanh GAME_OVER cua DrawEndScreen) - tach ham rieng vi no dai
     // gap nhieu lan nhanh WAVE_CLEAR ben canh, gop chung se lam DrawEndScreen kho doc.
     static void DrawRunSummary(UICanvas& canvas, const GameManager& gm, int centerX);
+    static void DrawWaveBanner(const GameManager& gm); // GD 5 - goi tu cuoi DrawHUD
     static void DrawWeaverEnemies(const GameManager& gm, float animTime);
     static void DrawBomberEnemies(const GameManager& gm, float animTime);
 };
